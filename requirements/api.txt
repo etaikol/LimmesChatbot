@@ -1,0 +1,23 @@
+# =====================================================================
+# API — base + FastAPI server + all built-in channels
+# =====================================================================
+# Use this for the multi-channel HTTP server (web widget + Telegram +
+# WhatsApp + LINE).
+#
+#   pip install -r requirements/api.txt
+# =====================================================================
+
+-r base.txt
+
+# ── HTTP server ─────────────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+httpx==0.28.1
+
+# ── Channel SDKs ────────────────────────────────────────────────────
+twilio==9.3.8                  # WhatsApp / SMS via Twilio
+
+# Telegram and LINE adapters use raw HTTP (httpx) so no extra SDK
+# is needed by default. Add line-bot-sdk only if you want richer
+# LINE features (flex messages, rich menus, etc.).

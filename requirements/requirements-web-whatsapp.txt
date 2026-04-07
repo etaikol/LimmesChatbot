@@ -1,9 +1,0 @@
-# ========================================================================
-# WEB + WHATSAPP (Chatbot on web + WhatsApp via Twilio)
-# ========================================================================
-# Use this if you want web widget AND WhatsApp integration
-
--r requirements-web.txt
-
-# WhatsApp Integration
-twilio==9.3.8

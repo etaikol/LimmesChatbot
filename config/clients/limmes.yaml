@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Limmes — Interior Design Store, Nes Ziona, Israel
+# (MVP client configuration)
+# ─────────────────────────────────────────────────────────────────────────────
+
+id: limmes
+name: Limmes — Interior Design
+language_primary: he         # Hebrew first, gpt-4o-mini handles RTL natively
+language_fallback: en
+location: "Nes Ziona, Israel"
+timezone: "Asia/Jerusalem"
+
+personality: design_studio
+
+# Business facts that change the *content* of the answers without rewriting
+# the personality. Keep this section short — long manuals belong under data/.
+system_prompt_extra: |
+  About the business:
+    • Limmes is a design-interior store and showroom located in נס ציונה (Nes Ziona),
+      Israel. We sell furniture, lighting, decor, and offer interior-design
+      consultation for homes and small offices.
+    • Our customers are mostly Hebrew speakers; default to Hebrew unless the
+      visitor writes in another language. Use natural, modern Hebrew (no
+      stilted machine-translated phrases).
+    • When asked about prices, dimensions, lead times, stock availability,
+      or shipping outside Israel — answer ONLY from the catalog provided
+      under `data/limmes/`. If unknown, invite the visitor to call or visit
+      the showroom.
+    • Always offer the next step: visit the showroom, schedule a design
+      consultation, or contact us by phone/WhatsApp.
+
+greeting_override: "שלום! 👋 איך אפשר לעזור היום? אפשר לשאול אותי על מוצרים, שעות פתיחה, או לקבוע פגישת ייעוץ."
+
+# Folder structure recommendation:
+#   data/limmes/catalog/      <- product PDFs
+#   data/limmes/policies/     <- shipping, returns, warranty
+#   data/limmes/about/        <- hours, location, team
+data_paths:
+  - data/limmes
+
+# If you don't have PDFs yet, point at the public website and let the
+# scraper pull plain text. Run: python -m scripts.scrape
+scrape_urls:
+  - "https://www.limmes.co.il/"
+
+channels:
+  web:        { enabled: true }
+  whatsapp:   { enabled: true }
+  telegram:   { enabled: false }
+  line:       { enabled: false }

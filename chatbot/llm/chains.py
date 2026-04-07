@@ -1,0 +1,63 @@
+"""
+LangChain Expression Language (LCEL) chains.
+
+`build_rag_chain` returns a runnable that takes:
+    {"question": str, "history": str}
+and returns the assistant's answer as a string.
+
+It internally:
+    1. Runs the retriever on `question` and formats results into `context`.
+    2. Fills the chat template with system_prompt + history + context + question.
+    3. Calls the LLM and parses to a plain string.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from langchain_core.documents import Document
+from langchain_core.language_models import BaseChatModel
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.retrievers import BaseRetriever
+from langchain_core.runnables import Runnable, RunnableLambda
+
+from chatbot.core.prompts import RAG_CHAT_TEMPLATE
+
+
+def _format_docs(docs: list[Document]) -> str:
+    if not docs:
+        return "(no relevant context found)"
+    blocks: list[str] = []
+    for d in docs:
+        meta = d.metadata or {}
+        src = meta.get("source") or meta.get("file_name") or "unknown"
+        page = meta.get("page")
+        head = f"[{src}{f' p.{page}' if page is not None else ''}]"
+        blocks.append(f"{head}\n{d.page_content}")
+    return "\n\n---\n\n".join(blocks)
+
+
+def build_rag_chain(
+    llm: BaseChatModel,
+    retriever: BaseRetriever,
+    system_prompt: str,
+) -> Runnable:
+    """Build a RAG runnable. Input: dict with 'question' and 'history'."""
+
+    def fetch_context(inputs: dict[str, Any]) -> str:
+        question = inputs.get("question", "")
+        docs = retriever.invoke(question)
+        return _format_docs(docs)
+
+    chain = (
+        {
+            "system_prompt": RunnableLambda(lambda _: system_prompt),
+            "context": RunnableLambda(fetch_context),
+            "history": RunnableLambda(lambda x: x.get("history") or "(none)"),
+            "question": RunnableLambda(lambda x: x["question"]),
+        }
+        | RAG_CHAT_TEMPLATE
+        | llm
+        | StrOutputParser()
+    )
+    return chain
