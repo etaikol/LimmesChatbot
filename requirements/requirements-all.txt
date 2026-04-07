@@ -1,0 +1,6 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# ALL INTEGRATIONS (Web + WhatsApp + Telegram)
+# ══════════════════════════════════════════════════════════════════════════════
+# Full feature set: embed widget, WhatsApp, and Telegram
+
+-r requirements-web-whatsapp.txt

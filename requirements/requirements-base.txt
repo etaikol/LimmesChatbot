@@ -1,0 +1,17 @@
+# ========================================================================
+# BASE DEPENDENCIES (Required for all)
+# ========================================================================
+
+# RAG & LLM Stack
+langchain==1.2.15
+langchain-core==1.2.26
+langchain-openai==1.1.12
+langchain-community==0.4.1
+openai==2.30.0
+
+# PDF & Vector Storage
+pypdf==6.9.2
+chromadb==1.5.6
+
+# Configuration & Environment
+python-dotenv==1.0.0

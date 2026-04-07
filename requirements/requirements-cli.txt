@@ -1,0 +1,6 @@
+# ========================================================================
+# CLI ONLY (Local chatbot via command line)
+# ========================================================================
+# Use this if you only want to run chatbot.py locally (no API server)
+
+-r requirements-base.txt
