@@ -1,0 +1,29 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# LIMMES CHATBOT - CHOOSE YOUR SETUP
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Pick ONE based on your use case (don't need all dependencies!)
+#
+# 🌐 WEB CHATBOT ONLY (most common - you want this!)
+#    pip install -r requirements-web.txt
+#    → FastAPI + web widget chat (no WhatsApp/Telegram bloat)
+#    → ~40-50MB installed
+#
+# 📱 WEB + WHATSAPP  
+#    pip install -r requirements-web-whatsapp.txt
+#    → Web chat + WhatsApp integration via Twilio
+#    → ~50-60MB installed
+#
+# 🤖 ALL INTEGRATIONS (full feature set)
+#    pip install -r requirements-all.txt
+#    → Web + WhatsApp + Telegram
+#    → ~60-70MB installed
+#
+# 💻 CLI ONLY (local chatbot via terminal, no web server)
+#    pip install -r requirements-cli.txt
+#    → Just the RAG stack (RAG + PDF + ChromaDB)
+#    → ~30-40MB installed
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# DEFAULT: Full stack (for backward compatibility with old installs)
+-r requirements-all.txt

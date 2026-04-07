@@ -1,0 +1,13 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# WEB WIDGET ONLY (Chatbot embedded on websites)
+# ══════════════════════════════════════════════════════════════════════════════
+# Use this if you only want the web chat bubble
+
+-r requirements-base.txt
+
+# Web Framework
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+pydantic==2.10.3
+python-multipart==0.0.20
+httpx==0.28.1

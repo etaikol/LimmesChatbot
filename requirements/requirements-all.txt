@@ -1,0 +1,9 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# ALL INTEGRATIONS (Web + WhatsApp + Telegram)
+# ══════════════════════════════════════════════════════════════════════════════
+# Use this for full feature set: embed widget, WhatsApp, and Telegram
+
+-r requirements-web-whatsapp.txt
+
+# Telegram Integration (optional)
+# httpx is already in requirements-web.txt
