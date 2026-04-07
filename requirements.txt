@@ -1,28 +1,28 @@
-# ══════════════════════════════════════════════════════════════════════════════
+# ========================================================================
 # LIMMES CHATBOT - COMPLETE REQUIREMENTS
 # All dependencies for Web API + CLI + All Integrations
-# ══════════════════════════════════════════════════════════════════════════════
+# ========================================================================
 
-# ─ Web Framework (FastAPI) ───────────────────────────────────────────────────
+# Web Framework (FastAPI)
 fastapi==0.115.12
 uvicorn[standard]==0.34.0
 pydantic==2.10.3
 python-multipart==0.0.20
 httpx==0.28.1
 
-# ─ Integrations ──────────────────────────────────────────────────────────────
+# Integrations
 twilio==9.3.8
 
-# ─ RAG & LLM Stack ───────────────────────────────────────────────────────────
+# RAG & LLM Stack
 langchain==1.2.15
 langchain-core==1.2.26
 langchain-openai==1.1.12
 langchain-community==0.4.1
 openai==2.30.0
 
-# ─ PDF & Vector Storage ──────────────────────────────────────────────────────
+# PDF & Vector Storage
 pypdf==6.9.2
 chromadb==1.5.6
 
-# ─ Configuration & Environment ──────────────────────────────────────────────
+# Configuration & Environment
 python-dotenv==1.0.0

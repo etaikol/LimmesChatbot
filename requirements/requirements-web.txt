@@ -1,7 +1,7 @@
-# ══════════════════════════════════════════════════════════════════════════════
+# ========================================================================
 # WEB WIDGET ONLY (Chatbot embedded on websites)
-# ══════════════════════════════════════════════════════════════════════════════
-# Use this if you only want the web chat bubble
+# ========================================================================
+# Use this if you only want the web chat bubble (no WhatsApp/Telegram)
 
 -r requirements-base.txt
 
