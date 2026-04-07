@@ -23,7 +23,7 @@ pypdf==6.9.2
 
 # ── Settings, validation ───────────────────────────────────────────
 pydantic==2.10.3
-pydantic-settings==2.7.1
+pydantic-settings==2.10.1
 
 # ── Logging, env ───────────────────────────────────────────────────
 loguru==0.7.3
