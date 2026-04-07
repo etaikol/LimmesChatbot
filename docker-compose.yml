@@ -1,0 +1,41 @@
+services:
+  chatbot:
+    build: .
+    image: limmes-chatbot:latest
+    container_name: limmes-chatbot
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Persist vector store and conversations across restarts
+      - chatbot_vectorstore:/app/.vectorstore
+      - chatbot_sessions:/app/.sessions
+      # Mount your knowledge base read-only — re-ingest after editing
+      - ./data:/app/data:ro
+      - ./config:/app/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx,sys; sys.exit(0 if httpx.get('http://localhost:8000/health').status_code==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # Optional PostgreSQL backend — uncomment to enable.
+  # postgres:
+  #   image: postgres:16-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: chatbot
+  #     POSTGRES_PASSWORD: changeme
+  #     POSTGRES_DB: chatbot
+  #   volumes:
+  #     - chatbot_pg:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+volumes:
+  chatbot_vectorstore:
+  chatbot_sessions:
+  # chatbot_pg:
