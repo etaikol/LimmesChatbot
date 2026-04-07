@@ -52,4 +52,4 @@ Thumbs.db
 
 # Project specific
 *.pdf
-.docs/
+docs/
