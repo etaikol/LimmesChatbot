@@ -58,13 +58,16 @@ def explain_llm_error(exc: BaseException) -> str:
             "API key is invalid or missing. Set OPENAI_API_KEY in your .env file. "
             "Get one at https://platform.openai.com/api-keys."
         )
-    if "rate_limit" in text or "429" in text:
-        return "Rate limit reached. Please wait a moment and try again."
+    # Check insufficient_quota BEFORE rate_limit/429: an "insufficient_quota"
+    # error is reported by OpenAI as HTTP 429, so the more specific message
+    # must win.
     if "insufficient_quota" in text or "quota" in text or "billing" in text:
         return (
             "Your provider account has run out of credits. "
             "Top up at https://platform.openai.com/account/billing."
         )
+    if "rate_limit" in text or "429" in text:
+        return "Rate limit reached. Please wait a moment and try again."
     if "timeout" in text or "connection" in text:
         return "Cannot reach the LLM provider. Check your network connection."
     if "model" in text and "not found" in text:
