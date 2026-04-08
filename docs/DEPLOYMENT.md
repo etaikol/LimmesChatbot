@@ -1,330 +1,135 @@
 # Deployment
 
-This guide is the **single source of truth** for getting the chatbot
-running. Every command below has been verified end-to-end against this
-codebase. If something here does not match the code, the docs are wrong
-and a PR is welcome.
+## TL;DR — one command
 
-There are three shapes you'll deploy in:
-
-1. **Local CLI** — fastest way to test a knowledge base.
-2. **HTTP API + web widget** — single server behind a reverse proxy.
-3. **Docker** — what you'll actually ship to a VPS.
-
-Then channels (WhatsApp, Telegram, LINE) plug in via webhooks once the
-API is reachable.
-
----
-
-## 0. Prerequisites
-
-| Need              | Why                                                       |
-| ----------------- | --------------------------------------------------------- |
-| Python ≥ 3.10     | The whole project. 3.11/3.12 recommended.                 |
-| `OPENAI_API_KEY`  | Used for both the chat LLM **and** embeddings.            |
-| Docker (optional) | Only if you ship via the included `docker-compose.yml`.   |
-
-Get an OpenAI key at <https://platform.openai.com/api-keys>. Even if you
-plan to swap to Anthropic for the chat model, embeddings still default
-to OpenAI's `text-embedding-3-small` (cheapest decent quality). To swap
-embeddings, edit `chatbot/rag/vectorstore.py::_build_embeddings`.
-
----
-
-## 1. Local — CLI only
-
-This is the smallest possible install: no FastAPI, no channels, just
-the chat engine in your terminal.
+```bat
+:: Windows
+run.bat              :: CLI chat
+run.bat serve        :: HTTP API on :8000
+run.bat ingest       :: rebuild vector store
+```
 
 ```bash
-# 1. Clone and enter the repo
-git clone <your-fork-or-this-repo>.git limmes-chatbot
-cd limmes-chatbot
+# macOS / Linux / Git Bash
+./run.sh             # CLI chat
+./run.sh serve       # HTTP API on :8000
+./run.sh ingest      # rebuild vector store
+```
 
-# 2. Create a virtualenv
+`run.bat` / `run.sh` create the venv, install deps, build the vector store
+on first launch, and start the bot. Requires `.env` to already exist with
+`OPENAI_API_KEY` set.
+
+---
+
+## Manual install (if you don't want the wrapper)
+
+```bash
 python -m venv .venv
-# Linux / macOS:
-source .venv/bin/activate
-# Windows (PowerShell):
-.venv\Scripts\Activate.ps1
-# Windows (Git Bash):
-source .venv/Scripts/activate
+# Windows:  .venv\Scripts\activate
+# Unix:     source .venv/bin/activate
 
-# 3. Install minimal deps
-pip install -r requirements/base.txt
+pip install -r requirements/base.txt        # CLI only
+pip install -r requirements/api.txt         # + FastAPI + channels
+pip install -r requirements/extras.txt      # + scraper, docx, anthropic
 
-# 4. Configure
-cp .env.example .env
-#   open .env and set:
-#     OPENAI_API_KEY=sk-...
-#     ACTIVE_CLIENT=limmes        (or whichever client id you want)
-
-# 5. Drop your knowledge base
-#   Anything you put under data/<client>/ is walked recursively.
-#   Supported extensions: .pdf .txt .md .markdown .html .htm .docx .csv .json .jsonl
-ls data/limmes/        # the repo ships sample data for this client
-
-# 6. Build the vector store
 python -m scripts.ingest --client limmes
-
-# 7. Talk to it
-python -m scripts.chat --client limmes
+python -m scripts.chat   --client limmes
 ```
 
-You'll see a banner with the client name, personality, language, and
-model — then a `you >` prompt. Commands inside the REPL:
-
-| Command             | Effect                                |
-| ------------------- | ------------------------------------- |
-| `quit` / `exit`     | Leave                                 |
-| `clear`             | Reset this conversation's history     |
-| `sources`           | Print citations from the last answer  |
-| (anything else)     | Sent to the bot                       |
-
-Sessions are persisted to `.sessions/<session-id>.json` by default.
-
-### What if it fails?
-
-The package raises typed exceptions with actionable messages. Common ones:
-
-| Error                                          | What to do                                                                 |
-| ---------------------------------------------- | -------------------------------------------------------------------------- |
-| `OPENAI_API_KEY is missing...`                 | Add it to `.env`                                                           |
-| `Personality file not found: ...`              | Make sure `config/personalities/<name>.yaml` exists and matches the client |
-| `Client config file not found: ...`            | `--client` argument doesn't match a `config/clients/<id>.yaml`             |
-| `No supported files in <data dir>`             | Drop at least one `.pdf`/`.md`/`.txt` file under the client's data folder  |
-| `Rate limit reached`                           | Wait a few seconds and retry                                               |
-| `quota` / `billing`                            | Top up your OpenAI account                                                 |
-
-Run with `--debug` to see DEBUG-level Loguru output (model calls,
-retrieval scores, prompts).
+> **Got `ModuleNotFoundError: No module named 'loguru'`?** Your venv is
+> active but `pip install -r requirements/base.txt` was never run. Use
+> `run.bat` / `run.sh` and it's handled for you.
 
 ---
 
-## 2. Local — HTTP API
+## Endpoints (HTTP mode)
 
-Same machine, now exposing FastAPI + the embeddable web widget + all
-channel webhooks.
+| Method | Path                  | Purpose                                    |
+| ------ | --------------------- | ------------------------------------------ |
+| GET    | `/`                   | Demo landing page with embedded widget     |
+| GET    | `/health`             | Liveness + per-channel readiness           |
+| GET    | `/widget.js`          | Embeddable JS chat bubble                  |
+| POST   | `/chat`               | `{message, session_id}` → answer + sources |
+| DELETE | `/chat/{session_id}`  | Reset a conversation                       |
+| POST   | `/webhook/whatsapp`   | Twilio                                     |
+| POST   | `/webhook/telegram`   | Telegram                                   |
+| POST   | `/webhook/line`       | LINE                                       |
+| GET    | `/docs`               | Swagger UI                                 |
 
-```bash
-# Add the API extras
-pip install -r requirements/api.txt
-
-# Start
-python -m scripts.serve
-```
-
-Default URL: `http://0.0.0.0:8000`. Endpoints:
-
-| Method   | Path                  | Purpose                                          |
-| -------- | --------------------- | ------------------------------------------------ |
-| GET      | `/`                   | Demo landing page (with embedded widget)         |
-| GET      | `/health`             | Liveness + channel readiness                     |
-| GET      | `/widget.js`          | One-line embeddable JS chat bubble               |
-| POST     | `/chat`               | `{message, session_id}` → answer + sources       |
-| DELETE   | `/chat/{session_id}`  | Reset a conversation                             |
-| POST     | `/webhook/whatsapp`   | Twilio                                            |
-| POST     | `/webhook/telegram`   | Telegram                                          |
-| POST     | `/webhook/line`       | LINE                                              |
-| GET      | `/docs`               | Swagger UI                                       |
-| GET      | `/redoc`              | ReDoc                                            |
-
-Quick `curl` smoke test:
+Smoke test:
 
 ```bash
-curl -s http://localhost:8000/health | jq
-# {
-#   "status": "ok",
-#   "client": "Limmes - Interior Design",
-#   "personality": "design_studio",
-#   "model": "gpt-4o-mini",
-#   "chain_ready": true,
-#   "active_sessions": 0,
-#   "channels": { "web": true, "whatsapp": false, "telegram": false, "line": false }
-# }
-
-curl -s http://localhost:8000/chat \
-     -H 'Content-Type: application/json' \
-     -d '{"message":"What time do you open?","session_id":"curl-test"}' | jq
-```
-
-If `/health` returns 200 with `chain_ready: true`, the engine is
-healthy. The `channels` object reports which providers have valid env
-vars set — that is the live truth, not what `config/clients/*.yaml`
-declares.
-
-### Embedding the widget
-
-The widget is one line of HTML:
-
-```html
-<script src="https://your-host.example.com/widget.js" async></script>
-```
-
-It auto-flips to RTL when the active client's `language_primary` is
-`he`, `ar`, `fa`, or `ur`. If the widget is hosted on a different
-origin than your site, set `API_CORS_ORIGINS` in `.env`:
-
-```env
-API_CORS_ORIGINS=https://www.your-site.com,https://your-site.com
-```
-
-### Run options
-
-```bash
-python -m scripts.serve                  # default host/port from .env
-python -m scripts.serve --host 127.0.0.1 --port 9000
-python -m scripts.serve --reload         # uvicorn hot reload (dev only)
-python -m scripts.serve --debug          # DEBUG logs
+curl http://localhost:8000/health
+curl http://localhost:8000/chat -H 'Content-Type: application/json' \
+     -d '{"message":"hello","session_id":"test"}'
 ```
 
 ---
 
-## 3. Docker
-
-The repo ships a multi-stage `Dockerfile` and a `docker-compose.yml`.
+## Docker
 
 ```bash
-cp .env.example .env
-# fill in OPENAI_API_KEY (and ACTIVE_CLIENT if not 'default')
-
 docker compose up -d --build
 docker compose logs -f chatbot
+docker compose exec chatbot python -m scripts.ingest    # re-index
 ```
 
-The container exposes port `8000`. Two named volumes persist state
-across restarts:
+Persistent volumes: `chatbot_vectorstore` (`/app/.vectorstore`),
+`chatbot_sessions` (`/app/.sessions`). `data/` and `config/` are mounted
+read-only from the host.
 
-| Volume                 | Mounted at         | Purpose                              |
-| ---------------------- | ------------------ | ------------------------------------ |
-| `chatbot_vectorstore`  | `/app/.vectorstore`| Chroma embeddings                    |
-| `chatbot_sessions`     | `/app/.sessions`   | Per-user JSON conversation history   |
+---
 
-Your `data/` and `config/` folders are mounted **read-only** from the
-host, so you can edit on the host and re-ingest in-place:
+## Channels
+
+| Channel  | Required env vars                                                | Webhook URL                           |
+| -------- | ---------------------------------------------------------------- | ------------------------------------- |
+| Web      | (none — always on)                                               | -                                     |
+| WhatsApp | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER` | `https://host/webhook/whatsapp`     |
+| Telegram | `TELEGRAM_BOT_TOKEN`                                             | `https://host/webhook/telegram`       |
+| LINE     | `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`               | `https://host/webhook/line`           |
+
+Register the Telegram webhook once:
 
 ```bash
-# Force a clean re-index after editing data/
-docker compose exec chatbot python -m scripts.ingest
-
-# Tail the logs
-docker compose logs -f chatbot
-
-# Restart
-docker compose restart chatbot
+curl -F "url=https://host/webhook/telegram" \
+     https://api.telegram.org/bot<TOKEN>/setWebhook
 ```
 
-The first request after a restart will rebuild the vector store
-automatically if the `data/` SHA changed since the last ingest — see
-`load_or_create_vectorstore` in `chatbot/rag/vectorstore.py`.
-
-### Behind a reverse proxy
-
-Terminate TLS at nginx / Caddy / Traefik and forward to `127.0.0.1:8000`.
-Minimal nginx server block:
-
-```nginx
-server {
-    server_name bot.example.com;
-    listen 443 ssl http2;
-    ssl_certificate     /etc/letsencrypt/live/bot.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bot.example.com/privkey.pem;
-
-    location / {
-        proxy_pass         http://127.0.0.1:8000;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-        proxy_read_timeout 60s;
-    }
-}
-```
-
-**Important for Twilio**: keep the `Host` header intact. The Twilio
-signature validator hashes the full URL including host; if your proxy
-rewrites it, signature validation will reject every request.
+`/health` shows live channel readiness based on env vars.
 
 ---
 
-## 4. Channels
+## CLI commands inside `chat`
 
-Once the API is reachable from the public internet, plug in any subset
-of these. The `channels:` block in `config/clients/<id>.yaml` is just a
-documentation hint — the *actual* on/off switch is whether the right
-env vars are present. `/health` reflects the live truth.
+| Command  | Effect                            |
+| -------- | --------------------------------- |
+| `quit`   | Leave                             |
+| `clear`  | Reset this session's history      |
+| `sources`| Print citations from last answer  |
 
-### 4a. Web widget
-
-Nothing to configure beyond CORS. See [Embedding the widget](#embedding-the-widget).
-
-### 4b. WhatsApp (Twilio)
-
-1. Create a Twilio account → enable the **WhatsApp Sandbox** (or get an
-   approved sender for production).
-2. In your `.env`:
-   ```env
-   TWILIO_ACCOUNT_SID=AC...
-   TWILIO_AUTH_TOKEN=...
-   TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
-   ```
-3. In Twilio Console → WhatsApp Sandbox → "When a message comes in",
-   set: `https://bot.example.com/webhook/whatsapp` (HTTP POST).
-4. Restart the API. `curl https://bot.example.com/health` should now
-   show `"whatsapp": true`.
-
-The adapter validates Twilio's `X-Twilio-Signature` header against
-`TWILIO_AUTH_TOKEN`. If you leave `TWILIO_AUTH_TOKEN` empty, signature
-validation is skipped (dev mode only — never do that in production).
-
-### 4c. Telegram
-
-1. Talk to [@BotFather](https://t.me/BotFather) → `/newbot` → copy the
-   token.
-2. In `.env`:
-   ```env
-   TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
-   ```
-3. Register the webhook (one-time):
-   ```bash
-   curl -F "url=https://bot.example.com/webhook/telegram" \
-        https://api.telegram.org/bot<TOKEN>/setWebhook
-   ```
-4. Restart the API. Send `/start` to your bot in Telegram.
-
-Built-in commands handled by the adapter:
-
-| Command   | Effect                                  |
-| --------- | --------------------------------------- |
-| `/start`  | Greeting                                |
-| `/help`   | Brief help message                      |
-| `/clear`  | Reset *this* user's conversation memory |
-
-### 4d. LINE
-
-1. Create a Messaging API channel at
-   <https://developers.line.biz/console/>.
-2. In `.env`:
-   ```env
-   LINE_CHANNEL_SECRET=...
-   LINE_CHANNEL_ACCESS_TOKEN=...
-   ```
-3. In the channel settings → "Webhook URL", set
-   `https://bot.example.com/webhook/line` and enable "Use webhook".
-4. Disable "Auto-reply messages" in LINE settings — otherwise LINE
-   answers before your bot does.
-
-The adapter verifies `X-Line-Signature` (HMAC-SHA256 over the raw
-body) before processing. If `LINE_CHANNEL_SECRET` is empty, validation
-is skipped (dev only).
+Sessions persist to `.sessions/<id>.json` (JSON file backend by default).
 
 ---
 
-## 5. Sessions in PostgreSQL (optional)
+## Update knowledge base
 
-By default, conversations are stored as one JSON file per session under
-`.sessions/`. That works fine for a single instance. For multi-instance
-deployments (load balancer + several API pods), switch to PostgreSQL:
+```bash
+# 1. drop or replace files under data/<client>/
+# 2. re-index
+python -m scripts.ingest --client <id>
+# or just
+run.bat ingest --client <id>
+```
+
+`scripts.ingest` always rebuilds from scratch. The engine also detects
+content changes on startup (SHA256 of file paths/sizes/mtimes) and
+rebuilds in-place.
+
+---
+
+## Optional — PostgreSQL sessions
 
 ```bash
 pip install "psycopg[binary]>=3.2"
@@ -332,145 +137,135 @@ pip install "psycopg[binary]>=3.2"
 
 ```env
 MEMORY_BACKEND=postgres
-POSTGRES_DSN=postgresql://chatbot:changeme@db.example.com:5432/chatbot
+POSTGRES_DSN=postgresql://chatbot:changeme@db:5432/chatbot
 ```
 
-The `chatbot_sessions` table is created on first run (see
-`chatbot/persistence/database.py`). The schema is intentionally tiny:
-
-```sql
-CREATE TABLE chatbot_sessions (
-    session_id TEXT PRIMARY KEY,
-    messages   JSONB NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-To use the bundled PostgreSQL container, uncomment the `postgres:`
-service block in `docker-compose.yml`.
+Schema is created on first run (`chatbot_sessions` table).
 
 ---
 
-## 6. Logging & observability
-
-All logs flow through Loguru. FastAPI / uvicorn / LangChain stdlib logs
-are intercepted into the same pipeline (see
-`chatbot/logging_setup.py::_InterceptHandler`).
-
-| Setting       | Values             | What it does                                       |
-| ------------- | ------------------ | -------------------------------------------------- |
-| `LOG_LEVEL`   | DEBUG/INFO/...     | Minimum level (use DEBUG to inspect retrieval)     |
-| `LOG_FORMAT`  | `pretty` / `json`  | `json` = one JSON object per line (for prod)       |
-| `LOG_FILE`    | path or empty      | Optional file sink, daily rotation, 14-day retain  |
-
-Liveness probe (`/health`) confirms:
-
-- The chain is built (`chain_ready: true`)
-- The model name and personality
-- Which channels have valid credentials
+## Optional — scrape a website
 
 ```bash
-docker compose exec chatbot \
-    python -c "import httpx; print(httpx.get('http://localhost:8000/health').json())"
+python -m scripts.scrape --url https://example.com/about
+python -m scripts.scrape --client limmes        # uses scrape_urls in YAML
+python -m scripts.ingest --client limmes        # then re-ingest
 ```
+
+Output goes to `data/scraped/` (or `--out <dir>`).
 
 ---
 
-## 7. Updating the knowledge base
+## Security & anti-abuse
 
-Drop or replace files under `data/<client>/`, then run one of:
+The template ships with a layered defense stack, all tunable from
+`.env` with zero code changes. See
+[`SECURITY.md`](../SECURITY.md) for the full audit and roadmap.
+
+### What protects your wallet
+
+| Layer                  | Env var                                | Default      | Effect on abuse                                        |
+| ---------------------- | -------------------------------------- | ------------ | ------------------------------------------------------ |
+| Request body cap       | `API_MAX_BODY_BYTES`                   | `65536`      | Oversized bodies → HTTP 413 *before* JSON parsing.     |
+| Per-message char cap   | `MAX_MESSAGE_CHARS`                    | `4000`       | Oversized messages → HTTP 429 with friendly detail.    |
+| Rate limit per IP      | `RATE_LIMIT_IP_PER_MINUTE` (+ burst)   | `30` / `10`  | Token bucket; 429 + `Retry-After` on exhaustion.       |
+| Rate limit per session | `RATE_LIMIT_SESSION_PER_MINUTE`        | `12` / `4`   | Stops one tab from hammering.                          |
+| Daily token budget     | `DAILY_TOKEN_CAP`                      | `0` (off)    | Hard stop; 402 until UTC midnight.                     |
+| Daily USD budget       | `DAILY_USD_CAP`                        | `0` (off)    | Hard stop; uses built-in price table.                  |
+| Prompt-injection log   | (automatic)                            | on           | Suspicious messages logged at WARNING (non-blocking).  |
+
+Recommended starting point for a small-business deployment on
+`gpt-4o-mini`:
+
+```env
+DAILY_TOKEN_CAP=2000000      # ~$0.40–$1.60 / day at default prices
+DAILY_USD_CAP=2
+RATE_LIMIT_IP_PER_MINUTE=20
+RATE_LIMIT_SESSION_PER_MINUTE=10
+```
+
+Tail the budget with `GET /health` — it reports the live daily counter
+under `security.budget`.
+
+### What protects your data
+
+| Concern                    | How it's handled                                                |
+| -------------------------- | --------------------------------------------------------------- |
+| Prompt injection           | System prompt + retrieval-only rule + logged heuristic flag.    |
+| Path traversal via session | `sanitize_session_id` — only `[A-Za-z0-9_\-:.@]` allowed.       |
+| XSS in widget              | `textContent` only — never `innerHTML` for untrusted strings.   |
+| Unsigned webhooks          | Twilio HMAC, LINE HMAC, Telegram secret-token all enforced in prod. |
+| Error leaks                | Global `ChatbotError` handler returns `user_message`, hides stack. |
+| CORS                       | `API_STRICT_CORS=true` refuses startup when `API_CORS_ORIGINS=*`. |
+| Transport                  | `API_HSTS_ENABLED=true` + HSTS header once you serve HTTPS.     |
+| Secret headers             | `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options` on every response. |
+
+### Webhook signatures
+
+Production behaviour (`DEBUG=false`):
+
+| Channel  | Required secret                                                       |
+| -------- | --------------------------------------------------------------------- |
+| Twilio   | `TWILIO_AUTH_TOKEN` — unset → webhook rejected with 403.              |
+| LINE     | `LINE_CHANNEL_SECRET` — unset → webhook rejected with 403.            |
+| Telegram | `TELEGRAM_WEBHOOK_SECRET` — unset → webhook rejected with 403.        |
+
+When registering the Telegram webhook, pass the same value:
 
 ```bash
-# Local
-python -m scripts.ingest --client <id>
-
-# Docker
-docker compose exec chatbot python -m scripts.ingest --client <id>
+curl -F "url=https://host/webhook/telegram" \
+     -F "secret_token=<TELEGRAM_WEBHOOK_SECRET>" \
+     https://api.telegram.org/bot<TOKEN>/setWebhook
 ```
 
-`scripts.ingest` always rebuilds from scratch — it deletes
-`.vectorstore/` and re-embeds everything. The engine *also* detects
-content changes automatically on startup (SHA256 of file
-paths/sizes/mtimes) and rebuilds in-place if needed.
+Telegram echoes it back in `X-Telegram-Bot-Api-Secret-Token` on every
+update; the route uses a constant-time compare.
+
+### Running behind a proxy
+
+Terminate TLS at nginx / Caddy / Traefik. The app reads the leftmost
+entry from `X-Forwarded-For` as the client IP for rate limiting. If you
+expose the app *directly* to the internet, this header can be spoofed
+— always put a proxy in front.
 
 ---
 
-## 8. Scraping a client's website
-
-If a client has no documents, scrape their site once and treat the
-output as data:
-
-```bash
-# Pass URLs explicitly
-python -m scripts.scrape \
-    --url https://shantiyoga.example.com/about \
-    --url https://shantiyoga.example.com/schedule
-
-# Or use the urls listed in the client's YAML (scrape_urls: [...])
-python -m scripts.scrape --client limmes
-```
-
-Each URL becomes one `.txt` file under `data/scraped/` (or
-`--out <dir>` if you want it elsewhere). Re-run `ingest` afterwards to
-embed the new files.
-
----
-
-## 9. Programmatic use (Python)
-
-You don't need the API to use the bot. Import it directly:
-
-```python
-from chatbot import Chatbot
-
-bot = Chatbot.from_client("limmes")          # picks up .env
-response = bot.ask("מתי אתם פתוחים בשישי?", session_id="user-1")
-
-print(response.answer)
-for src in response.sources:
-    print(" -", src.source, "p.", src.page)
-```
-
-`Chatbot` constructors:
-
-| Constructor                          | When to use                                          |
-| ------------------------------------ | ---------------------------------------------------- |
-| `Chatbot.from_env()`                 | Read `ACTIVE_CLIENT` from `.env`                     |
-| `Chatbot.from_client("<id>")`        | Force a specific client config                       |
-| `Chatbot(profile, settings, ...)`    | Inject your own retriever/llm/memory (advanced/test) |
-
----
-
-## 10. Going to production — checklist
+## Production checklist
 
 - [ ] `OPENAI_API_KEY` set, billing enabled
-- [ ] `ACTIVE_CLIENT` matches a `config/clients/<id>.yaml`
-- [ ] `data/<client>/` populated with real documents
-- [ ] `python -m scripts.ingest --client <id>` runs cleanly at least once
-- [ ] `LOG_FORMAT=json`, `LOG_LEVEL=INFO`
-- [ ] `API_CORS_ORIGINS` restricted to the real client domain(s) — not `*`
-- [ ] TLS terminated by your reverse proxy
-- [ ] Channel credentials in `.env`, webhook URLs registered
-- [ ] `/health` returns 200 with `chain_ready: true` and the channels
-      you expect set to `true`
-- [ ] Volumes for `.vectorstore` and `.sessions` are persistent
-- [ ] Session backup configured (file copies of `.sessions/`, or
-      PostgreSQL backups)
-- [ ] You've sent at least one real message through every channel you
-      enabled and verified the reply is grounded in your `data/`
+- [ ] `ACTIVE_CLIENT` matches `config/clients/<id>.yaml`
+- [ ] `data/<client>/` populated
+- [ ] `python -m scripts.ingest --client <id>` runs cleanly
+- [ ] `DEBUG=false`, `LOG_FORMAT=json`, `LOG_LEVEL=INFO`
+- [ ] `API_STRICT_CORS=true` **and** `API_CORS_ORIGINS=https://your-domain.com`
+- [ ] `API_HSTS_ENABLED=true` (only behind real HTTPS)
+- [ ] `RATE_LIMIT_ENABLED=true` with per-IP + per-session limits tuned
+- [ ] `DAILY_TOKEN_CAP` and/or `DAILY_USD_CAP` set to a safe ceiling
+- [ ] `.budget/state.json` lives on a persistent volume
+- [ ] `TWILIO_AUTH_TOKEN` / `LINE_CHANNEL_SECRET` / `TELEGRAM_WEBHOOK_SECRET` set
+- [ ] TLS at reverse proxy, `Host` header preserved
+- [ ] Channel env vars set, webhooks registered (with secret tokens)
+- [ ] `/health` → 200 + `chain_ready: true` + `security.budget.enabled: true`
+- [ ] Volumes for `.vectorstore`, `.sessions`, `.budget` are persistent
 
 ---
 
-## Troubleshooting
+## Common errors
 
-| Symptom                                              | Likely cause / fix                                                                  |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `OPENAI_API_KEY is missing`                          | `.env` not loaded — check working directory, or set the env var explicitly         |
-| `chain_ready: false` in `/health`                    | Lifespan failed — check the API logs above the failed startup                       |
-| Bot answers in English when client is `he`           | Add `language_primary: he` and a Hebrew `greeting_override` in the client YAML      |
-| Bot ignores your documents                           | `python -m scripts.ingest --client <id>` (force a clean rebuild) and check the logs |
-| Twilio webhook returns 403                           | `TWILIO_AUTH_TOKEN` mismatch, or proxy rewrites `Host` header                        |
-| Telegram webhook returns 503                         | `TELEGRAM_BOT_TOKEN` not set in the running process's env                            |
-| LINE webhook returns 403                             | `LINE_CHANNEL_SECRET` mismatch, or your proxy mutates the request body              |
-| Widget bubble doesn't appear                         | CORS — check `API_CORS_ORIGINS` and the browser devtools network tab                |
-| Hebrew renders as `??` in the CLI                    | Windows console codepage — set `PYTHONIOENCODING=utf-8` before running              |
+| Error                                  | Fix                                                          |
+| -------------------------------------- | ------------------------------------------------------------ |
+| `ModuleNotFoundError: No module named 'loguru'` | Run `run.bat` / `run.sh`, or `pip install -r requirements/base.txt` |
+| `OPENAI_API_KEY is missing`            | Add it to `.env`                                             |
+| `Personality file not found`           | `config/personalities/<name>.yaml` missing                   |
+| `Client config file not found`         | `--client` doesn't match a `config/clients/<id>.yaml`        |
+| `No supported files in <dir>`          | Drop a `.pdf`/`.md`/`.txt` under the client's data folder    |
+| `chain_ready: false` in `/health`      | Lifespan failed — check API logs above the failed startup    |
+| Twilio webhook 403                     | `TWILIO_AUTH_TOKEN` mismatch, or proxy rewrites `Host`       |
+| Telegram webhook 503 / 403             | `TELEGRAM_BOT_TOKEN` or `TELEGRAM_WEBHOOK_SECRET` missing    |
+| Chat returns 429 unexpectedly          | Raise `RATE_LIMIT_IP_PER_MINUTE` / `RATE_LIMIT_SESSION_PER_MINUTE` |
+| Chat returns 402 ("today's limit")     | `DAILY_TOKEN_CAP` or `DAILY_USD_CAP` reached; resets UTC midnight |
+| Startup fails with "strict CORS"       | Set `API_CORS_ORIGINS=https://your-domain` or `API_STRICT_CORS=false` |
+| Hebrew renders as `??` in CLI          | `set PYTHONIOENCODING=utf-8` (Windows) — use Windows Terminal for RTL |
+
+Run any script with `--debug` to see DEBUG-level Loguru output
+(retrieval, prompts, model calls).

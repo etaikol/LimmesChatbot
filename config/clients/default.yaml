@@ -11,6 +11,17 @@ id: default
 name: AI Assistant
 language_primary: en
 language_fallback: en
+# Languages offered in the widget picker. Drop / add codes from
+# chatbot/i18n/messages.py::SUPPORTED_LANGUAGES. Empty list = primary only.
+languages_offered:
+  - en
+  - es
+  - fr
+  - de
+  - th
+  - ja
+  - zh
+  - ar
 location: ""
 timezone: UTC
 

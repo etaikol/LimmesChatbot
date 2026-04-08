@@ -1,14 +1,22 @@
 """
 LangChain Expression Language (LCEL) chains.
 
-`build_rag_chain` returns a runnable that takes:
-    {"question": str, "history": str}
+``build_rag_chain`` returns a runnable that takes:
+
+    {"question": str, "history": str, "system_prompt": str}
+
 and returns the assistant's answer as a string.
 
 It internally:
-    1. Runs the retriever on `question` and formats results into `context`.
-    2. Fills the chat template with system_prompt + history + context + question.
-    3. Calls the LLM and parses to a plain string.
+
+1. Runs the retriever on ``question`` and formats results into ``context``.
+2. Fills the chat template with ``system_prompt`` + history + context + question.
+3. Calls the LLM and parses to a plain string.
+
+Why ``system_prompt`` is an *input* and not baked in:
+    The engine wants to swap the system prompt per request — so the user
+    can pick their language in the widget without rebuilding the chain.
+    The engine passes a default if the caller doesn't specify one.
 """
 
 from __future__ import annotations
@@ -42,7 +50,17 @@ def build_rag_chain(
     retriever: BaseRetriever,
     system_prompt: str,
 ) -> Runnable:
-    """Build a RAG runnable. Input: dict with 'question' and 'history'."""
+    """Build a RAG runnable.
+
+    Inputs at call time (``chain.invoke(...)``):
+
+    - ``question`` (str, required)
+    - ``history``  (str, optional)
+    - ``system_prompt`` (str, optional — falls back to the value passed
+      to ``build_rag_chain`` so existing call sites do not break)
+    """
+
+    default_system_prompt = system_prompt
 
     def fetch_context(inputs: dict[str, Any]) -> str:
         question = inputs.get("question", "")
@@ -51,7 +69,9 @@ def build_rag_chain(
 
     chain = (
         {
-            "system_prompt": RunnableLambda(lambda _: system_prompt),
+            "system_prompt": RunnableLambda(
+                lambda x: x.get("system_prompt") or default_system_prompt
+            ),
             "context": RunnableLambda(fetch_context),
             "history": RunnableLambda(lambda x: x.get("history") or "(none)"),
             "question": RunnableLambda(lambda x: x["question"]),

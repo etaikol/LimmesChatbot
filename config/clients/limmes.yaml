@@ -7,6 +7,15 @@ id: limmes
 name: Limmes — Interior Design
 language_primary: he         # Hebrew first, gpt-4o-mini handles RTL natively
 language_fallback: en
+# Languages offered in the widget picker. The first one is selected by
+# default. Each must be in chatbot/i18n/messages.py::SUPPORTED_LANGUAGES.
+languages_offered:
+  - he
+  - en
+  - ar
+  - ru
+  - th
+  - fr
 location: "Nes Ziona, Israel"
 timezone: "Asia/Jerusalem"
 

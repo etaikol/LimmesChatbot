@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c 'import ast, pathlib; failures=[]:*)",
+      "Bash(python -c ':*)"
+    ]
+  }
+}
