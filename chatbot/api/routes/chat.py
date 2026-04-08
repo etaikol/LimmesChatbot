@@ -14,15 +14,33 @@ configured from environment variables and built once during startup
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Security
+from fastapi.security.api_key import APIKeyHeader
 
 from chatbot.api.schemas import ChatReply, ChatRequest, ClearReply, SourceModel
 from chatbot.exceptions import ChatbotError
-from chatbot.i18n import resolve_language
+from chatbot.i18n import SUPPORTED_LANGUAGE_CODES, resolve_language
+from chatbot.i18n.detect import detect_language
 from chatbot.logging_setup import logger
 from chatbot.security.sanitize import sanitize_session_id
 
 router = APIRouter(tags=["chat"])
+
+_api_key_header = APIKeyHeader(name="X-Api-Key", auto_error=False)
+
+
+def _require_api_key(
+    request: Request,
+    key: str | None = Security(_api_key_header),
+) -> None:
+    """FastAPI dependency: enforce X-Api-Key when CHATBOT_API_KEY is set.
+
+    When the setting is empty (default) the endpoint is open.
+    When set, any request without the correct header gets HTTP 401.
+    """
+    expected = request.app.state.bot.settings.chatbot_api_key
+    if expected and key != expected:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
 
 
 def _client_ip(request: Request) -> str:
@@ -40,7 +58,7 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-@router.post("/chat", response_model=ChatReply)
+@router.post("/chat", response_model=ChatReply, dependencies=[Depends(_require_api_key)])
 async def chat_endpoint(req: ChatRequest, request: Request) -> ChatReply:
     bot = request.app.state.bot
 
@@ -53,6 +71,13 @@ async def chat_endpoint(req: ChatRequest, request: Request) -> ChatReply:
         sess_limiter.check(sanitize_session_id(req.session_id))
 
     language = resolve_language(req.language) if req.language else None
+
+    # Auto-detect language from the actual message text.  Detected language
+    # takes priority over the widget dropdown — the dropdown is a fallback
+    # for short/ambiguous messages where script detection doesn't fire.
+    detected = detect_language(req.message, supported=SUPPORTED_LANGUAGE_CODES)
+    if detected:
+        language = detected
 
     try:
         resp = bot.ask(

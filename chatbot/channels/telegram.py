@@ -16,6 +16,8 @@ import httpx
 
 from chatbot.core.engine import Chatbot
 from chatbot.exceptions import ChannelError, ChatbotError
+from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
+from chatbot.i18n.detect import detect_language
 from chatbot.logging_setup import logger
 
 
@@ -47,8 +49,9 @@ class TelegramChannel:
             reply = self._handle_command(text, chat_id)
         else:
             session_id = f"telegram:{chat_id}"
+            language = detect_language(text, supported=SUPPORTED_LANGUAGE_CODES)
             try:
-                resp = self.bot.ask(text, session_id=session_id)
+                resp = self.bot.ask(text, session_id=session_id, language=language)
                 reply = resp.answer
             except ChatbotError as e:
                 reply = e.user_message
