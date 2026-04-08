@@ -17,11 +17,18 @@ Bot: "We're open from 9:00 to 14:00 on Fridays. Anything else I can help with?"
   `friendly_official`, `design_studio`. Switch the tone with one line.
 - **Multi-channel**: Web widget, WhatsApp (Twilio), Telegram, LINE.
   All ride on the same chat engine.
+- **Multilingual** out of the box: English, Hebrew, Arabic, Farsi,
+  **Thai**, French, Spanish, German, Russian, Japanese, Chinese, Hindi.
+  The widget ships with a 🌐 language picker and auto-RTL layout for
+  Hebrew/Arabic/Farsi.
+- **Security & cost controls baked in**: per-IP + per-session rate
+  limits, daily token & USD budget caps, request-size guards,
+  prompt-injection logging, signed-webhook enforcement, secure headers.
+  All tunable from `.env`.
 - **Sessions & memory**: per-user conversations persisted to disk
   (or PostgreSQL — opt-in).
 - **Clean structure**: Pydantic settings, Loguru logging, LangChain
   pipelines, no spaghetti.
-- **Hebrew + RTL ready**: tested with `he`, plus auto-RTL web widget.
 - **Docker-first**: `docker compose up` and you're live.
 
 ## 60-second start

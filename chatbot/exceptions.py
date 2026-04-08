@@ -49,6 +49,21 @@ class ChannelError(ChatbotError):
     user_message = "Could not deliver the message through this channel."
 
 
+class AbuseError(ChatbotError):
+    """Raised when a request is blocked by rate limiting / size / spam."""
+
+    user_message = "Too many requests. Please slow down and try again shortly."
+
+
+class BudgetError(ChatbotError):
+    """Raised when the daily token / spend budget would be exceeded."""
+
+    user_message = (
+        "Sorry, today's usage limit has been reached. "
+        "Please try again tomorrow."
+    )
+
+
 def explain_llm_error(exc: BaseException) -> str:
     """Return a friendly explanation for common LLM provider errors."""
     text = str(exc).lower()

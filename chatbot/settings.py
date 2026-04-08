@@ -72,6 +72,41 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_cors_origins: str = "*"  # comma-separated; "*" allows all
+    # When true (recommended for production) the app refuses to start if
+    # API_CORS_ORIGINS is "*" or empty.
+    api_strict_cors: bool = False
+
+    # ── Security: input + transport hardening ────────────────────────────────
+    # Hard cap on the request body in bytes (Content-Length). 64 KiB is
+    # plenty for chat. Anything bigger is rejected at the middleware layer
+    # before pydantic ever sees it.
+    api_max_body_bytes: int = 64 * 1024
+    # Hard cap on a single user message in characters.
+    max_message_chars: int = 4000
+    # Add Strict-Transport-Security header (only enable behind real HTTPS).
+    api_hsts_enabled: bool = False
+    api_hsts_max_age: int = 31536000  # 1 year
+
+    # ── Security: rate limiting (token bucket) ───────────────────────────────
+    # All limits are *per process*. For multi-instance deployments, swap
+    # the in-memory bucket store for Redis.
+    rate_limit_enabled: bool = True
+    # Per source IP — protects the public surface from random scanners.
+    rate_limit_ip_per_minute: int = 30
+    rate_limit_ip_burst: int = 10
+    # Per session_id — protects against a single chat tab spamming.
+    rate_limit_session_per_minute: int = 12
+    rate_limit_session_burst: int = 4
+
+    # ── Security: daily spend / token budget ─────────────────────────────────
+    # 0 = disabled. Recommended starting point: a few dollars / day until
+    # you have telemetry from real traffic.
+    daily_token_cap: int = 0
+    daily_usd_cap: float = 0.0
+    budget_state_file: Path = PROJECT_ROOT / ".budget" / "state.json"
+    # Override price table when your model isn't covered by defaults.
+    price_in_usd_per_1k: float = 0.0
+    price_out_usd_per_1k: float = 0.0
 
     # ── Twilio (WhatsApp / SMS) ──────────────────────────────────────────────
     twilio_account_sid: str = ""
@@ -80,13 +115,24 @@ class Settings(BaseSettings):
 
     # ── Telegram ─────────────────────────────────────────────────────────────
     telegram_bot_token: str = ""
+    # Telegram lets you pass a secret token when registering the webhook
+    # via setWebhook(secret_token=...). They then send it back in the
+    # X-Telegram-Bot-Api-Secret-Token header on every update. Set this
+    # to the same string and we will reject webhooks without it.
+    telegram_webhook_secret: str = ""
 
     # ── LINE Messaging ───────────────────────────────────────────────────────
     line_channel_secret: str = ""
     line_channel_access_token: str = ""
 
     # ── Validators ───────────────────────────────────────────────────────────
-    @field_validator("vectorstore_dir", "sessions_dir", "data_dir", mode="before")
+    @field_validator(
+        "vectorstore_dir",
+        "sessions_dir",
+        "data_dir",
+        "budget_state_file",
+        mode="before",
+    )
     @classmethod
     def _expand_paths(cls, v):
         if isinstance(v, str):
@@ -106,6 +152,21 @@ class Settings(BaseSettings):
         """Create runtime directories if they don't yet exist."""
         for path in (self.vectorstore_dir, self.sessions_dir, self.data_dir):
             path.mkdir(parents=True, exist_ok=True)
+        self.budget_state_file.parent.mkdir(parents=True, exist_ok=True)
+
+    def assert_production_safe(self) -> None:
+        """Raise ConfigError when running prod with insecure defaults.
+
+        Called from the FastAPI lifespan when ``api_strict_cors`` is on.
+        """
+        from chatbot.exceptions import ConfigError
+
+        if self.api_strict_cors and self.api_cors_origins.strip() in ("", "*"):
+            raise ConfigError(
+                "API_STRICT_CORS=true but API_CORS_ORIGINS is unset or '*'. "
+                "Set it to your real client domains, e.g. "
+                "API_CORS_ORIGINS=https://example.com,https://www.example.com"
+            )
 
 
 @lru_cache(maxsize=1)

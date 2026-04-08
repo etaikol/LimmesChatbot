@@ -1,139 +1,121 @@
 # Customization
 
-Everything you'll do day-to-day involves three things: **client configs**,
-**personality presets**, and **the data folder**. None of them require
-Python edits.
+Three things, never any Python edits: **client YAML**, **personality YAML**,
+**the data folder**.
 
-## Adding a new client
+## TL;DR — onboard a new client
 
-Say you're onboarding a yoga studio called *Shanti*.
+```bash
+# 1. config/clients/<id>.yaml          (client YAML, see template below)
+# 2. data/<id>/...                     (PDFs, .md, .txt, .docx, .csv, .json, .html)
+# 3. .env  →  ACTIVE_CLIENT=<id>
+# 4. rebuild + run
+run.bat ingest --client <id>
+run.bat chat   --client <id>
+```
 
-### 1. Create the client file
+---
 
-`config/clients/shanti.yaml`
+## Client YAML template
+
+`config/clients/<id>.yaml`
 
 ```yaml
-id: shanti
-name: "Shanti Yoga"
-language_primary: en
+id: <id>
+name: "Display Name"
+language_primary: en       # default reply language; he|ar|fa|ur → auto-RTL
 language_fallback: en
-location: "Tel Aviv, Israel"
-timezone: "Asia/Jerusalem"
+# Codes in the widget language picker (first = default). Empty list =
+# only language_primary. See chatbot/i18n/messages.py for the full list.
+languages_offered:
+  - en
+  - es
+  - fr
+  - th
+  - he
+  - ar
+location: "City, Country"
+timezone: "UTC"
 
-personality: clinic       # calm, reassuring tone
+personality: default       # one of: default | sales | clinic |
+                           #         official | friendly_official | design_studio
 
 system_prompt_extra: |
-  About the studio:
-    • Shanti Yoga offers Hatha, Vinyasa, and prenatal classes.
-    • Drop-in price 80₪. 10-class card 700₪.
-    • Mats and props are provided. Showers on site.
+  About the business:
+    • Hours, phone, address.
+    • Anything you want appended to the system prompt.
 
-greeting_override: "Welcome to Shanti — how can I help you today?"
+greeting_override: "Welcome! How can I help?"   # optional
 
 data_paths:
-  - data/shanti
+  - data/<id>
 
-scrape_urls:
-  - https://shantiyoga.example.com/schedule
+scrape_urls:               # optional, used by `scripts.scrape --client <id>`
+  - https://example.com
 
 channels:
   web:        { enabled: true }
-  whatsapp:   { enabled: true }
+  whatsapp:   { enabled: false }
   telegram:   { enabled: false }
   line:       { enabled: false }
 ```
 
-### 2. Drop the knowledge base
+> `channels:` is a doc hint only. Channels are *actually* enabled by
+> setting the matching env vars in `.env`. `/health` shows the live
+> truth.
+
+---
+
+## Personality YAML template
+
+`config/personalities/<name>.yaml`
+
+```yaml
+name: <name>
+description: "Free-form, for humans."
+system_prompt: |
+  You are a ... assistant. Voice, rules, goals.
+temperature: 0.7
+greeting: "Opening line."
+fallback_message: "Sent when info is missing."
+style_keywords:  [friendly, concise]
+refuse_topics:   [legal advice, medical diagnosis]
+```
+
+| Field              | Required | What it does                                  |
+| ------------------ | -------- | --------------------------------------------- |
+| `name`             | yes      | Must match the filename                       |
+| `system_prompt`    | yes      | Voice, rules, goals                           |
+| `temperature`      | no       | Default LLM temperature                       |
+| `greeting`         | no       | Channel opening line                          |
+| `fallback_message` | no       | Shown on error / missing info                 |
+| `style_keywords`   | no       | Tone hints appended to system prompt          |
+| `refuse_topics`    | no       | Topics the bot must politely decline          |
+
+Built-in presets: `default`, `sales`, `clinic`, `official`,
+`friendly_official`, `design_studio`.
+
+---
+
+## Data folder rules
+
+Drop files anywhere under `data/<client>/`. Walked recursively.
+Supported extensions:
 
 ```
-data/shanti/
-├── schedule/
-│   └── weekly_class_schedule.pdf
-├── pricing/
-│   └── packages.md
-└── about/
-    └── teachers.md
+.pdf  .txt  .md  .markdown  .html  .htm  .docx  .csv  .json  .jsonl
 ```
 
-### 3. Activate it
-
-Edit `.env`:
-
-```
-ACTIVE_CLIENT=shanti
-```
-
-Or pass it explicitly:
+After adding/changing files:
 
 ```bash
-python -m scripts.chat   --client shanti
-python -m scripts.ingest --client shanti --rebuild
-python -m scripts.serve  # picks up ACTIVE_CLIENT
+run.bat ingest --client <id>
 ```
 
-That's it. The bot now answers as *Shanti Yoga* with the *clinic*
-personality, citing its own documents.
-
-## Adding a new personality
-
-Personalities live under `config/personalities/`. Each is a small YAML.
-
-```yaml
-# config/personalities/realtor.yaml
-name: realtor
-description: |
-  Energetic, knowledgeable assistant for real-estate offices. Helps
-  visitors filter listings and book viewings.
-
-system_prompt: |
-  You are a friendly real-estate assistant. Help visitors discover
-  listings that fit their needs (location, budget, bedrooms, garden).
-  Always offer to schedule a viewing once you've matched a property.
-  Never invent listings, prices, or square meters — answer from context.
-
-temperature: 0.7
-greeting: "Hi! Looking for a new home? Tell me what you have in mind."
-fallback_message: "Let me check that with our agents and get back to you."
-
-style_keywords:
-  - friendly
-  - market-savvy
-  - solution-oriented
-```
-
-Then point a client at it:
-
-```yaml
-# config/clients/acme_realty.yaml
-personality: realtor
-...
-```
-
-No code changes — just YAML.
-
-### Personality fields
-
-| Field                | Required | What it does                                      |
-| -------------------- | -------- | ------------------------------------------------- |
-| `name`               | yes      | Identifier (must match the filename)              |
-| `description`        | no       | Free-form, for humans                             |
-| `system_prompt`      | yes      | The voice, rules, and goals of the bot            |
-| `temperature`        | no       | Default LLM temperature for this personality      |
-| `greeting`           | no       | Opening line shown by the channel                 |
-| `fallback_message`   | no       | Sent when something goes wrong or info is missing |
-| `style_keywords`     | no       | Tone hints appended to the system prompt          |
-| `refuse_topics`      | no       | Topics the bot must politely decline              |
-
-## Adding a new file type
-
-Suppose you want the bot to read `.epub` books.
-
-1. **Pick a loader.** LangChain Community ships
-   `UnstructuredEPubLoader`. Install its system deps separately.
-2. **Register it** in `chatbot/rag/loaders.py`:
+Add a new format → register a loader in `chatbot/rag/loaders.py`:
 
 ```python
-def _load_epub(path: Path) -> list[Document]:
+def _load_epub(path):
     from langchain_community.document_loaders import UnstructuredEPubLoader
     docs = UnstructuredEPubLoader(str(path)).load()
     for d in docs:
@@ -144,62 +126,21 @@ def _load_epub(path: Path) -> list[Document]:
 LOADER_REGISTRY[".epub"] = _load_epub
 ```
 
-3. Re-ingest: `python -m scripts.ingest --rebuild`.
+---
 
-That's the entire integration.
+## Retrieval knobs (`.env`)
 
-## Hebrew (and other languages)
+| Var              | Default | Effect                                    |
+| ---------------- | ------- | ----------------------------------------- |
+| `CHUNK_SIZE`     | 1000    | Chars per chunk (rebuild after change)    |
+| `CHUNK_OVERLAP`  | 200     | Continuity across chunks (rebuild)        |
+| `RETRIEVAL_K`    | 4       | Chunks per question (no rebuild needed)   |
 
-OpenAI's `gpt-4o-mini` already handles Hebrew, Arabic, Russian, and most
-RTL/LTR languages natively. The template helps in three places:
+When in doubt, raise `RETRIEVAL_K` first (6–8 for long technical docs).
 
-1. **Client config** — `language_primary: he` adds a language hint to
-   the system prompt and flips the web widget to RTL.
-2. **Greeting override** — write your greeting directly in the target
-   language for a more native feel.
-3. **`Translator` tool** — when you need to force-translate something
-   (e.g. a knowledge-base file written in English to display in Hebrew):
+---
 
-```python
-from chatbot.tools.translator import Translator
-t = Translator()
-print(t.translate("Welcome!", target="he"))
-```
-
-## Modes vs personalities — what's the difference?
-
-There are no separate "modes". A *mode* in the user-facing sense is just
-a personality file. We ship six (default, sales, clinic, official,
-friendly_official, design_studio) and you can add more without touching
-code. To switch a client between modes, change one line in their YAML:
-
-```diff
-- personality: clinic
-+ personality: sales
-```
-
-## Channel toggles
-
-`channels: {...}` in the client YAML is a documentation/feature-flag
-hint. The actual *enabling* of WhatsApp/Telegram/LINE happens by setting
-the right env vars in `.env`. The `/health` endpoint reports the live
-truth based on which tokens are present.
-
-## Tuning retrieval
-
-Three knobs in `.env`:
-
-- `CHUNK_SIZE` — bigger = more context per chunk, fewer chunks. Default
-  1000 chars.
-- `CHUNK_OVERLAP` — keeps continuity across chunk boundaries. Default
-  200.
-- `RETRIEVAL_K` — how many chunks to feed the LLM per question. Default
-  4. Bump to 6–8 for long technical docs.
-
-When in doubt: **increase `RETRIEVAL_K` first**, *then* play with chunk
-sizes.
-
-## Switching LLM provider
+## Switch LLM provider
 
 ```env
 LLM_PROVIDER=anthropic
@@ -208,11 +149,105 @@ ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ```bash
-pip install langchain-anthropic
-python -m scripts.serve
+pip install -r requirements/extras.txt   # ships langchain-anthropic
 ```
 
-Embeddings still use OpenAI by default (`text-embedding-3-small`)
-because Chroma needs an embedding function and OpenAI's is the cheapest
-high-quality option. Swap it inside `chatbot/rag/vectorstore.py` if you
-prefer something else.
+Embeddings stay on OpenAI by default (`text-embedding-3-small`). Swap in
+`chatbot/rag/vectorstore.py::_build_embeddings` if needed.
+
+---
+
+## Memory / sessions
+
+```env
+MEMORY_BACKEND=file        # memory | file | postgres
+MAX_HISTORY_TURNS=10
+```
+
+For multi-instance deploys see
+[`DEPLOYMENT.md` → PostgreSQL sessions](DEPLOYMENT.md#optional--postgresql-sessions).
+
+---
+
+## Languages (and how the picker works)
+
+The template ships UI translations for **12 languages** — English,
+Hebrew, Arabic, Farsi, Thai, French, Spanish, German, Russian, Japanese,
+Chinese, Hindi. The bot *itself* understands many more; this list is
+only for the widget's UI strings (placeholder, send button,
+"thinking…", error toasts, language picker labels).
+
+```yaml
+language_primary: he
+languages_offered:
+  - he
+  - en
+  - ar
+  - th
+  - ru
+greeting_override: "שלום! איך אפשר לעזור?"
+```
+
+What happens:
+
+1. The widget renders a 🌐 language picker with one entry per code in
+   `languages_offered`. The first entry is the default.
+2. When the visitor picks a language, the widget stores it in
+   `localStorage` and sends `language: "<code>"` on every subsequent
+   `/chat` request.
+3. The engine passes the code into the system prompt at request time:
+   *"Reply in `'th'` unless the user clearly writes in another
+   language."* No chain rebuild needed — the template is rebuilt per
+   turn from a prompt input.
+4. RTL layout flips automatically when the chosen language is `he`,
+   `ar`, `fa`, or `ur`.
+
+### Adding a new language
+
+Append a row to `chatbot/i18n/messages.py`:
+
+```python
+SUPPORTED_LANGUAGES.append(LanguageInfo("ko", "Korean", "한국어"))
+
+MESSAGES["ko"] = {
+    "placeholder":      "메시지를 입력하세요…",
+    "send":             "보내기",
+    "thinking":         "생각 중…",
+    "connection_error": "연결 오류입니다. 다시 시도하세요.",
+    "rate_limited":     "메시지를 너무 빨리 보내고 있습니다.",
+    "too_long":         "메시지가 너무 깁니다.",
+    "language":         "언어",
+    "clear":            "대화 지우기",
+    "minimize":         "최소화",
+    "powered_by":       "AI 어시스턴트",
+    "welcome":          "안녕하세요! 무엇을 도와드릴까요?",
+    "budget_reached":   "오늘 사용량 한도에 도달했습니다. 내일 다시 시도하세요.",
+}
+```
+
+Missing keys fall back to English, so partial translations are fine.
+
+### CLI / Python use
+
+```python
+bot.ask("สวัสดี ร้านเปิดกี่โมง?", session_id="u1", language="th")
+```
+
+---
+
+## Security & anti-abuse
+
+See [`docs/DEPLOYMENT.md`](DEPLOYMENT.md#security--anti-abuse) and
+[`SECURITY.md`](../SECURITY.md) for the full rundown. The short version:
+
+- **Rate limits** — per IP + per session, token-bucket, configurable.
+- **Body size cap** — requests over `API_MAX_BODY_BYTES` get 413.
+- **Daily token/spend cap** — budgets reset at 00:00 UTC; exceeding
+  returns 402 with a friendly message.
+- **Prompt-injection heuristics** — logged, non-blocking.
+- **Webhook signatures** — Twilio / LINE / Telegram secrets are enforced
+  in production (`DEBUG=false`).
+- **Strict CORS** — set `API_STRICT_CORS=true` to fail startup when
+  `API_CORS_ORIGINS` is `*` or empty.
+
+All knobs live in `.env`; see `.env.example` for the commented list.

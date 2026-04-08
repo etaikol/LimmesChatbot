@@ -41,9 +41,22 @@ class LineChannel:
     # ── Signature ───────────────────────────────────────────────────────────
 
     def validate_signature(self, body: bytes, signature: str | None) -> bool:
+        """Verify the X-Line-Signature header (HMAC-SHA256, base64).
+
+        Production (``DEBUG=false``) refuses requests when the channel
+        secret is unset. Dev mode logs a warning and lets them through.
+        """
         if not self.settings.line_channel_secret:
-            logger.debug("LINE_CHANNEL_SECRET not set — skipping signature validation")
-            return True
+            if self.settings.debug:
+                logger.warning(
+                    "LINE_CHANNEL_SECRET unset — accepting because DEBUG=true. "
+                    "NEVER do this in production."
+                )
+                return True
+            logger.error(
+                "LINE_CHANNEL_SECRET unset in production — refusing webhook"
+            )
+            return False
         if not signature:
             return False
 

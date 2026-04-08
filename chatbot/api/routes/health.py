@@ -14,6 +14,18 @@ def health(request: Request) -> HealthReply:
     bot = request.app.state.bot
     s = bot.settings
 
+    security = {
+        "rate_limit_enabled": s.rate_limit_enabled,
+        "rate_limit_ip_per_minute": s.rate_limit_ip_per_minute,
+        "rate_limit_session_per_minute": s.rate_limit_session_per_minute,
+        "max_body_bytes": s.api_max_body_bytes,
+        "max_message_chars": s.max_message_chars,
+        "hsts_enabled": s.api_hsts_enabled,
+        "strict_cors": s.api_strict_cors,
+        "cors_origins": s.cors_origins_list,
+        "budget": bot.budget.snapshot(),
+    }
+
     return HealthReply(
         status="ok",
         client=bot.profile.client.name,
@@ -27,4 +39,5 @@ def health(request: Request) -> HealthReply:
             "telegram": bool(s.telegram_bot_token),
             "line": bool(s.line_channel_access_token),
         },
+        security=security,
     )

@@ -52,11 +52,28 @@ class WhatsAppChannel:
     def validate_signature(
         self, url: str, params: dict, signature: Optional[str]
     ) -> bool:
-        """Verify Twilio's X-Twilio-Signature header. Returns True if missing
-        token (dev mode) or signature matches."""
+        """Verify Twilio's X-Twilio-Signature header.
+
+        Behaviour:
+
+        - **Production** (``DEBUG=false``): if ``TWILIO_AUTH_TOKEN`` is not
+          set, the webhook is rejected outright. Unsigned webhooks are
+          never accepted.
+        - **Dev** (``DEBUG=true``): an unset token logs a warning and lets
+          the request through so you can test with the Twilio sandbox
+          before wiring real signatures.
+        """
         if not self.settings.twilio_auth_token:
-            logger.debug("TWILIO_AUTH_TOKEN not set — skipping signature validation")
-            return True
+            if self.settings.debug:
+                logger.warning(
+                    "TWILIO_AUTH_TOKEN unset — accepting webhook because DEBUG=true. "
+                    "NEVER do this in production."
+                )
+                return True
+            logger.error(
+                "TWILIO_AUTH_TOKEN unset in production — refusing webhook"
+            )
+            return False
 
         try:
             from twilio.request_validator import RequestValidator

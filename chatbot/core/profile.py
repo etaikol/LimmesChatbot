@@ -74,6 +74,10 @@ class ClientConfig(BaseModel):
     name: str = "AI Assistant"
     language_primary: str = "en"
     language_fallback: str = "en"
+    # Languages the visitor may pick from in the widget. Empty list =
+    # only ``language_primary`` is offered. Each entry must be a code
+    # supported by ``chatbot.i18n.SUPPORTED_LANGUAGES``.
+    languages_offered: list[str] = Field(default_factory=list)
     location: str = ""
     timezone: str = "UTC"
 
@@ -119,16 +123,26 @@ class ChatbotProfile(BaseModel):
 
     @property
     def effective_system_prompt(self) -> str:
-        """Personality prompt + client extras + a tiny standard footer."""
+        """Personality + client extras + default language hint."""
+        return self.build_system_prompt(language=None)
+
+    def build_system_prompt(self, language: str | None) -> str:
+        """Like ``effective_system_prompt`` but with a per-request language.
+
+        ``language`` is an ISO-639-1 code coming from the user (widget
+        picker, channel hint, browser ``Accept-Language``…). When unset
+        we fall back to ``client.language_primary``.
+        """
         sections = [self.personality.system_prompt.strip()]
 
         if self.client.system_prompt_extra.strip():
             sections.append(self.client.system_prompt_extra.strip())
 
-        # Language hint (helps the LLM decide the reply language)
+        target = (language or self.client.language_primary or "en").strip().lower()
         sections.append(
-            f"Reply in the language of the user. Default to "
-            f"'{self.client.language_primary}' if unclear."
+            f"Reply in '{target}' unless the user clearly writes in another "
+            f"language. Use natural, idiomatic phrasing — never machine-"
+            f"translated stiffness."
         )
 
         if self.personality.refuse_topics:
