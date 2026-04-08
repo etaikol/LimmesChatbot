@@ -54,6 +54,9 @@ conversation_history.json
 .DS_Store
 Thumbs.db
 
+# Claude local settings (machine-specific paths, not portable)
+.claude/settings.local.json
+
 # Project specific
 # (PDFs intentionally NOT ignored — they live in data/<client>/ and need
 # to ship with the repo for clients that want everything checked-in.

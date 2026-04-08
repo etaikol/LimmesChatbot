@@ -129,14 +129,6 @@ _LATIN_STOPWORDS: dict[str, frozenset[str]] = {
         "eine", "nicht", "mit", "auf", "wir", "auch", "bin", "hallo",
         "danke", "bitte", "ja", "nein",
     }),
-    "it": frozenset({
-        "il", "la", "i", "gli", "e", "è", "tu", "io", "di", "un", "una",
-        "non", "che", "per", "con", "sul", "mio", "molto", "ciao", "grazie",
-    }),
-    "pt": frozenset({
-        "o", "a", "os", "as", "e", "é", "você", "eu", "de", "um", "uma",
-        "não", "que", "para", "com", "por", "meu", "muito", "olá", "obrigado",
-    }),
 }
 
 _WORD_RE = re.compile(r"[A-Za-z\u00C0-\u024F]+")
@@ -183,8 +175,8 @@ def detect_language(
         The user's message. Whitespace, digits and punctuation are
         ignored — only "scriptable" characters count.
     supported:
-        Optional whitelist of ISO-639-1 codes. A guess outside this set
-        falls back to the closest in-set language, or ``None``.
+        Optional whitelist of ISO-639-1 codes. If the detected language
+        is not in this set, return ``None``.
     min_chars:
         Minimum number of scriptable characters required to attempt a
         guess. Below this we return ``None``.
