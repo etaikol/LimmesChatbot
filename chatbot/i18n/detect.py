@@ -213,9 +213,7 @@ def detect_language(
         return None
 
     if best_lang == "latin":
-        best_lang = _detect_latin(text)
-        if best_lang is None:
-            return None
+        best_lang = _detect_latin(text) or "en"
 
     if supported is not None:
         allowed = {code.lower() for code in supported}
