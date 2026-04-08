@@ -14,6 +14,8 @@ configured from environment variables and built once during startup
 
 from __future__ import annotations
 
+import hmac
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Security
 from fastapi.security.api_key import APIKeyHeader
 
@@ -39,7 +41,7 @@ def _require_api_key(
     When set, any request without the correct header gets HTTP 401.
     """
     expected = request.app.state.bot.settings.chatbot_api_key
-    if expected and key != expected:
+    if expected and not hmac.compare_digest(expected, key or ""):
         raise HTTPException(status_code=401, detail="Invalid or missing API key.")
 
 

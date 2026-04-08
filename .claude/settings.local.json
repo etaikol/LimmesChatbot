@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(python -c 'import ast, pathlib; failures=[]:*)",
-      "Bash(python -c ':*)",
-      "Bash(find /c/Users/ekol4/Desktop/WORK/Projects/LimmesChatbot/.claude/worktrees/determined-taussig/chatbot -name \"*.py\" -type f -exec grep -l \"language\" {} \\\\;)"
-    ]
-  }
-}

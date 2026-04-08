@@ -202,7 +202,7 @@
 
 ### טפטים (Wallpapers)
 - טפט צמחים ובוטני (Botanical / plant motif wallpapers)
-- טפط גיאומטרי (Geometric patterns)
+- טפט גיאומטרי (Geometric patterns)
 - טפטים דקורטיביים ייחודיים (Decorative and statement wallpapers)
 
 ### פופים (Poufs)
@@ -243,8 +243,8 @@
 ## פרטי קשר / Contact
 - **טלפון / Phone:** 073-702-7809
 - **נייד / WhatsApp:** 054-725-0779
-- **אימייל / Email:** info@limmes.co.il
+- **אימייל / Email:** limmes.design@gmail.com
 - **פייסבוק / Facebook:** https://www.facebook.com/limmes.co.il/
-- **אינסטגרם / Instagram:** https://www.instagram.com/limmestudio/
+- **אינסטגרם / Instagram:** https://instagram.com/limmestudio
 - **יוטיוב / YouTube:** https://www.youtube.com/channel/UCK5IIoRzm4WPDdkV78Hyifg
 - **אתר / Website:** https://www.limmes.co.il/

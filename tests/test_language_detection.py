@@ -6,8 +6,6 @@ input, mixed scripts, and the supported-whitelist filter.
 """
 from __future__ import annotations
 
-import pytest
-
 from chatbot.i18n.detect import detect_language
 
 # ── Thai ─────────────────────────────────────────────────────────────────────
