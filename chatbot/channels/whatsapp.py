@@ -17,6 +17,8 @@ from typing import Optional
 
 from chatbot.core.engine import Chatbot
 from chatbot.exceptions import ChatbotError, ChannelError
+from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
+from chatbot.i18n.detect import detect_language
 from chatbot.logging_setup import logger
 from chatbot.settings import get_settings
 
@@ -36,9 +38,10 @@ class WhatsAppChannel:
             return self._twiml("I didn't catch that. Could you say it again?")
 
         session_id = f"whatsapp:{from_number}"
+        language = detect_language(body, supported=SUPPORTED_LANGUAGE_CODES)
 
         try:
-            resp = self.bot.ask(body, session_id=session_id)
+            resp = self.bot.ask(body, session_id=session_id, language=language)
             return self._twiml(resp.answer)
         except ChatbotError as e:
             logger.warning("[whatsapp:{}] {}", from_number, e)

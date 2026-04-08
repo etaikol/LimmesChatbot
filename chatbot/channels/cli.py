@@ -16,6 +16,8 @@ import sys
 
 from chatbot.core.engine import Chatbot
 from chatbot.exceptions import ChatbotError
+from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
+from chatbot.i18n.detect import detect_language
 from chatbot.logging_setup import logger
 
 
@@ -82,7 +84,10 @@ class CLIChannel:
                 continue
 
             try:
-                resp = self.bot.ask(question, session_id=self.session_id)
+                language = detect_language(question, supported=SUPPORTED_LANGUAGE_CODES)
+                resp = self.bot.ask(
+                    question, session_id=self.session_id, language=language
+                )
             except ChatbotError as e:
                 print(f"\n[error] {e.user_message}")
                 continue

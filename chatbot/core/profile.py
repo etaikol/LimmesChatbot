@@ -140,9 +140,11 @@ class ChatbotProfile(BaseModel):
 
         target = (language or self.client.language_primary or "en").strip().lower()
         sections.append(
-            f"Reply in '{target}' unless the user clearly writes in another "
-            f"language. Use natural, idiomatic phrasing — never machine-"
-            f"translated stiffness."
+            f"CRITICAL — Language: You MUST always reply in '{target}'. "
+            f"This is the language detected from the user's current message. "
+            f"Do NOT switch to any other language regardless of the conversation "
+            f"history or default settings. "
+            f"Use natural, idiomatic phrasing — never machine-translated stiffness."
         )
 
         if self.personality.refuse_topics:

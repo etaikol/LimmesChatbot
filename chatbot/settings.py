@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     # When true (recommended for production) the app refuses to start if
     # API_CORS_ORIGINS is "*" or empty.
     api_strict_cors: bool = False
+    # Optional shared secret for the /chat endpoint. When set the caller
+    # (e.g. a WordPress site) must send:  X-Api-Key: <value>
+    # Empty string = disabled (open access, rate-limiting still applies).
+    chatbot_api_key: str = ""
 
     # ── Security: input + transport hardening ────────────────────────────────
     # Hard cap on the request body in bytes (Content-Length). 64 KiB is

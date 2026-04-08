@@ -48,6 +48,10 @@ SUPPORTED_LANGUAGES: list[LanguageInfo] = [
     LanguageInfo("hi", "Hindi",     "हिन्दी"),
 ]
 
+# Pre-built tuple of ISO codes — used by language detection call sites
+# so they don't rebuild the list on every message.
+SUPPORTED_LANGUAGE_CODES: tuple[str, ...] = tuple(l.code for l in SUPPORTED_LANGUAGES)
+
 _BY_CODE: dict[str, LanguageInfo] = {l.code: l for l in SUPPORTED_LANGUAGES}
 
 # ── UI strings per language ─────────────────────────────────────────────────
