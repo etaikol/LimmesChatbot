@@ -70,7 +70,7 @@ _EN: dict[str, str] = {
     "clear":             "Clear conversation",
     "minimize":          "Minimize",
     "powered_by":        "AI assistant",
-    "welcome":           "Hello! How can I help you today?",
+    "welcome":           "Hello! 👋 Welcome — I'm here to help with products, pricing, design tips, or booking a consultation. What can I do for you? 😊",
     "budget_reached":    "Sorry, today's usage limit has been reached. Please try again tomorrow.",
 }
 
@@ -88,7 +88,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "ניקוי שיחה",
         "minimize":         "מזעור",
         "powered_by":       "עוזר AI",
-        "welcome":          "שלום! איך אפשר לעזור?",
+        "welcome":          "שלום! 👋 אני כאן לעזור — שאלות על מוצרים, מחירים, עיצוב, או לתיאום פגישה. במה אוכל לעזור? 😊",
         "budget_reached":   "מצטערים, מכסת השימוש להיום הסתיימה. נסו שוב מחר.",
     },
 
@@ -103,7 +103,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "مسح المحادثة",
         "minimize":         "تصغير",
         "powered_by":       "مساعد ذكي",
-        "welcome":          "مرحبا! كيف يمكنني مساعدتك اليوم؟",
+        "welcome":          "أهلاً وسهلاً! 👋 أنا هنا لمساعدتك في المنتجات والأسعار والتصميم أو لحجز استشارة. كيف أقدر أساعدك؟ 😊",
         "budget_reached":   "نأسف، تم بلوغ حد الاستخدام لليوم. يرجى المحاولة غدا.",
     },
 
@@ -118,7 +118,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "پاک کردن گفتگو",
         "minimize":         "کوچک کردن",
         "powered_by":       "دستیار هوشمند",
-        "welcome":          "سلام! چطور می‌توانم کمک کنم؟",
+        "welcome":          "سلام! 👋 برای کمک درباره محصولات، قیمت‌ها، مشاوره طراحی یا رزرو مشاوره اینجام. چطور می‌تونم کمکت کنم؟ 😊",
         "budget_reached":   "متأسفیم، حد مصرف امروز پر شده است. لطفا فردا تلاش کنید.",
     },
 
@@ -133,7 +133,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "ล้างการสนทนา",
         "minimize":         "ย่อเล็กสุด",
         "powered_by":       "ผู้ช่วย AI",
-        "welcome":          "สวัสดี! ฉันช่วยอะไรคุณได้บ้าง?",
+        "welcome":          "สวัสดีครับ/ค่ะ! 👋 ยินดีต้อนรับ — สอบถามเรื่องสินค้า ราคา ไอเดียตกแต่ง หรือนัดปรึกษาได้เลย 😊",
         "budget_reached":   "ขออภัย ถึงขีดจำกัดการใช้งานวันนี้แล้ว โปรดลองใหม่พรุ่งนี้",
     },
 
@@ -148,7 +148,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "Effacer la conversation",
         "minimize":         "Réduire",
         "powered_by":       "Assistant IA",
-        "welcome":          "Bonjour ! Comment puis-je vous aider ?",
+        "welcome":          "Bonjour ! 👋 Je suis là pour vous aider — produits, tarifs, conseils déco ou prise de rendez-vous. Comment puis-je vous aider ? 😊",
         "budget_reached":   "Désolé, la limite d'utilisation du jour est atteinte. Réessayez demain.",
     },
 
@@ -163,7 +163,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "Borrar conversación",
         "minimize":         "Minimizar",
         "powered_by":       "Asistente IA",
-        "welcome":          "¡Hola! ¿En qué puedo ayudarte hoy?",
+        "welcome":          "¡Hola! 👋 Estoy aquí para ayudarte con productos, precios, ideas de diseño o para agendar una consulta. ¿En qué puedo ayudarte? 😊",
         "budget_reached":   "Lo sentimos, se alcanzó el límite diario. Vuelve a intentarlo mañana.",
     },
 
@@ -178,7 +178,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "Unterhaltung löschen",
         "minimize":         "Minimieren",
         "powered_by":       "KI-Assistent",
-        "welcome":          "Hallo! Wie kann ich helfen?",
+        "welcome":          "Hallo! 👋 Ich helfe gerne weiter — Produkte, Preise, Einrichtungsideen oder Terminbuchung. Wie kann ich Ihnen helfen? 😊",
         "budget_reached":   "Tageslimit erreicht. Bitte versuche es morgen erneut.",
     },
 
@@ -193,7 +193,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "Очистить чат",
         "minimize":         "Свернуть",
         "powered_by":       "ИИ ассистент",
-        "welcome":          "Здравствуйте! Чем могу помочь?",
+        "welcome":          "Здравствуйте! 👋 Я здесь, чтобы помочь — товары, цены, советы по дизайну или запись на консультацию. Чем могу помочь? 😊",
         "budget_reached":   "Дневной лимит исчерпан. Попробуйте завтра.",
     },
 
@@ -208,7 +208,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "会話をクリア",
         "minimize":         "最小化",
         "powered_by":       "AIアシスタント",
-        "welcome":          "こんにちは！ご用件をどうぞ。",
+        "welcome":          "こんにちは！👋 商品・価格・インテリアのアドバイス・ご予約など、何でもお気軽にどうぞ 😊",
         "budget_reached":   "本日の利用上限に達しました。明日お試しください。",
     },
 
@@ -223,7 +223,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "清除对话",
         "minimize":         "最小化",
         "powered_by":       "AI 助手",
-        "welcome":          "您好！我能为您做些什么？",
+        "welcome":          "您好！👋 欢迎光临 — 产品咨询、报价、装饰建议或预约均可，请问有什么能帮您的？😊",
         "budget_reached":   "今日使用额度已用完，请明天再试。",
     },
 
@@ -238,7 +238,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "clear":             "बातचीत साफ़ करें",
         "minimize":         "छोटा करें",
         "powered_by":       "AI सहायक",
-        "welcome":          "नमस्ते! मैं आपकी कैसे मदद कर सकता हूँ?",
+        "welcome":          "नमस्ते! 👋 उत्पाद, कीमतें, डिज़ाइन सुझाव या अपॉइंटमेंट बुक करने में मदद के लिए मैं यहाँ हूँ 😊",
         "budget_reached":   "क्षमा करें, आज की सीमा समाप्त हो गई है। कल पुनः प्रयास करें।",
     },
 }

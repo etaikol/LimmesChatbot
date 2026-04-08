@@ -59,10 +59,23 @@ def widget_js(request: Request) -> Response:
     # Build per-language string bundles for the JS payload.
     bundles = {info.code: get_messages(info.code) for info in offered}
 
+    # Per-language greeting: primary lang gets the rich business greeting;
+    # other langs get their own translated welcome from the i18n bundle.
+    primary_code = get_language(primary).code
+    business_greeting = bot.greet()
+    greetings = {
+        info.code: (
+            business_greeting
+            if info.code == primary_code
+            else bundles[info.code].get("welcome", business_greeting)
+        )
+        for info in offered
+    }
+
     js = build_widget_js(
         api_url=base_url,
         client_name=bot.profile.client.name,
-        primary_lang=get_language(primary).code,
+        primary_lang=primary_code,
         languages=[
             {
                 "code": l.code,
@@ -73,7 +86,7 @@ def widget_js(request: Request) -> Response:
             for l in offered
         ],
         bundles=bundles,
-        greeting=bot.greet(),
+        greetings=greetings,
     )
     return Response(content=js, media_type="application/javascript")
 
@@ -85,7 +98,7 @@ def build_widget_js(
     primary_lang: str,
     languages: list[dict],
     bundles: dict[str, dict[str, str]],
-    greeting: str,
+    greetings: dict[str, str],
 ) -> str:
     """Return the widget JS as a string. The data is JSON-encoded once
     so we can interpolate it into the JS body without escaping headaches."""
@@ -95,7 +108,7 @@ def build_widget_js(
         "primaryLang": primary_lang,
         "languages": languages,
         "bundles": bundles,
-        "greeting": greeting,
+        "greetings": greetings,
     }
     return f"(function(){{var CONFIG={json.dumps(config, ensure_ascii=False)};\n{_WIDGET_BODY}\n}})();"
 
@@ -222,7 +235,7 @@ function applyLang(){
   $close.setAttribute('aria-label', b.minimize || 'Close');
   // Re-render greeting bubble
   $msgs.innerHTML = '';
-  add(CONFIG.greeting || b.welcome || '', 'b');
+  add((CONFIG.greetings && CONFIG.greetings[current.code]) || b.welcome || '', 'b');
   // Rebuild language menu
   $langs.innerHTML = '';
   CONFIG.languages.forEach(function(l){
