@@ -742,3 +742,43 @@ def delete_data_file(file_path: str, request: Request) -> dict:
     full_path.unlink()
     logger.info("[admin] Deleted data file: {}", file_path)
     return {"deleted": file_path}
+
+
+@router.post("/data/upload", dependencies=[Depends(_require_admin_key)])
+async def upload_data_file(request: Request) -> dict:
+    """Upload a data file via multipart form. Fields: folder, file."""
+    from fastapi import UploadFile, File, Form
+
+    # Parse multipart manually since we can't use Depends in this pattern
+    form = await request.form()
+    folder = form.get("folder", "")
+    upload = form.get("file")
+    if upload is None or not hasattr(upload, "filename"):
+        raise HTTPException(400, "No file uploaded")
+
+    filename = Path(upload.filename).name  # strip any path from filename
+    if not filename:
+        raise HTTPException(400, "Empty filename")
+
+    s = request.app.state.bot.settings
+    rel_path = f"{folder}/{filename}" if folder else filename
+    clean = Path(rel_path.replace("..", "").strip("/"))
+    full_path = (PROJECT_ROOT / "data" / s.active_client / clean).resolve()
+    data_root = (PROJECT_ROOT / "data" / s.active_client).resolve()
+
+    if not str(full_path).startswith(str(data_root)):
+        raise HTTPException(403, "Path traversal blocked")
+
+    content = await upload.read()
+    if b"\x00" in content:
+        raise HTTPException(415, "Binary files are not supported — only UTF-8 text/markdown files.")
+
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(415, "File is not valid UTF-8 text.")
+
+    full_path.parent.mkdir(parents=True, exist_ok=True)
+    full_path.write_text(text, encoding="utf-8")
+    logger.info("[admin] Uploaded data file: {}", rel_path)
+    return {"uploaded": rel_path, "size": len(text)}

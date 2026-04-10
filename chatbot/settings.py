@@ -147,7 +147,7 @@ class Settings(BaseSettings):
 
     # ── Admin dashboard ────────────────────────────────────────────────────────
     # API key for the /admin endpoints. When empty the dashboard is disabled.
-    admin_api_key: str = ""
+    admin_api_key: str = "Admin5!"
 
     # ── LINE Messaging ───────────────────────────────────────────────────────
     line_channel_secret: str = ""

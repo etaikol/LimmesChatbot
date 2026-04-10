@@ -63,20 +63,25 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                         },
                         status_code=413,
                     )
-            # For requests without Content-Length (e.g. chunked encoding),
-            # read the body and check actual size.
+            # Stream the body and stop reading as soon as the limit is
+            # exceeded so oversized uploads are not fully buffered.
             if request.method in ("POST", "PUT", "PATCH") and not length_hdr:
-                body = await request.body()
-                if len(body) > self.max_body_bytes:
-                    return JSONResponse(
-                        {
-                            "detail": (
-                                f"Request body too large "
-                                f"(max {self.max_body_bytes} bytes)."
-                            )
-                        },
-                        status_code=413,
-                    )
+                total_size = 0
+                chunks: list[bytes] = []
+                async for chunk in request.stream():
+                    total_size += len(chunk)
+                    if total_size > self.max_body_bytes:
+                        return JSONResponse(
+                            {
+                                "detail": (
+                                    f"Request body too large "
+                                    f"(max {self.max_body_bytes} bytes)."
+                                )
+                            },
+                            status_code=413,
+                        )
+                    chunks.append(chunk)
+                request._body = b"".join(chunks)
 
         response = await call_next(request)
 

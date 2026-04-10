@@ -220,10 +220,11 @@ class Chatbot:
         self.memory.add_message(session_id, "user", question)
         self.memory.add_message(session_id, "assistant", answer)
 
-        # Collect sources from a single retrieval (avoids double call)
-        sources = self._build_sources(
-            self.retriever.retrieve(question)
-        )
+        # Do not trigger a second retrieval here. The RAG chain already
+        # performs retrieval internally, and a second lookup can both add
+        # unnecessary cost and return citations that do not match the
+        # context actually used to generate `answer`.
+        sources = []
 
         # 7. Record actual usage. We re-estimate from the strings because
         # not all providers expose .usage_metadata uniformly.
@@ -316,8 +317,16 @@ class Chatbot:
         cls, client_id: str, settings: Optional[Settings] = None
     ) -> Chatbot:
         """Build a Chatbot from a YAML client config under `config/clients/`."""
+        from chatbot.settings import PROJECT_ROOT
+
         profile = ChatbotProfile.load(client_id)
-        return cls(profile=profile, settings=settings)
+        s = settings or get_settings()
+
+        # Honour the client's data_paths so only its data is ingested.
+        if profile.client.data_paths:
+            s.data_dir = PROJECT_ROOT / profile.client.data_paths[0]
+
+        return cls(profile=profile, settings=s)
 
     @classmethod
     def from_env(cls) -> Chatbot:
