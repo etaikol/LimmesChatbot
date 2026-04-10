@@ -161,6 +161,21 @@ tr:hover td{background:rgba(255,255,255,.02)}
 [dir=rtl] .sidebar{left:auto;right:0;border-right:none;border-left:1px solid var(--border)}
 [dir=rtl] .main{margin-left:0;margin-right:240px}
 @media(max-width:768px){[dir=rtl] .main{margin-right:60px}}
+
+/* Onboarding */
+.onb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;display:flex;align-items:center;justify-content:center}
+.onb-box{background:var(--card);border:1px solid var(--border);border-radius:20px;width:460px;max-width:92vw;padding:32px 28px 24px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.5);position:relative}
+.onb-icon{font-size:48px;margin-bottom:10px}
+.onb-title{font-size:20px;font-weight:700;margin-bottom:4px}
+.onb-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.onb-body{font-size:14px;line-height:1.6;color:var(--fg);margin-bottom:20px;min-height:60px}
+.onb-dots{display:flex;justify-content:center;gap:8px;margin-bottom:18px}
+.onb-dot{width:8px;height:8px;border-radius:50%;background:var(--bg3);transition:background .2s}
+.onb-dot.active{background:var(--accent)}
+.onb-btns{display:flex;justify-content:center;gap:10px}
+.onb-lang{position:absolute;top:14px;right:16px;display:flex;gap:4px}
+.onb-lang button{padding:3px 9px;border:1px solid var(--border);border-radius:5px;background:none;color:var(--muted);font-size:10px;font-weight:700;cursor:pointer}
+.onb-lang button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -231,12 +246,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="cards" id="overviewCards"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div>
-        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px">Channels</h3>
-        <div class="tbl-wrap"><table><thead><tr><th>Channel</th><th>Status</th></tr></thead><tbody id="channelRows"></tbody></table></div>
+        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px" data-i18n="ov.channels">Channels</h3>
+        <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.channel">Channel</th><th data-i18n="th.status">Status</th></tr></thead><tbody id="channelRows"></tbody></table></div>
       </div>
       <div>
-        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px">Security</h3>
-        <div class="tbl-wrap"><table><thead><tr><th>Feature</th><th>Status</th></tr></thead><tbody id="securityRows"></tbody></table></div>
+        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px" data-i18n="ov.security">Security</h3>
+        <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.feature">Feature</th><th data-i18n="th.status">Status</th></tr></thead><tbody id="securityRows"></tbody></table></div>
       </div>
     </div>
   </div>
@@ -247,7 +262,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span data-i18n="page.sessions">💬 Sessions</span>
       <div><button class="btn btn-ghost btn-sm" onclick="loadSessions()" data-i18n="btn.refresh">↻ Refresh</button> <button class="btn btn-danger btn-sm" onclick="clearAllSessions()" data-i18n="btn.clearAll">Clear All</button></div>
     </div>
-    <div class="tbl-wrap"><table><thead><tr><th>Session ID</th><th>Messages</th><th>Last Activity</th><th>Actions</th></tr></thead><tbody id="sessionRows"></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.session_id">Session ID</th><th data-i18n="th.messages">Messages</th><th data-i18n="th.last_active">Last Activity</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="sessionRows"></tbody></table></div>
   </div>
 
   <!-- ═══════ Budget ═══════ -->
@@ -398,7 +413,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </div>
 
     <!-- File list -->
-    <div class="tbl-wrap"><table><thead><tr><th>File</th><th>Folder</th><th>Size</th><th>Actions</th></tr></thead><tbody id="dataFileRows"></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.file">File</th><th data-i18n="th.folder">Folder</th><th data-i18n="th.size">Size</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="dataFileRows"></tbody></table></div>
 
     <!-- Editor -->
     <div id="fileEditor" style="display:none">
@@ -449,6 +464,19 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <div class="toast" id="toast"></div>
 
+<!-- Onboarding -->
+<div class="onb-overlay" id="onboarding" style="display:none">
+  <div class="onb-box">
+    <div class="onb-lang" id="onbLang"></div>
+    <div class="onb-icon" id="onbIcon"></div>
+    <div class="onb-title" id="onbTitle"></div>
+    <div class="onb-sub" id="onbSub"></div>
+    <div class="onb-body" id="onbBody"></div>
+    <div class="onb-dots" id="onbDots"></div>
+    <div class="onb-btns" id="onbBtns"></div>
+  </div>
+</div>
+
 <script>
 (function(){
 "use strict";
@@ -475,6 +503,33 @@ var LANGS={
     'logs.nocfg.title':'Log File Not Configured',
     'logs.nocfg.body':'Log file is auto-configured. It will appear after the server starts logging.',
     'logs.nocfg.go':'Go to','logs.nocfg.link':'Configuration → Environment','logs.nocfg.set':'to set this.',
+    // Overview cards
+    'ov.status':'Status','ov.uptime':'Uptime','ov.model':'Model','ov.sessions':'Sessions',
+    'ov.tokens':'Tokens','ov.usd':'USD Spent','ov.ip':'IP Buckets','ov.spam':'Spam Trackers',
+    'ov.running':'🟢 Running','ov.down':'🔴 Down',
+    // Overview tables
+    'ov.channels':'Channels','ov.security':'Security','th.channel':'Channel','th.status':'Status',
+    'th.feature':'Feature','sec.rate':'Rate Limiting','sec.spam':'Spam Detection',
+    'sec.budget':'Budget Guard','sec.hsts':'HSTS','sec.cors':'Strict CORS','sec.apikey':'API Key',
+    // Budget
+    'bud.today':'Today','bud.model':'Model','bud.tokens':'Tokens Used','bud.usd':'USD Spent',
+    'bud.status':'Status','bud.enabled':'🛡️ Enabled','bud.disabled':'⚠️ Disabled',
+    'bud.token_usage':'Token Usage','bud.usd_usage':'USD Usage',
+    // Config sections
+    'cfg.llm':'LLM','cfg.rag':'RAG','cfg.conversation':'Conversation','cfg.rate':'Rate Limiting',
+    'cfg.spam':'Spam Detection','cfg.budget_cap':'Budget','cfg.security':'Security','cfg.general':'General',
+    'cfg.secrets':'Secrets (read-only)','cfg.enabled':'Enabled','cfg.disabled':'Disabled',
+    // Sessions
+    'th.session_id':'Session ID','th.messages':'Messages','th.last_active':'Last Activity','th.actions':'Actions',
+    // Data files
+    'th.file':'File','th.folder':'Folder','th.size':'Size',
+    // Onboarding
+    'onb.welcome':'Welcome to Admin Dashboard','onb.welcome_sub':'Quick tour — takes 10 seconds',
+    'onb.step1_title':'📁 Data Files','onb.step1_body':'Add your business knowledge here — products, hours, policies. The chatbot learns from these files.',
+    'onb.step2_title':'⚙️ Configuration','onb.step2_body':'Set your AI model, language, business name, and personality. Everything the bot needs to know about you.',
+    'onb.step3_title':'📊 Overview','onb.step3_body':'Monitor sessions, budget, and channels. All live stats in one place.',
+    'onb.skip':'Skip','onb.next':'Next','onb.prev':'Back','onb.done':'Get Started',
+    'onb.go_data':'Go to Data Files','onb.go_config':'Go to Configuration',
   },
   he:{
     'nav.overview':'סקירה','nav.sessions':'שיחות','nav.budget':'תקציב','nav.config':'הגדרות',
@@ -496,6 +551,26 @@ var LANGS={
     'logs.nocfg.title':'קובץ לוג טרם נוצר',
     'logs.nocfg.body':'קובץ הלוג מוגדר אוטומטית. הוא יופיע לאחר שהשרת יתחיל לרשום לוגים.',
     'logs.nocfg.go':'עבור ל','logs.nocfg.link':'הגדרות ← סביבה','logs.nocfg.set':'להגדרה.',
+    'ov.status':'סטטוס','ov.uptime':'זמן פעילות','ov.model':'מודל','ov.sessions':'שיחות',
+    'ov.tokens':'טוקנים','ov.usd':'הוצאה ($)','ov.ip':'IP פעילים','ov.spam':'מעקב ספאם',
+    'ov.running':'🟢 פעיל','ov.down':'🔴 מושבת',
+    'ov.channels':'ערוצים','ov.security':'אבטחה','th.channel':'ערוץ','th.status':'סטטוס',
+    'th.feature':'תכונה','sec.rate':'הגבלת קצב','sec.spam':'זיהוי ספאם',
+    'sec.budget':'מגן תקציב','sec.hsts':'HSTS','sec.cors':'CORS מחמיר','sec.apikey':'מפתח API',
+    'bud.today':'היום','bud.model':'מודל','bud.tokens':'טוקנים','bud.usd':'הוצאה ($)',
+    'bud.status':'סטטוס','bud.enabled':'🛡️ מופעל','bud.disabled':'⚠️ מושבת',
+    'bud.token_usage':'שימוש בטוקנים','bud.usd_usage':'שימוש בדולרים',
+    'cfg.llm':'מודל שפה','cfg.rag':'RAG','cfg.conversation':'שיחה','cfg.rate':'הגבלת קצב',
+    'cfg.spam':'זיהוי ספאם','cfg.budget_cap':'תקציב','cfg.security':'אבטחה','cfg.general':'כללי',
+    'cfg.secrets':'סודות (קריאה בלבד)','cfg.enabled':'מופעל','cfg.disabled':'מושבת',
+    'th.session_id':'מזהה שיחה','th.messages':'הודעות','th.last_active':'פעילות אחרונה','th.actions':'פעולות',
+    'th.file':'קובץ','th.folder':'תיקייה','th.size':'גודל',
+    'onb.welcome':'ברוכים הבאים לפאנל הניהול','onb.welcome_sub':'סיור מהיר — 10 שניות',
+    'onb.step1_title':'📁 קבצי מידע','onb.step1_body':'הוסיפו את המידע העסקי כאן — מוצרים, שעות, מדיניות. הצ\'אטבוט לומד מהקבצים האלה.',
+    'onb.step2_title':'⚙️ הגדרות','onb.step2_body':'הגדירו מודל AI, שפה, שם העסק ואישיות. כל מה שהבוט צריך לדעת.',
+    'onb.step3_title':'📊 סקירה','onb.step3_body':'עקבו אחרי שיחות, תקציב וערוצים. כל הנתונים במקום אחד.',
+    'onb.skip':'דלג','onb.next':'הבא','onb.prev':'הקודם','onb.done':'בואו נתחיל',
+    'onb.go_data':'לקבצי מידע','onb.go_config':'להגדרות',
   },
   th:{
     'nav.overview':'ภาพรวม','nav.sessions':'เซสชัน','nav.budget':'งบประมาณ','nav.config':'การตั้งค่า',
@@ -517,6 +592,26 @@ var LANGS={
     'logs.nocfg.title':'ยังไม่ได้สร้างไฟล์บันทึก',
     'logs.nocfg.body':'ไฟล์บันทึกถูกตั้งค่าอัตโนมัติ จะปรากฏหลังจากเซิร์ฟเวอร์เริ่มบันทึก',
     'logs.nocfg.go':'ไปที่','logs.nocfg.link':'การตั้งค่า → สภาพแวดล้อม','logs.nocfg.set':'เพื่อตั้งค่า',
+    'ov.status':'สถานะ','ov.uptime':'เวลาทำงาน','ov.model':'โมเดล','ov.sessions':'เซสชัน',
+    'ov.tokens':'โทเคน','ov.usd':'ค่าใช้จ่าย ($)','ov.ip':'IP ที่ใช้งาน','ov.spam':'ตรวจจับสแปม',
+    'ov.running':'🟢 กำลังทำงาน','ov.down':'🔴 หยุด',
+    'ov.channels':'ช่องทาง','ov.security':'ความปลอดภัย','th.channel':'ช่องทาง','th.status':'สถานะ',
+    'th.feature':'ฟีเจอร์','sec.rate':'จำกัดอัตรา','sec.spam':'ตรวจจับสแปม',
+    'sec.budget':'ควบคุมงบ','sec.hsts':'HSTS','sec.cors':'CORS เข้มงวด','sec.apikey':'API Key',
+    'bud.today':'วันนี้','bud.model':'โมเดล','bud.tokens':'โทเคนที่ใช้','bud.usd':'ค่าใช้จ่าย ($)',
+    'bud.status':'สถานะ','bud.enabled':'🛡️ เปิดใช้งาน','bud.disabled':'⚠️ ปิดใช้งาน',
+    'bud.token_usage':'การใช้โทเคน','bud.usd_usage':'การใช้จ่าย',
+    'cfg.llm':'โมเดลภาษา','cfg.rag':'RAG','cfg.conversation':'การสนทนา','cfg.rate':'จำกัดอัตรา',
+    'cfg.spam':'ตรวจจับสแปม','cfg.budget_cap':'งบประมาณ','cfg.security':'ความปลอดภัย','cfg.general':'ทั่วไป',
+    'cfg.secrets':'ความลับ (อ่านอย่างเดียว)','cfg.enabled':'เปิดใช้งาน','cfg.disabled':'ปิดใช้งาน',
+    'th.session_id':'รหัสเซสชัน','th.messages':'ข้อความ','th.last_active':'ใช้งานล่าสุด','th.actions':'การดำเนินการ',
+    'th.file':'ไฟล์','th.folder':'โฟลเดอร์','th.size':'ขนาด',
+    'onb.welcome':'ยินดีต้อนรับสู่แดชบอร์ด','onb.welcome_sub':'ทัวร์สั้น — ใช้เวลา 10 วินาที',
+    'onb.step1_title':'📁 ไฟล์ข้อมูล','onb.step1_body':'เพิ่มข้อมูลธุรกิจที่นี่ — สินค้า, เวลาเปิด, นโยบาย แชทบอทจะเรียนรู้จากไฟล์เหล่านี้',
+    'onb.step2_title':'⚙️ การตั้งค่า','onb.step2_body':'ตั้งค่าโมเดล AI, ภาษา, ชื่อธุรกิจ, และบุคลิกภาพ ทุกอย่างที่บอทต้องรู้',
+    'onb.step3_title':'📊 ภาพรวม','onb.step3_body':'ดูเซสชัน, งบประมาณ, และช่องทาง ข้อมูลสดทั้งหมดในที่เดียว',
+    'onb.skip':'ข้าม','onb.next':'ถัดไป','onb.prev':'กลับ','onb.done':'เริ่มเลย',
+    'onb.go_data':'ไปไฟล์ข้อมูล','onb.go_config':'ไปการตั้งค่า',
   }
 };
 var _lang='en';
@@ -533,6 +628,43 @@ window.setLang=function(code){
 };
 function initLang(){setLang(localStorage.getItem('admin_lang')||'en')}
 
+// ── Onboarding ────────────────────────────────────────────────────────
+var _onbStep=0;
+var ONB_STEPS=[
+  {icon:'🚀',titleK:'onb.welcome',subK:'onb.welcome_sub',bodyK:''},
+  {icon:'📁',titleK:'onb.step1_title',subK:'',bodyK:'onb.step1_body'},
+  {icon:'⚙️',titleK:'onb.step2_title',subK:'',bodyK:'onb.step2_body'},
+  {icon:'📊',titleK:'onb.step3_title',subK:'',bodyK:'onb.step3_body'},
+];
+function showOnboarding(){
+  var el=document.getElementById('onboarding');el.style.display='flex';
+  // language buttons in the onboarding
+  var lh='';['en','he','th'].forEach(function(c){var labels={en:'EN',he:'HE',th:'TH'};lh+='<button class="'+(c===_lang?'active':'')+'" onclick="setLang(\''+c+'\');renderOnbStep()">'+labels[c]+'</button>'});
+  document.getElementById('onbLang').innerHTML=lh;
+  _onbStep=0;renderOnbStep();
+}
+function renderOnbStep(){
+  var s=ONB_STEPS[_onbStep],total=ONB_STEPS.length;
+  document.getElementById('onbIcon').textContent=s.icon;
+  document.getElementById('onbTitle').textContent=s.titleK?t(s.titleK):'';
+  document.getElementById('onbSub').textContent=s.subK?t(s.subK):'';
+  document.getElementById('onbBody').textContent=s.bodyK?t(s.bodyK):'';
+  // dots
+  var dh='';for(var i=0;i<total;i++)dh+='<div class="onb-dot'+(_onbStep===i?' active':'')+'"></div>';
+  document.getElementById('onbDots').innerHTML=dh;
+  // buttons
+  var bh='';
+  if(_onbStep===0){bh+='<button class="btn btn-ghost btn-sm" onclick="closeOnboarding()">'+t('onb.skip')+'</button>';bh+='<button class="btn btn-primary btn-sm" onclick="onbNext()">'+t('onb.next')+' →</button>'}
+  else if(_onbStep<total-1){bh+='<button class="btn btn-ghost btn-sm" onclick="onbPrev()">← '+t('onb.prev')+'</button>';bh+='<button class="btn btn-primary btn-sm" onclick="onbNext()">'+t('onb.next')+' →</button>'}
+  else{bh+='<button class="btn btn-ghost btn-sm" onclick="onbPrev()">← '+t('onb.prev')+'</button>';bh+='<button class="btn btn-primary btn-sm" onclick="closeOnboarding();showPage(\'data\',document.querySelector(\'[data-page=data]\'))">'+t('onb.go_data')+'</button>';bh+='<button class="btn btn-primary btn-sm" onclick="closeOnboarding();showPage(\'config\',document.querySelector(\'[data-page=config]\'))">'+t('onb.go_config')+'</button>'}
+  document.getElementById('onbBtns').innerHTML=bh;
+  // refresh lang buttons
+  document.querySelectorAll('#onbLang button').forEach(function(b){b.className=b.textContent.toLowerCase()===_lang?'active':''});
+}
+window.onbNext=function(){if(_onbStep<ONB_STEPS.length-1){_onbStep++;renderOnbStep()}};
+window.onbPrev=function(){if(_onbStep>0){_onbStep--;renderOnbStep()}};
+function closeOnboarding(){document.getElementById('onboarding').style.display='none';localStorage.setItem('admin_onboarded','1')}
+
 var KEY='',BASE=window.location.origin+'/admin/api';
 
 // ── Auth ──────────────────────────────────────────────────────────────
@@ -548,6 +680,7 @@ window.tryLogin=async function(){
     initLang();
     renderOverview(r);
     loadConfig().catch(function(){});// pre-load so emoji picker knows active client
+    if(!localStorage.getItem('admin_onboarded'))showOnboarding();
   }catch(e){document.getElementById('authErr').textContent=e.message||'Authentication failed';document.getElementById('authErr').style.display='block';KEY=''}
 };
 document.getElementById('keyInput').addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin()});
@@ -583,17 +716,17 @@ window.showPage=function(id,btn){
 async function loadOverviewData(){try{renderOverview(await api('/overview'))}catch(e){toast(e.message,'err')}}
 function renderOverview(d){
   var b=d.budget||{};
-  var html=card('Status',d.status==='running'?'🟢 Running':'🔴 Down','')+card('Uptime',d.uptime,'')+card('Model',d.model,d.provider)+card('Sessions',d.sessions.active,d.sessions.backend)+card('Tokens',b.tokens_used?b.tokens_used.toLocaleString():'0','of '+(b.daily_token_cap||0).toLocaleString())+card('USD Spent','$'+(b.usd_used||0).toFixed(4),'of $'+(b.daily_usd_cap||0).toFixed(2))+card('IP Buckets',d.rate_limiting.active_ip_buckets,d.rate_limiting.ip_per_minute+'/min')+card('Spam Trackers',d.spam_detection.active_trackers,d.spam_detection.max_strikes+' strikes');
+  var html=card(t('ov.status'),d.status==='running'?t('ov.running'):t('ov.down'),'')+card(t('ov.uptime'),d.uptime,'')+card(t('ov.model'),d.model,d.provider)+card(t('ov.sessions'),d.sessions.active,d.sessions.backend)+card(t('ov.tokens'),b.tokens_used?b.tokens_used.toLocaleString():'0','of '+(b.daily_token_cap||0).toLocaleString())+card(t('ov.usd'),'$'+(b.usd_used||0).toFixed(4),'of $'+(b.daily_usd_cap||0).toFixed(2))+card(t('ov.ip'),d.rate_limiting.active_ip_buckets,d.rate_limiting.ip_per_minute+'/min')+card(t('ov.spam'),d.spam_detection.active_trackers,d.spam_detection.max_strikes+' strikes');
   document.getElementById('overviewCards').innerHTML=html;
   var ch=d.channels,cr='';['web','whatsapp','telegram','line'].forEach(function(c){cr+='<tr><td style="text-transform:capitalize">'+c+'</td><td>'+(ch[c]?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>'});
   document.getElementById('channelRows').innerHTML=cr;
   var sec=d.security,sr='';
-  sr+='<tr><td>Rate Limiting</td><td>'+(d.rate_limiting.enabled?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
-  sr+='<tr><td>Spam Detection</td><td>'+(d.spam_detection.enabled?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
-  sr+='<tr><td>Budget Guard</td><td>'+(b.enabled?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
-  sr+='<tr><td>HSTS</td><td>'+(sec.hsts_enabled?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
-  sr+='<tr><td>Strict CORS</td><td>'+(sec.strict_cors?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
-  sr+='<tr><td>API Key</td><td>'+(sec.api_key_set?'<span class="tag tag-on">SET</span>':'<span class="tag tag-off">NOT SET</span>')+'</td></tr>';
+  sr+='<tr><td>'+t('sec.rate')+'</td><td>'+(d.rate_limiting.enabled?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
+  sr+='<tr><td>'+t('sec.spam')+'</td><td>'+(d.spam_detection.enabled?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
+  sr+='<tr><td>'+t('sec.budget')+'</td><td>'+(b.enabled?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
+  sr+='<tr><td>'+t('sec.hsts')+'</td><td>'+(sec.hsts_enabled?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
+  sr+='<tr><td>'+t('sec.cors')+'</td><td>'+(sec.strict_cors?'<span class="tag tag-on">ON</span>':'<span class="tag tag-off">OFF</span>')+'</td></tr>';
+  sr+='<tr><td>'+t('sec.apikey')+'</td><td>'+(sec.api_key_set?'<span class="tag tag-on">SET</span>':'<span class="tag tag-off">NOT SET</span>')+'</td></tr>';
   document.getElementById('securityRows').innerHTML=sr;
 }
 function card(l,v,s){return'<div class="card"><div class="card-label">'+l+'</div><div class="card-value">'+v+'</div>'+(s?'<div class="card-sub">'+s+'</div>':'')+'</div>'}
@@ -610,7 +743,7 @@ window.deleteSession=async function(id){if(!confirm('Delete session '+id+'?'))re
 window.clearAllSessions=async function(){if(!confirm('Clear ALL sessions?'))return;try{var d=await api('/sessions',{method:'DELETE'});toast('Cleared '+d.cleared+' sessions','ok');loadSessions()}catch(e){toast(e.message,'err')}};
 
 // ── Budget ────────────────────────────────────────────────────────────
-async function loadBudget(){try{var d=await api('/budget');var tc=d.daily_token_cap||1,uc=d.daily_usd_cap||1;var tp=Math.min(100,Math.round(d.tokens_used/tc*100)),up=Math.min(100,Math.round(d.usd_used/uc*100));document.getElementById('budgetCards').innerHTML=card('Today','📅 '+d.day,'')+card('Model',d.model,'')+card('Tokens Used',d.tokens_used.toLocaleString(),'/ '+tc.toLocaleString())+card('USD Spent','$'+d.usd_used.toFixed(4),'/ $'+d.daily_usd_cap.toFixed(2))+card('Status',d.enabled?'🛡️ Enabled':'⚠️ Disabled','');document.getElementById('budgetBars').innerHTML='<div class="card" style="margin-bottom:16px"><div class="card-label">Token Usage ('+tp+'%)</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div><div class="card"><div class="card-label">USD Usage ('+up+'%)</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>'}catch(e){toast(e.message,'err')}}
+async function loadBudget(){try{var d=await api('/budget');var tc=d.daily_token_cap||1,uc=d.daily_usd_cap||1;var tp=Math.min(100,Math.round(d.tokens_used/tc*100)),up=Math.min(100,Math.round(d.usd_used/uc*100));document.getElementById('budgetCards').innerHTML=card(t('bud.today'),'📅 '+d.day,'')+card(t('bud.model'),d.model,'')+card(t('bud.tokens'),d.tokens_used.toLocaleString(),'/ '+tc.toLocaleString())+card(t('bud.usd'),'$'+d.usd_used.toFixed(4),'/ $'+d.daily_usd_cap.toFixed(2))+card(t('bud.status'),d.enabled?t('bud.enabled'):t('bud.disabled'),'');document.getElementById('budgetBars').innerHTML='<div class="card" style="margin-bottom:16px"><div class="card-label">'+t('bud.token_usage')+' ('+tp+'%)</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div><div class="card"><div class="card-label">'+t('bud.usd_usage')+' ('+up+'%)</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>'}catch(e){toast(e.message,'err')}}
 window.resetBudget=async function(){if(!confirm('Reset budget?'))return;try{await api('/budget/reset',{method:'POST'});toast('Budget reset','ok');loadBudget()}catch(e){toast(e.message,'err')}};
 
 // ══════════════════════════════════════════════════════════════════════
@@ -620,27 +753,47 @@ var cfgCache={};
 async function loadConfig(){try{var d=await api('/config');cfgCache=d;buildEnvForm(d.env);document.getElementById('clientFile').textContent=d.client_file;document.getElementById('personalityFile').textContent=d.personality_file;document.getElementById('clientYaml').value=yamlStringify(d.client);document.getElementById('personalityYaml').value=yamlStringify(d.personality);buildClientForm(d.client);buildPersonalityForm(d.personality)}catch(e){toast(e.message,'err')}}
 
 var ENV_GROUPS=[
-  {label:'LLM',keys:['LLM_PROVIDER','LLM_MODEL','LLM_TEMPERATURE']},
-  {label:'RAG',keys:['EMBEDDING_MODEL','CHUNK_SIZE','CHUNK_OVERLAP','RETRIEVAL_K']},
-  {label:'Conversation',keys:['MAX_HISTORY_TURNS','MAX_MESSAGE_CHARS']},
-  {label:'Rate Limiting',keys:['RATE_LIMIT_ENABLED','RATE_LIMIT_IP_PER_MINUTE','RATE_LIMIT_IP_BURST','RATE_LIMIT_SESSION_PER_MINUTE','RATE_LIMIT_SESSION_BURST']},
-  {label:'Spam Detection',keys:['SPAM_DETECTION_ENABLED','SPAM_MAX_STRIKES','SPAM_COOLDOWN_SECONDS']},
-  {label:'Budget',keys:['DAILY_TOKEN_CAP','DAILY_USD_CAP']},
-  {label:'Security',keys:['API_CORS_ORIGINS','API_STRICT_CORS','API_HSTS_ENABLED']},
-  {label:'General',keys:['ACTIVE_CLIENT','LOG_LEVEL','DEBUG']}
+  {label:'cfg.llm',keys:['LLM_PROVIDER','LLM_MODEL','LLM_TEMPERATURE']},
+  {label:'cfg.rag',keys:['EMBEDDING_MODEL','CHUNK_SIZE','CHUNK_OVERLAP','RETRIEVAL_K']},
+  {label:'cfg.conversation',keys:['MAX_HISTORY_TURNS','MAX_MESSAGE_CHARS']},
+  {label:'cfg.rate',keys:['RATE_LIMIT_ENABLED','RATE_LIMIT_IP_PER_MINUTE','RATE_LIMIT_IP_BURST','RATE_LIMIT_SESSION_PER_MINUTE','RATE_LIMIT_SESSION_BURST']},
+  {label:'cfg.spam',keys:['SPAM_DETECTION_ENABLED','SPAM_MAX_STRIKES','SPAM_COOLDOWN_SECONDS']},
+  {label:'cfg.budget_cap',keys:['DAILY_TOKEN_CAP','DAILY_USD_CAP']},
+  {label:'cfg.security',keys:['API_CORS_ORIGINS','API_STRICT_CORS','API_HSTS_ENABLED']},
+  {label:'cfg.general',keys:['ACTIVE_CLIENT','LOG_LEVEL','DEBUG']}
+];
+
+// Fields that admins should not edit from the dashboard (require .env change)
+var LOCKED_KEYS={LLM_PROVIDER:true,EMBEDDING_MODEL:true,CHUNK_SIZE:true,CHUNK_OVERLAP:true,RETRIEVAL_K:true};
+
+// Recommended chatbot models shown in the LLM_MODEL dropdown
+var MODEL_OPTIONS=[
+  {v:'gpt-4o-mini',l:'gpt-4o-mini — fast & cheap (recommended)'},
+  {v:'gpt-4o',l:'gpt-4o — smartest, higher cost'},
+  {v:'gpt-4-turbo',l:'gpt-4-turbo — fast, mid cost'},
+  {v:'gpt-3.5-turbo',l:'gpt-3.5-turbo — cheapest'},
+  {v:'claude-3-5-sonnet-20241022',l:'Claude 3.5 Sonnet'},
+  {v:'claude-3-haiku-20240307',l:'Claude 3 Haiku — fast & cheap'},
 ];
 
 function buildEnvForm(env){
   var html='';
   ENV_GROUPS.forEach(function(g){
-    html+='<div class="cfg-card"><h4>'+g.label+'</h4><div class="cfg-grid">';
+    html+='<div class="cfg-card"><h4>'+t(g.label)+'</h4><div class="cfg-grid">';
     g.keys.forEach(function(k){var v=env[k];if(v===undefined)return;
-      if(typeof v==='boolean'){html+='<div class="form-group"><label class="form-label">'+k+'</label><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" data-env="'+k+'" '+(v?'checked':'')+' style="width:18px;height:18px;accent-color:var(--accent)"><span style="font-size:13px">'+(v?'Enabled':'Disabled')+'</span></label></div>'}
-      else{html+='<div class="form-group"><label class="form-label">'+k+'</label><input class="form-input" data-env="'+k+'" value="'+esc(String(v))+'"></div>'}
+      var locked=LOCKED_KEYS[k];
+      if(typeof v==='boolean'){html+='<div class="form-group"><label class="form-label">'+k+'</label><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" data-env="'+k+'" '+(v?'checked':'')+(locked?' disabled':'')+' style="width:18px;height:18px;accent-color:var(--accent)"><span style="font-size:13px">'+t(v?'cfg.enabled':'cfg.disabled')+'</span></label>'+(locked?'<span style="font-size:10px;color:var(--muted)">🔒</span>':'')+'</div>'}
+      else if(k==='LLM_MODEL'){
+        html+='<div class="form-group"><label class="form-label">'+k+'</label><select class="form-input" data-env="'+k+'" style="cursor:pointer">';
+        var found=false;MODEL_OPTIONS.forEach(function(o){var sel=String(v)===o.v;if(sel)found=true;html+='<option value="'+esc(o.v)+'"'+(sel?' selected':'')+'>'+esc(o.l)+'</option>'});
+        if(!found)html+='<option value="'+esc(String(v))+'" selected>'+esc(String(v))+' (custom)</option>';
+        html+='</select></div>';
+      }
+      else{html+='<div class="form-group"><label class="form-label">'+k+(locked?' 🔒':'')+'</label><input class="form-input" data-env="'+k+'" value="'+esc(String(v))+'"'+(locked?' readonly style="opacity:.6;cursor:not-allowed"':'')+'></div>'}
     });html+='</div></div>';
   });
   var secrets=Object.keys(env).filter(function(k){return k.startsWith('_')&&k.endsWith('_SET')});
-  if(secrets.length){html+='<div class="cfg-card"><h4>Secrets (read-only)</h4><div class="cfg-grid">';secrets.forEach(function(k){var label=k.replace(/^_/,'').replace(/_SET$/,'');html+='<div class="form-group"><label class="form-label">'+label+'</label>'+(env[k]?'<span class="tag tag-on">SET</span>':'<span class="tag tag-off">NOT SET</span>')+'</div>'});html+='</div></div>'}
+  if(secrets.length){html+='<div class="cfg-card"><h4>'+t('cfg.secrets')+'</h4><div class="cfg-grid">';secrets.forEach(function(k){var label=k.replace(/^_/,'').replace(/_SET$/,'');html+='<div class="form-group"><label class="form-label">'+label+'</label>'+(env[k]?'<span class="tag tag-on">SET</span>':'<span class="tag tag-off">NOT SET</span>')+'</div>'});html+='</div></div>'}
   document.getElementById('envForm').innerHTML=html;
 }
 
@@ -649,13 +802,13 @@ function buildEnvForm(env){
 function validateCfg(type, obj){
   if(!obj||typeof obj!=='object'||Array.isArray(obj)||!Object.keys(obj).length)
     return 'Cannot save — config is empty or was wiped.';
-  var req={client:['id','name'],personality:['name','system_prompt'],env:['LLM_PROVIDER','LLM_MODEL']};
+  var req={client:['id','name'],personality:['name','system_prompt'],env:['LLM_MODEL']};
   var missing=(req[type]||[]).filter(function(k){return obj[k]===undefined||obj[k]===null||String(obj[k]).trim()===''});
   if(missing.length)return 'Required fields are missing or blank: '+missing.join(', ');
   return null;
 }
 
-window.saveEnv=async function(){var body={};document.querySelectorAll('[data-env]').forEach(function(el){body[el.dataset.env]=el.type==='checkbox'?el.checked:el.value});var err=validateCfg('env',body);if(err){toast(err,'warn');return}try{var r=await api('/config/env',{method:'PUT',body:body});var msg='Settings saved.';if(r.rejected&&Object.keys(r.rejected).length)msg+=' Rejected: '+Object.keys(r.rejected).join(', ');toast(msg,'ok')}catch(e){toast(e.message,'err')}};
+window.saveEnv=async function(){var body={};document.querySelectorAll('[data-env]').forEach(function(el){if(el.disabled||el.readOnly)return;body[el.dataset.env]=el.type==='checkbox'?el.checked:el.tagName==='SELECT'?el.value:el.value});var err=validateCfg('env',body);if(err){toast(err,'warn');return}try{var r=await api('/config/env',{method:'PUT',body:body});var msg='Settings saved.';if(r.rejected&&Object.keys(r.rejected).length)msg+=' Rejected: '+Object.keys(r.rejected).join(', ');toast(msg,'ok')}catch(e){toast(e.message,'err')}};
 
 window.showConfigTab=function(tab,btn){
   document.querySelectorAll('#page-config .config-panel').forEach(function(p){p.style.display='none'});
