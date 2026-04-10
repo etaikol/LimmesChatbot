@@ -163,19 +163,19 @@ tr:hover td{background:rgba(255,255,255,.02)}
 @media(max-width:768px){[dir=rtl] .main{margin-right:60px}}
 
 /* Onboarding */
-.onb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;display:flex;align-items:center;justify-content:center}
-.onb-box{background:var(--card);border:1px solid var(--border);border-radius:20px;width:460px;max-width:92vw;padding:32px 28px 24px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.5);position:relative}
-.onb-icon{font-size:48px;margin-bottom:10px}
-.onb-title{font-size:20px;font-weight:700;margin-bottom:4px}
-.onb-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
-.onb-body{font-size:14px;line-height:1.6;color:var(--fg);margin-bottom:20px;min-height:60px}
-.onb-dots{display:flex;justify-content:center;gap:8px;margin-bottom:18px}
+.onb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9998;pointer-events:none;transition:opacity .3s}
+.onb-card{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--card);border:1px solid var(--accent);border-radius:16px;width:420px;max-width:92vw;padding:22px 24px 18px;box-shadow:0 8px 40px rgba(14,165,233,.25);pointer-events:all;text-align:center}
+.onb-card .onb-icon{font-size:32px;margin-bottom:6px}
+.onb-card .onb-title{font-size:17px;font-weight:700;margin-bottom:3px}
+.onb-card .onb-body{font-size:13px;line-height:1.55;color:var(--muted);margin-bottom:14px;min-height:30px}
+.onb-dots{display:flex;justify-content:center;gap:8px;margin-bottom:12px}
 .onb-dot{width:8px;height:8px;border-radius:50%;background:var(--bg3);transition:background .2s}
 .onb-dot.active{background:var(--accent)}
 .onb-btns{display:flex;justify-content:center;gap:10px}
-.onb-lang{position:absolute;top:14px;right:16px;display:flex;gap:4px}
+.onb-lang{display:flex;gap:4px;justify-content:center;margin-bottom:10px}
 .onb-lang button{padding:3px 9px;border:1px solid var(--border);border-radius:5px;background:none;color:var(--muted);font-size:10px;font-weight:700;cursor:pointer}
 .onb-lang button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.onb-highlight{position:relative;z-index:9999;box-shadow:0 0 0 4px var(--accent),0 0 20px rgba(14,165,233,.3);border-radius:var(--radius);transition:box-shadow .3s}
 </style>
 </head>
 <body>
@@ -465,16 +465,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div class="toast" id="toast"></div>
 
 <!-- Onboarding -->
-<div class="onb-overlay" id="onboarding" style="display:none">
-  <div class="onb-box">
-    <div class="onb-lang" id="onbLang"></div>
-    <div class="onb-icon" id="onbIcon"></div>
-    <div class="onb-title" id="onbTitle"></div>
-    <div class="onb-sub" id="onbSub"></div>
-    <div class="onb-body" id="onbBody"></div>
-    <div class="onb-dots" id="onbDots"></div>
-    <div class="onb-btns" id="onbBtns"></div>
-  </div>
+<div class="onb-overlay" id="onbOverlay" style="display:none"></div>
+<div class="onb-card" id="onbCard" style="display:none">
+  <div class="onb-lang" id="onbLang"></div>
+  <div class="onb-icon" id="onbIcon"></div>
+  <div class="onb-title" id="onbTitle"></div>
+  <div class="onb-body" id="onbBody"></div>
+  <div class="onb-dots" id="onbDots"></div>
+  <div class="onb-btns" id="onbBtns"></div>
 </div>
 
 <script>
@@ -629,41 +627,54 @@ window.setLang=function(code){
 function initLang(){setLang(localStorage.getItem('admin_lang')||'en')}
 
 // ── Onboarding ────────────────────────────────────────────────────────
-var _onbStep=0;
+var _onbStep=0,_onbHighlight=null;
 var ONB_STEPS=[
-  {icon:'🚀',titleK:'onb.welcome',subK:'onb.welcome_sub',bodyK:''},
-  {icon:'📁',titleK:'onb.step1_title',subK:'',bodyK:'onb.step1_body'},
-  {icon:'⚙️',titleK:'onb.step2_title',subK:'',bodyK:'onb.step2_body'},
-  {icon:'📊',titleK:'onb.step3_title',subK:'',bodyK:'onb.step3_body'},
+  {icon:'🚀',titleK:'onb.welcome',bodyK:'onb.welcome_sub',page:null},
+  {icon:'📁',titleK:'onb.step1_title',bodyK:'onb.step1_body',page:'data'},
+  {icon:'⚙️',titleK:'onb.step2_title',bodyK:'onb.step2_body',page:'config'},
+  {icon:'📊',titleK:'onb.step3_title',bodyK:'onb.step3_body',page:'overview'},
 ];
 function showOnboarding(){
-  var el=document.getElementById('onboarding');el.style.display='flex';
-  // language buttons in the onboarding
-  var lh='';['en','he','th'].forEach(function(c){var labels={en:'EN',he:'HE',th:'TH'};lh+='<button class="'+(c===_lang?'active':'')+'" onclick="setLang(\''+c+'\');renderOnbStep()">'+labels[c]+'</button>'});
-  document.getElementById('onbLang').innerHTML=lh;
+  document.getElementById('onbOverlay').style.display='block';
+  document.getElementById('onbCard').style.display='block';
   _onbStep=0;renderOnbStep();
 }
 function renderOnbStep(){
   var s=ONB_STEPS[_onbStep],total=ONB_STEPS.length;
+  // navigate to the real page for this step
+  if(s.page){var nb=document.querySelector('[data-page='+s.page+']');if(nb)showPage(s.page,nb)}
+  // highlight the relevant nav item
+  if(_onbHighlight){_onbHighlight.classList.remove('onb-highlight');_onbHighlight=null}
+  if(s.page){var ni=document.querySelector('[data-page='+s.page+']');if(ni){ni.classList.add('onb-highlight');_onbHighlight=ni}}
+  // content
   document.getElementById('onbIcon').textContent=s.icon;
   document.getElementById('onbTitle').textContent=s.titleK?t(s.titleK):'';
-  document.getElementById('onbSub').textContent=s.subK?t(s.subK):'';
   document.getElementById('onbBody').textContent=s.bodyK?t(s.bodyK):'';
+  // lang buttons
+  var lh='';['en','he','th'].forEach(function(c){lh+='<button class="'+(c===_lang?'active':'')+'" onclick="onbLangSwitch(\''+c+'\')">'+c.toUpperCase()+'</button>'});
+  document.getElementById('onbLang').innerHTML=lh;
   // dots
-  var dh='';for(var i=0;i<total;i++)dh+='<div class="onb-dot'+(_onbStep===i?' active':'')+'"></div>';
+  var dh='';for(var i=0;i<total;i++)dh+='<div class="onb-dot'+(_onbStep===i?' active':'')+'" style="cursor:pointer" onclick="onbGo('+i+')"></div>';
   document.getElementById('onbDots').innerHTML=dh;
   // buttons
   var bh='';
-  if(_onbStep===0){bh+='<button class="btn btn-ghost btn-sm" onclick="closeOnboarding()">'+t('onb.skip')+'</button>';bh+='<button class="btn btn-primary btn-sm" onclick="onbNext()">'+t('onb.next')+' →</button>'}
-  else if(_onbStep<total-1){bh+='<button class="btn btn-ghost btn-sm" onclick="onbPrev()">← '+t('onb.prev')+'</button>';bh+='<button class="btn btn-primary btn-sm" onclick="onbNext()">'+t('onb.next')+' →</button>'}
-  else{bh+='<button class="btn btn-ghost btn-sm" onclick="onbPrev()">← '+t('onb.prev')+'</button>';bh+='<button class="btn btn-primary btn-sm" onclick="closeOnboarding();showPage(\'data\',document.querySelector(\'[data-page=data]\'))">'+t('onb.go_data')+'</button>';bh+='<button class="btn btn-primary btn-sm" onclick="closeOnboarding();showPage(\'config\',document.querySelector(\'[data-page=config]\'))">'+t('onb.go_config')+'</button>'}
+  if(_onbStep>0)bh+='<button class="btn btn-ghost btn-sm" onclick="onbPrev()">← '+t('onb.prev')+'</button>';
+  if(_onbStep===0)bh+='<button class="btn btn-ghost btn-sm" onclick="closeOnboarding()">'+t('onb.skip')+'</button>';
+  if(_onbStep<total-1)bh+='<button class="btn btn-primary btn-sm" onclick="onbNext()">'+t('onb.next')+' →</button>';
+  if(_onbStep===total-1)bh+='<button class="btn btn-primary btn-sm" onclick="closeOnboarding()">'+t('onb.done')+' ✔</button>';
   document.getElementById('onbBtns').innerHTML=bh;
-  // refresh lang buttons
-  document.querySelectorAll('#onbLang button').forEach(function(b){b.className=b.textContent.toLowerCase()===_lang?'active':''});
 }
+window.onbLangSwitch=function(code){setLang(code);renderOnbStep()};
 window.onbNext=function(){if(_onbStep<ONB_STEPS.length-1){_onbStep++;renderOnbStep()}};
 window.onbPrev=function(){if(_onbStep>0){_onbStep--;renderOnbStep()}};
-function closeOnboarding(){document.getElementById('onboarding').style.display='none';localStorage.setItem('admin_onboarded','1')}
+window.onbGo=function(i){_onbStep=i;renderOnbStep()};
+function closeOnboarding(){
+  document.getElementById('onbOverlay').style.display='none';
+  document.getElementById('onbCard').style.display='none';
+  if(_onbHighlight){_onbHighlight.classList.remove('onb-highlight');_onbHighlight=null}
+  localStorage.setItem('admin_onboarded','1');
+  showPage('overview',document.querySelector('[data-page=overview]'));
+}
 
 var KEY='',BASE=window.location.origin+'/admin/api';
 
