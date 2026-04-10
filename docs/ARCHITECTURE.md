@@ -53,6 +53,10 @@ CLI · Web widget · Twilio · Telegram · LINE
 | `chatbot/api/routes/chat.py`    | `POST /chat`, `DELETE /chat/{id}`                             |
 | `chatbot/api/routes/webhooks.py`| `POST /webhook/{whatsapp,telegram,line}`                      |
 | `chatbot/api/routes/widget.py`  | `GET /widget.js` + demo page builder                          |
+| `chatbot/api/routes/admin.py`   | Admin API: overview, sessions, budget, config, LINE, data     |
+| `chatbot/api/routes/admin_ui.py`| Admin dashboard SPA (inline HTML/JS)                          |
+| `chatbot/channels/line_flex.py` | LINE Flex Message builders (product, contact, carousel)       |
+| `chatbot/channels/line_rich_menu.py`| LINE Rich Menu CRUD + CLI                                 |
 | `chatbot/tools/scraper.py`      | BeautifulSoup → one `.txt` per URL under `data/scraped/`      |
 | `chatbot/tools/translator.py`   | LLM-backed translator                                         |
 | `chatbot/persistence/database.py` | Optional PostgreSQL session backend (lazy import)           |
