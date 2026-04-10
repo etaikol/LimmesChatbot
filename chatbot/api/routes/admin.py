@@ -231,6 +231,8 @@ def get_config(request: Request) -> dict:
         "SPAM_DETECTION_ENABLED": s.spam_detection_enabled,
         "SPAM_MAX_STRIKES": s.spam_max_strikes,
         "SPAM_COOLDOWN_SECONDS": s.spam_cooldown_seconds,
+        "SPAM_MAX_COOLDOWN_SECONDS": s.spam_max_cooldown_seconds,
+        "SPAM_MIN_MESSAGE_CHARS": s.spam_min_message_chars,
         "DAILY_TOKEN_CAP": s.daily_token_cap,
         "DAILY_USD_CAP": s.daily_usd_cap,
         "API_CORS_ORIGINS": s.api_cors_origins,
