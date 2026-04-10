@@ -313,20 +313,23 @@ docker compose up --build      # Rebuild after code changes
 
 ## 7. Environment Variables — Quick Reference
 
-| Variable             | Required | Default       | Description                              |
-| -------------------- | -------- | ------------- | ---------------------------------------- |
-| `OPENAI_API_KEY`     | Yes      | —             | OpenAI API key                           |
-| `ACTIVE_CLIENT`      | No       | `default`     | Which `config/clients/<id>.yaml` to load |
-| `LLM_MODEL`          | No       | `gpt-4o-mini` | Model name                               |
-| `LLM_PROVIDER`       | No       | `openai`      | `openai` or `anthropic`                  |
-| `DEBUG`              | No       | `false`       | Enables dev-mode webhook bypass          |
-| `RATE_LIMIT_ENABLED` | No       | `true`        | Toggle rate limiting                     |
-| `DAILY_USD_CAP`      | No       | `0` (off)     | Max daily LLM spend                      |
-| `API_CORS_ORIGINS`   | No       | `*`           | Comma-separated allowed origins          |
-| `API_STRICT_CORS`    | No       | `false`       | Refuse to start if CORS is `*`           |
-| `MEMORY_BACKEND`     | No       | `file`        | `memory`, `file`, or `postgres`          |
+| Variable             | Required | Default        | Description                              |
+| -------------------- | -------- | -------------- | ---------------------------------------- |
+| `OPENAI_API_KEY`     | Yes      | —              | OpenAI API key                           |
+| `ACTIVE_CLIENT`      | No       | `default`      | Which `config/clients/<id>.yaml` to load |
+| `LLM_MODEL`          | No       | `gpt-4o-mini`  | Model name                               |
+| `LLM_PROVIDER`       | No       | `openai`       | `openai` or `anthropic`                  |
+| `DEBUG`              | No       | `false`        | Enables dev-mode webhook bypass          |
+| `RATE_LIMIT_ENABLED` | No       | `true`         | Toggle rate limiting                     |
+| `DAILY_USD_CAP`      | No       | `5.0`          | Max daily LLM spend                      |
+| `DAILY_TOKEN_CAP`    | No       | `500_000`      | Max daily LLM token usage                |
+| `API_CORS_ORIGINS`   | No       | `*`            | Comma-separated allowed origins          |
+| `API_STRICT_CORS`    | No       | `false`        | Refuse to start if CORS is `*`           |
+| `MEMORY_BACKEND`     | No       | `file`         | `memory`, `file`, or `postgres`          |
 
-See `.env.example` for the full list with comments.
+This table is a quick reference for the most commonly changed settings. See
+`.env.example` for the full current list with comments, including additional
+spam/admin-related controls.
 
 ---
 
