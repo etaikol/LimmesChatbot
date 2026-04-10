@@ -18,6 +18,7 @@ Install extras to enable:
 from __future__ import annotations
 
 import json
+import threading
 from typing import Optional
 
 from chatbot.core.memory import ConversationMemory
@@ -27,15 +28,22 @@ from chatbot.settings import get_settings
 
 
 class PostgresSessionBackend:
-    """Synchronous psycopg backend with connection reuse. Suitable for low/mid-volume deployments."""
+    """Synchronous psycopg backend with connection reuse. Suitable for low/mid-volume deployments.
+
+    A threading.Lock guards every database operation so concurrent requests
+    (including those unblocked when bot.ask() runs in a thread pool) cannot
+    drive two operations through the same psycopg connection simultaneously.
+    """
 
     _instance = None
+    _lock: threading.Lock
 
     def __new__(cls):
         """Singleton so all callers share one connection."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
+            cls._instance._lock = threading.Lock()
         return cls._instance
 
     def __init__(self) -> None:
@@ -68,30 +76,32 @@ class PostgresSessionBackend:
     # ── Schema ──────────────────────────────────────────────────────────────
 
     def _ensure_schema(self) -> None:
-        conn = self._get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS chatbot_sessions (
-                    session_id TEXT PRIMARY KEY,
-                    messages   JSONB NOT NULL,
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-                );
-                """
-            )
-            conn.commit()
-            logger.debug("PostgreSQL chatbot_sessions table ensured")
+        with self._lock:
+            conn = self._get_conn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS chatbot_sessions (
+                        session_id TEXT PRIMARY KEY,
+                        messages   JSONB NOT NULL,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    """
+                )
+                conn.commit()
+                logger.debug("PostgreSQL chatbot_sessions table ensured")
 
     # ── CRUD ────────────────────────────────────────────────────────────────
 
     def load(self, session_id: str, max_turns: int = 10) -> ConversationMemory:
-        conn = self._get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT messages FROM chatbot_sessions WHERE session_id = %s",
-                (session_id,),
-            )
-            row: Optional[tuple] = cur.fetchone()
+        with self._lock:
+            conn = self._get_conn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT messages FROM chatbot_sessions WHERE session_id = %s",
+                    (session_id,),
+                )
+                row: Optional[tuple] = cur.fetchone()
 
         if not row:
             return ConversationMemory(max_turns=max_turns)
@@ -105,24 +115,26 @@ class PostgresSessionBackend:
 
     def save(self, session_id: str, mem: ConversationMemory) -> None:
         payload = json.dumps({"messages": [m.model_dump() for m in mem.messages]})
-        conn = self._get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO chatbot_sessions (session_id, messages, updated_at)
-                VALUES (%s, %s::jsonb, now())
-                ON CONFLICT (session_id) DO UPDATE
-                  SET messages = EXCLUDED.messages,
-                      updated_at = now();
-                """,
-                (session_id, payload),
-            )
-            conn.commit()
+        with self._lock:
+            conn = self._get_conn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO chatbot_sessions (session_id, messages, updated_at)
+                    VALUES (%s, %s::jsonb, now())
+                    ON CONFLICT (session_id) DO UPDATE
+                      SET messages = EXCLUDED.messages,
+                          updated_at = now();
+                    """,
+                    (session_id, payload),
+                )
+                conn.commit()
 
     def clear(self, session_id: str) -> None:
-        conn = self._get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "DELETE FROM chatbot_sessions WHERE session_id = %s", (session_id,)
-            )
-            conn.commit()
+        with self._lock:
+            conn = self._get_conn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM chatbot_sessions WHERE session_id = %s", (session_id,)
+                )
+                conn.commit()

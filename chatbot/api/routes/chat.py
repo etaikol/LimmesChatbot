@@ -14,6 +14,7 @@ configured from environment variables and built once during startup
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Security
@@ -92,7 +93,10 @@ async def chat_endpoint(req: ChatRequest, request: Request) -> ChatReply:
         language = detected
 
     try:
-        resp = bot.ask(
+        # Run synchronous bot.ask() in a thread so that any time.sleep()
+        # inside the retry logic does not block the async event loop.
+        resp = await asyncio.to_thread(
+            bot.ask,
             req.message,
             session_id=req.session_id,
             language=language,

@@ -9,9 +9,10 @@ services:
     env_file:
       - .env
     volumes:
-      # Persist vector store and conversations across restarts
+      # Persist vector store, conversations, and budget state across restarts
       - chatbot_vectorstore:/app/.vectorstore
       - chatbot_sessions:/app/.sessions
+      - chatbot_budget:/app/.budget
       # Mount your knowledge base read-only — re-ingest after editing
       - ./data:/app/data:ro
       - ./config:/app/config:ro
@@ -39,6 +40,7 @@ services:
     volumes:
       - chatbot_vectorstore:/data/vectorstore:ro
       - chatbot_sessions:/data/sessions:ro
+      - chatbot_budget:/data/budget:ro
       - chatbot_backups:/backups
     entrypoint: /bin/sh
     command:
@@ -51,6 +53,7 @@ services:
           mkdir -p /backups/$$STAMP
           cp -a /data/vectorstore /backups/$$STAMP/vectorstore 2>/dev/null || true
           cp -a /data/sessions /backups/$$STAMP/sessions 2>/dev/null || true
+          cp -a /data/budget /backups/$$STAMP/budget 2>/dev/null || true
           # Prune backups older than KEEP_DAYS
           find /backups -maxdepth 1 -type d -mtime +$$KEEP_DAYS -exec rm -rf {} + 2>/dev/null || true
           echo "[backup] Done. Sleeping 24h. Keeping last $$KEEP_DAYS days."
@@ -80,5 +83,6 @@ services:
 volumes:
   chatbot_vectorstore:
   chatbot_sessions:
+  chatbot_budget:
   chatbot_backups:
   # chatbot_pg:

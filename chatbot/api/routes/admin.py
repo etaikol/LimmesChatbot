@@ -389,9 +389,12 @@ def _load_yaml(path: Path) -> dict | None:
 
 
 def _save_yaml(path: Path, data: dict) -> None:
-    # Prevent path traversal — resolved path must stay inside PROJECT_ROOT
+    # Prevent path traversal — resolved path must be inside PROJECT_ROOT.
+    # Use is_relative_to() to avoid the str-prefix bypass (e.g. /app2/ vs /app/).
     resolved = path.resolve()
-    if not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
+    try:
+        resolved.relative_to(PROJECT_ROOT.resolve())
+    except ValueError:
         raise HTTPException(403, "Path traversal denied.")
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
@@ -402,7 +405,9 @@ def _update_env_file(updates: dict[str, str]) -> None:
     """Patch the .env file with new key=value pairs."""
     env_path = PROJECT_ROOT / ".env"
     resolved = env_path.resolve()
-    if not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
+    try:
+        resolved.relative_to(PROJECT_ROOT.resolve())
+    except ValueError:
         raise HTTPException(403, "Path traversal denied.")
     lines: list[str] = []
     if env_path.exists():

@@ -10,11 +10,13 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
-def health(request: Request, x_admin_key: str | None = None) -> dict:
+def health(request: Request) -> dict:
     """Public health check returns minimal 'ok' status.
 
     Full diagnostics (model, rate limits, budget, CORS config) are only
-    shown when a valid ``X-Admin-Key`` header is provided.
+    shown when a valid ``X-Admin-Key`` **header** is provided.
+    The key is intentionally not accepted as a query parameter so it
+    cannot appear in server logs or browser history.
     """
     bot = request.app.state.bot
     s = bot.settings
@@ -31,8 +33,8 @@ def health(request: Request, x_admin_key: str | None = None) -> dict:
         },
     }
 
-    # If a valid admin key is provided, include full diagnostics.
-    admin_key = x_admin_key or request.headers.get("x-admin-key", "")
+    # If a valid admin key is provided via header, include full diagnostics.
+    admin_key = request.headers.get("x-admin-key", "")
     expected = getattr(request.app.state, "admin_api_key", "")
     if expected and admin_key and hmac.compare_digest(expected, admin_key):
         public["personality"] = bot.profile.personality.name
