@@ -20,9 +20,10 @@ Hebrew-primary chatbot that also serves English, Arabic, Russian, Thai.
 
 Wiring
 ------
-Called from ``Chatbot.ask()`` *after* ``sanitize_user_input()`` but
-*before* the budget check and LLM call.  The cost is negligible
-(string comparisons, no network, no model inference).
+This module is intended to be invoked by request-handling code after
+``sanitize_user_input()`` and before any budget check or LLM call.
+The cost is negligible (string comparisons, no network, no model
+inference).
 """
 
 from __future__ import annotations
