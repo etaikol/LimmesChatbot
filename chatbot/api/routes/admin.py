@@ -182,12 +182,14 @@ def budget_status(request: Request) -> dict:
 @router.post("/budget/reset", dependencies=[Depends(_require_admin_key)])
 def reset_budget(request: Request) -> dict:
     bot = request.app.state.bot
-    bot.budget._state = {
-        "day": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "tokens": 0,
-        "usd": 0.0,
-    }
-    bot.budget._save()
+    reset = getattr(bot.budget, "reset", None)
+    if not callable(reset):
+        raise HTTPException(
+            status_code=500,
+            detail="Budget reset is unavailable: bot.budget.reset() is not implemented",
+        )
+
+    reset()
     logger.info("[admin] Budget reset")
     return {"status": "reset", **bot.budget.snapshot()}
 
