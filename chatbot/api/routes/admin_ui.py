@@ -376,7 +376,6 @@ window.tryLogin = async function(){
   KEY = k;
   try{
     var r = await api('/overview');
-    sessionStorage.setItem('admin_key', k);
     document.getElementById('auth').style.display='none';
     document.getElementById('sidebar').style.display='flex';
     document.getElementById('mainContent').style.display='block';
@@ -388,10 +387,7 @@ window.tryLogin = async function(){
   }
 };
 
-// Restore from session
-var saved = sessionStorage.getItem('admin_key');
-if(saved){document.getElementById('keyInput').value=saved;tryLogin()}
-
+// No auto-restore from storage — key stays in memory only for XSS safety
 document.getElementById('keyInput').addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin()});
 
 // ── API helper ────────────────────────────────────────────────────────────

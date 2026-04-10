@@ -46,18 +46,28 @@ def _require_api_key(
 
 
 def _client_ip(request: Request) -> str:
-    """Best-effort client IP, honoring X-Forwarded-For from a *trusted* proxy.
+    """Best-effort client IP, honoring X-Forwarded-For only from trusted proxies.
 
-    The deployment guide tells you to terminate TLS in nginx/Caddy/Traefik
-    and forward to the app. Those proxies set ``X-Forwarded-For``; we
-    take the leftmost entry. If you expose the app *directly* to the
-    internet, this header can be spoofed — set ``API_STRICT_CORS=true``
-    and put a proxy in front.
+    Only trusts the header when the *direct* peer is a private/loopback
+    address (i.e. a reverse proxy like nginx running locally or in Docker).
+    If the app is exposed directly to the internet, the raw peer IP is used
+    and X-Forwarded-For is ignored — preventing spoofing.
     """
-    xff = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-    if xff:
-        return xff
-    return request.client.host if request.client else "unknown"
+    peer = request.client.host if request.client else "unknown"
+
+    # Only trust X-Forwarded-For from local/private peers (reverse proxy)
+    _TRUSTED_PREFIXES = ("127.", "10.", "172.16.", "172.17.", "172.18.",
+                         "172.19.", "172.20.", "172.21.", "172.22.",
+                         "172.23.", "172.24.", "172.25.", "172.26.",
+                         "172.27.", "172.28.", "172.29.", "172.30.",
+                         "172.31.", "192.168.", "::1", "fd")
+
+    if peer.startswith(_TRUSTED_PREFIXES):
+        xff = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        if xff:
+            return xff
+
+    return peer
 
 
 @router.post("/chat", response_model=ChatReply, dependencies=[Depends(_require_api_key)])
@@ -101,7 +111,7 @@ async def chat_endpoint(req: ChatRequest, request: Request) -> ChatReply:
     )
 
 
-@router.delete("/chat/{session_id}", response_model=ClearReply)
+@router.delete("/chat/{session_id}", response_model=ClearReply, dependencies=[Depends(_require_api_key)])
 def clear_session(session_id: str, request: Request) -> ClearReply:
     bot = request.app.state.bot
     # Don't burn quota on clear; it's a free op. We still rate-limit by IP

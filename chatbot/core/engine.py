@@ -12,6 +12,7 @@ Lifecycle:
 
 from __future__ import annotations
 
+import time
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
@@ -181,8 +182,13 @@ class Chatbot:
                 session_id,
                 question[:80],
             )
+            if self.settings.block_prompt_injection:
+                raise AbuseError(
+                    "Prompt injection detected",
+                    user_message="I can only answer questions about our business. Please rephrase your question.",
+                )
 
-        logger.debug("[{}] User: {}", session_id, question)
+        logger.debug("[{}] User message received ({} chars)", session_id, len(question))
 
         # 3. Spam / gibberish check (all channels).
         if self.spam_tracker is not None:
@@ -201,29 +207,23 @@ class Chatbot:
             logger.warning("[{}] Budget exceeded: {}", session_id, exc.reason)
             raise BudgetError(exc.reason) from exc
 
-        # 5. The actual paid LLM call. Build the system prompt now so we
-        #    can honor a per-request language without rebuilding the chain.
+        # 5. The actual paid LLM call with retry for transient failures.
         system_prompt = self.profile.build_system_prompt(language=language)
-        try:
-            answer: str = self.chain.invoke(
-                {
-                    "question": question,
-                    "history": history or "(no prior conversation)",
-                    "system_prompt": system_prompt,
-                }
-            )
-        except ChatbotError:
-            raise
-        except Exception as exc:  # pragma: no cover - provider failures
-            friendly = explain_llm_error(exc)
-            logger.exception("[{}] LLM call failed: {}", session_id, exc)
-            raise LLMError(friendly, user_message=friendly) from exc
+        invoke_input = {
+            "question": question,
+            "history": history or "(no prior conversation)",
+            "system_prompt": system_prompt,
+        }
+        answer: str = self._invoke_with_retry(invoke_input, session_id)
 
         # 6. Persist memory
         self.memory.add_message(session_id, "user", question)
         self.memory.add_message(session_id, "assistant", answer)
 
-        sources = self._collect_sources(question)
+        # Collect sources from a single retrieval (avoids double call)
+        sources = self._build_sources(
+            self.retriever.retrieve(question)
+        )
 
         # 7. Record actual usage. We re-estimate from the strings because
         # not all providers expose .usage_metadata uniformly.
@@ -236,10 +236,9 @@ class Chatbot:
             logger.warning("[{}] budget.record failed: {}", session_id, exc)
 
         logger.debug(
-            "[{}] Bot: {}{}",
+            "[{}] Bot reply ({} chars)",
             session_id,
-            answer[:120],
-            "..." if len(answer) > 120 else "",
+            len(answer),
         )
 
         return ChatResponse(
@@ -259,13 +258,37 @@ class Chatbot:
 
     # ── Helpers ─────────────────────────────────────────────────────────────
 
-    def _collect_sources(self, question: str) -> list[SourceDocument]:
-        try:
-            docs = self.retriever.retrieve(question)
-        except Exception as e:
-            logger.warning("Failed to collect sources: {}", e)
-            return []
+    _LLM_MAX_RETRIES = 2
+    _LLM_RETRY_BACKOFF = 1.0  # seconds; doubles each attempt
 
+    def _invoke_with_retry(self, invoke_input: dict, session_id: str) -> str:
+        """Call the LLM chain with exponential-backoff retry on transient errors."""
+        last_exc: Exception | None = None
+        for attempt in range(self._LLM_MAX_RETRIES + 1):
+            try:
+                return self.chain.invoke(invoke_input)
+            except ChatbotError:
+                raise
+            except Exception as exc:
+                last_exc = exc
+                text = str(exc).lower()
+                is_transient = any(k in text for k in ("429", "rate_limit", "timeout", "connection"))
+                if not is_transient or attempt == self._LLM_MAX_RETRIES:
+                    friendly = explain_llm_error(exc)
+                    logger.exception("[{}] LLM call failed: {}", session_id, exc)
+                    raise LLMError(friendly, user_message=friendly) from exc
+                wait = self._LLM_RETRY_BACKOFF * (2 ** attempt)
+                logger.warning(
+                    "[{}] LLM transient error (attempt {}/{}), retrying in {:.1f}s: {}",
+                    session_id, attempt + 1, self._LLM_MAX_RETRIES + 1, wait, exc,
+                )
+                time.sleep(wait)
+        # Should not reach here, but just in case
+        friendly = explain_llm_error(last_exc) if last_exc else "LLM call failed"
+        raise LLMError(friendly, user_message=friendly)
+
+    def _build_sources(self, docs: list) -> list[SourceDocument]:
+        """Convert retrieved documents to source citations."""
         out: list[SourceDocument] = []
         for d in docs:
             md = d.metadata or {}
@@ -277,6 +300,14 @@ class Chatbot:
                 )
             )
         return out
+
+    def _collect_sources(self, question: str) -> list[SourceDocument]:
+        try:
+            docs = self.retriever.retrieve(question)
+        except Exception as e:
+            logger.warning("Failed to collect sources: {}", e)
+            return []
+        return self._build_sources(docs)
 
     # ── Constructors ────────────────────────────────────────────────────────
 

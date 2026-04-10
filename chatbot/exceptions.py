@@ -65,26 +65,20 @@ class BudgetError(ChatbotError):
 
 
 def explain_llm_error(exc: BaseException) -> str:
-    """Return a friendly explanation for common LLM provider errors."""
+    """Return a friendly explanation for common LLM provider errors.
+
+    Messages are safe for end users — no internal paths, URLs, or key names.
+    """
     text = str(exc).lower()
 
     if "invalid_api_key" in text or "unauthorized" in text or "401" in text:
-        return (
-            "API key is invalid or missing. Set OPENAI_API_KEY in your .env file. "
-            "Get one at https://platform.openai.com/api-keys."
-        )
-    # Check insufficient_quota BEFORE rate_limit/429: an "insufficient_quota"
-    # error is reported by OpenAI as HTTP 429, so the more specific message
-    # must win.
+        return "The chatbot is misconfigured. Please contact support."
     if "insufficient_quota" in text or "quota" in text or "billing" in text:
-        return (
-            "Your provider account has run out of credits. "
-            "Top up at https://platform.openai.com/account/billing."
-        )
+        return "The service is temporarily unavailable due to a billing issue. Please contact support."
     if "rate_limit" in text or "429" in text:
         return "Rate limit reached. Please wait a moment and try again."
     if "timeout" in text or "connection" in text:
-        return "Cannot reach the LLM provider. Check your network connection."
+        return "Cannot reach the AI service right now. Please try again shortly."
     if "model" in text and "not found" in text:
-        return "The configured model is not available for this account."
-    return f"LLM provider error: {exc}"
+        return "The chatbot is misconfigured. Please contact support."
+    return "Something went wrong. Please try again shortly."
