@@ -71,7 +71,7 @@ def overview(request: Request) -> dict:
 
     ip_limiter = request.app.state.ip_limiter
     sess_limiter = request.app.state.session_limiter
-    spam_tracker = getattr(request.app.state, "spam_tracker", None)
+    spam_tracker = getattr(request.app.state.bot, "spam_tracker", None)
 
     return {
         "status": "running",
@@ -643,11 +643,29 @@ def read_data_file(file_path: str, request: Request) -> dict:
     if not full_path.exists():
         raise HTTPException(404, f"File not found: {file_path}")
 
+    if not full_path.is_file():
+        raise HTTPException(400, f"Not a file: {file_path}")
+
     try:
-        content = full_path.read_text(encoding="utf-8")
-        return {"path": file_path, "content": content, "size": len(content)}
-    except Exception as e:
+        raw_content = full_path.read_bytes()
+    except OSError as e:
         raise HTTPException(500, f"Could not read file: {e}")
+
+    if b"\x00" in raw_content:
+        raise HTTPException(
+            415,
+            "Only UTF-8 text files can be read via this endpoint; binary files are not supported.",
+        )
+
+    try:
+        content = raw_content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            415,
+            "Only UTF-8 text files can be read via this endpoint; this file is not valid UTF-8 text.",
+        )
+
+    return {"path": file_path, "content": content, "size": len(raw_content)}
 
 
 @router.put("/data/{file_path:path}", dependencies=[Depends(_require_admin_key)])

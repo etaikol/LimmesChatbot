@@ -31,7 +31,7 @@ from chatbot.exceptions import (
     LLMError,
 )
 from chatbot.logging_setup import logger, setup_logging
-from chatbot.security import RateLimiter, SecurityHeadersMiddleware, SpamTracker
+from chatbot.security import RateLimiter, SecurityHeadersMiddleware
 from chatbot.security.rate_limit import RateLimitExceeded
 from chatbot.settings import get_settings
 
@@ -96,22 +96,6 @@ async def lifespan(app: FastAPI):
         app.state.ip_limiter = None
         app.state.session_limiter = None
         logger.warning("Rate limiting DISABLED — every public endpoint is wide open")
-
-    # ── Spam / gibberish detection ─────────────────────────────────────
-    if settings.spam_detection_enabled:
-        app.state.spam_tracker = SpamTracker(
-            max_strikes=settings.spam_max_strikes,
-            cooldown_seconds=settings.spam_cooldown_seconds,
-            max_cooldown_seconds=settings.spam_max_cooldown_seconds,
-            min_meaningful_chars=settings.spam_min_message_chars,
-        )
-        logger.info(
-            "Spam detection enabled: max_strikes={} cooldown={}s",
-            settings.spam_max_strikes,
-            settings.spam_cooldown_seconds,
-        )
-    else:
-        app.state.spam_tracker = None
 
     # ── Admin dashboard ────────────────────────────────────────────────
     app.state.admin_api_key = settings.admin_api_key

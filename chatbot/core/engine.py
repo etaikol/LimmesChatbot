@@ -35,6 +35,7 @@ from chatbot.security.sanitize import (
     sanitize_session_id,
     sanitize_user_input,
 )
+from chatbot.security.spam import SpamTracker
 from chatbot.settings import Settings, get_settings
 
 
@@ -68,6 +69,7 @@ class Chatbot:
         llm: Optional[LLMProvider] = None,
         memory: Optional[SessionStore] = None,
         budget: Optional[BudgetGuard] = None,
+        spam_tracker: Optional[SpamTracker] = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.profile = profile
@@ -98,6 +100,19 @@ class Chatbot:
                 self.settings.price_out_usd_per_1k or None
             ),
         )
+
+        # Spam / gibberish tracker — applies to all channels via ask().
+        if spam_tracker is not None:
+            self.spam_tracker: SpamTracker | None = spam_tracker
+        elif self.settings.spam_detection_enabled:
+            self.spam_tracker = SpamTracker(
+                max_strikes=self.settings.spam_max_strikes,
+                cooldown_seconds=self.settings.spam_cooldown_seconds,
+                max_cooldown_seconds=self.settings.spam_max_cooldown_seconds,
+                min_meaningful_chars=self.settings.spam_min_message_chars,
+            )
+        else:
+            self.spam_tracker = None
 
         # Build the LangChain RAG chain once
         self.chain = build_rag_chain(
@@ -142,11 +157,12 @@ class Chatbot:
 
         1. Sanitize the session id (cheap).
         2. Sanitize and length-check the question (cheap, no LLM).
-        3. Estimate input tokens and check the daily budget guard
+        3. Spam / gibberish check (cheap, string comparisons only).
+        4. Estimate input tokens and check the daily budget guard
            (cheap, blocks before any paid call).
-        4. Run the LangChain RAG chain (paid).
-        5. Persist memory + collect sources for citation.
-        6. Record actual token usage in the budget guard.
+        5. Run the LangChain RAG chain (paid).
+        6. Persist memory + collect sources for citation.
+        7. Record actual token usage in the budget guard.
         """
         session_id = sanitize_session_id(session_id)
 
@@ -168,9 +184,16 @@ class Chatbot:
 
         logger.debug("[{}] User: {}", session_id, question)
 
+        # 3. Spam / gibberish check (all channels).
+        if self.spam_tracker is not None:
+            rejection = self.spam_tracker.check(session_id, question)
+            if rejection:
+                logger.info("[{}] Spam blocked: {}", session_id, rejection)
+                raise AbuseError(rejection, user_message=rejection)
+
         history = self.memory.history_text(session_id)
 
-        # 3. Budget pre-check (estimate is intentionally pessimistic).
+        # 4. Budget pre-check (estimate is intentionally pessimistic).
         est_in = estimate_tokens(question + (history or ""))
         try:
             self.budget.check_can_spend(est_in)
@@ -178,7 +201,7 @@ class Chatbot:
             logger.warning("[{}] Budget exceeded: {}", session_id, exc.reason)
             raise BudgetError(exc.reason) from exc
 
-        # 4. The actual paid LLM call. Build the system prompt now so we
+        # 5. The actual paid LLM call. Build the system prompt now so we
         #    can honor a per-request language without rebuilding the chain.
         system_prompt = self.profile.build_system_prompt(language=language)
         try:
@@ -196,13 +219,13 @@ class Chatbot:
             logger.exception("[{}] LLM call failed: {}", session_id, exc)
             raise LLMError(friendly, user_message=friendly) from exc
 
-        # 5. Persist memory
+        # 6. Persist memory
         self.memory.add_message(session_id, "user", question)
         self.memory.add_message(session_id, "assistant", answer)
 
         sources = self._collect_sources(question)
 
-        # 6. Record actual usage. We re-estimate from the strings because
+        # 7. Record actual usage. We re-estimate from the strings because
         # not all providers expose .usage_metadata uniformly.
         try:
             self.budget.record(

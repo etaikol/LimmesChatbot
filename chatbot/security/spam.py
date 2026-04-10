@@ -31,7 +31,7 @@ from __future__ import annotations
 import re
 import time
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 # ── Gibberish heuristics ──────────────────────────────────────────────────
@@ -42,12 +42,6 @@ _REPEAT_CHAR_RE = re.compile(r"^(.)\1{2,}$", re.UNICODE)
 # Messages that are just punctuation, whitespace, or symbol soup.
 _SYMBOL_ONLY_RE = re.compile(
     r"^[\s\d\W]+$", re.UNICODE
-)
-
-# Alternating 1-2 character "bursts" separated by newlines — the exact
-# pattern from the logs (someone mashing keys and hitting enter).
-_KEY_MASH_RE = re.compile(
-    r"^(?:[\S]{1,3}\n?){1,5}$", re.UNICODE
 )
 
 
@@ -95,6 +89,7 @@ class _SessionRecord:
     last_message_time: float = 0.0
     blocked_until: float = 0.0
     total_rejected: int = 0
+    block_count: int = 0
 
 
 class SpamTracker:
@@ -188,9 +183,11 @@ class SpamTracker:
     def _maybe_block(self, rec: _SessionRecord, now: float, reason: str) -> str:
         """Apply progressive cooldown if strikes exceeded."""
         if rec.strikes >= self.max_strikes:
-            # Escalate: double cooldown for each block event, capped.
+            # Escalate: double cooldown for each subsequent block event.
+            # block_count starts at 0 so the first block uses the base
+            # cooldown, the second doubles it, and so on.
             multiplier = min(
-                2 ** (rec.total_rejected // self.max_strikes),
+                2 ** rec.block_count,
                 self.max_cooldown_seconds / self.cooldown_seconds,
             )
             cooldown = min(
@@ -199,6 +196,7 @@ class SpamTracker:
             )
             rec.blocked_until = now + cooldown
             rec.strikes = 0
+            rec.block_count += 1
             remaining = int(cooldown)
             return (
                 f"Too many invalid messages. "
