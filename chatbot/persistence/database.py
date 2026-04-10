@@ -27,9 +27,20 @@ from chatbot.settings import get_settings
 
 
 class PostgresSessionBackend:
-    """Synchronous psycopg backend. Suitable for low/mid-volume deployments."""
+    """Synchronous psycopg backend with connection reuse. Suitable for low/mid-volume deployments."""
+
+    _instance = None
+
+    def __new__(cls):
+        """Singleton so all callers share one connection."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self) -> None:
+        if self._initialized:
+            return
         try:
             import psycopg  # type: ignore
         except ImportError as e:
@@ -44,12 +55,21 @@ class PostgresSessionBackend:
 
         self._psycopg = psycopg
         self._dsn = s.postgres_dsn
+        self._conn = psycopg.connect(self._dsn, autocommit=False)
         self._ensure_schema()
+        self._initialized = True
+
+    def _get_conn(self):
+        """Return the shared connection, reconnecting if closed."""
+        if self._conn.closed:
+            self._conn = self._psycopg.connect(self._dsn, autocommit=False)
+        return self._conn
 
     # ── Schema ──────────────────────────────────────────────────────────────
 
     def _ensure_schema(self) -> None:
-        with self._psycopg.connect(self._dsn) as conn, conn.cursor() as cur:
+        conn = self._get_conn()
+        with conn.cursor() as cur:
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS chatbot_sessions (
@@ -65,7 +85,8 @@ class PostgresSessionBackend:
     # ── CRUD ────────────────────────────────────────────────────────────────
 
     def load(self, session_id: str, max_turns: int = 10) -> ConversationMemory:
-        with self._psycopg.connect(self._dsn) as conn, conn.cursor() as cur:
+        conn = self._get_conn()
+        with conn.cursor() as cur:
             cur.execute(
                 "SELECT messages FROM chatbot_sessions WHERE session_id = %s",
                 (session_id,),
@@ -84,7 +105,8 @@ class PostgresSessionBackend:
 
     def save(self, session_id: str, mem: ConversationMemory) -> None:
         payload = json.dumps({"messages": [m.model_dump() for m in mem.messages]})
-        with self._psycopg.connect(self._dsn) as conn, conn.cursor() as cur:
+        conn = self._get_conn()
+        with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO chatbot_sessions (session_id, messages, updated_at)
@@ -98,7 +120,8 @@ class PostgresSessionBackend:
             conn.commit()
 
     def clear(self, session_id: str) -> None:
-        with self._psycopg.connect(self._dsn) as conn, conn.cursor() as cur:
+        conn = self._get_conn()
+        with conn.cursor() as cur:
             cur.execute(
                 "DELETE FROM chatbot_sessions WHERE session_id = %s", (session_id,)
             )

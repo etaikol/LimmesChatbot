@@ -2,42 +2,53 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+import hmac
 
-from chatbot.api.schemas import HealthReply
+from fastapi import APIRouter, Request
 
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health", response_model=HealthReply)
-def health(request: Request) -> HealthReply:
+@router.get("/health")
+def health(request: Request, x_admin_key: str | None = None) -> dict:
+    """Public health check returns minimal 'ok' status.
+
+    Full diagnostics (model, rate limits, budget, CORS config) are only
+    shown when a valid ``X-Admin-Key`` header is provided.
+    """
     bot = request.app.state.bot
     s = bot.settings
 
-    security = {
-        "rate_limit_enabled": s.rate_limit_enabled,
-        "rate_limit_ip_per_minute": s.rate_limit_ip_per_minute,
-        "rate_limit_session_per_minute": s.rate_limit_session_per_minute,
-        "max_body_bytes": s.api_max_body_bytes,
-        "max_message_chars": s.max_message_chars,
-        "hsts_enabled": s.api_hsts_enabled,
-        "strict_cors": s.api_strict_cors,
-        "cors_origins": s.cors_origins_list,
-        "budget": bot.budget.snapshot(),
-    }
-
-    return HealthReply(
-        status="ok",
-        client=bot.profile.client.name,
-        personality=bot.profile.personality.name,
-        model=s.llm_model,
-        chain_ready=bot.chain is not None,
-        active_sessions=sum(1 for _ in bot.memory.list_sessions()),
-        channels={
+    # Minimal public response — no internals leaked.
+    public = {
+        "status": "ok",
+        "client": bot.profile.client.name,
+        "channels": {
             "web": True,
             "whatsapp": bool(s.twilio_auth_token or s.twilio_account_sid),
             "telegram": bool(s.telegram_bot_token),
             "line": bool(s.line_channel_access_token),
         },
-        security=security,
-    )
+    }
+
+    # If a valid admin key is provided, include full diagnostics.
+    admin_key = x_admin_key or request.headers.get("x-admin-key", "")
+    expected = getattr(request.app.state, "admin_api_key", "")
+    if expected and admin_key and hmac.compare_digest(expected, admin_key):
+        public["personality"] = bot.profile.personality.name
+        public["model"] = s.llm_model
+        public["chain_ready"] = bot.chain is not None
+        public["active_sessions"] = sum(1 for _ in bot.memory.list_sessions())
+        public["security"] = {
+            "rate_limit_enabled": s.rate_limit_enabled,
+            "rate_limit_ip_per_minute": s.rate_limit_ip_per_minute,
+            "rate_limit_session_per_minute": s.rate_limit_session_per_minute,
+            "max_body_bytes": s.api_max_body_bytes,
+            "max_message_chars": s.max_message_chars,
+            "hsts_enabled": s.api_hsts_enabled,
+            "strict_cors": s.api_strict_cors,
+            "cors_origins": s.cors_origins_list,
+            "budget": bot.budget.snapshot(),
+        }
+
+    return public

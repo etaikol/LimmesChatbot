@@ -39,8 +39,12 @@ COPY scripts/ scripts/
 COPY config/ config/
 COPY data/ data/
 
-# Pre-create runtime directories
-RUN mkdir -p .vectorstore .sessions logs
+# Create non-root user and pre-create runtime directories owned by it
+RUN groupadd -r chatbot && useradd -r -g chatbot chatbot \
+    && mkdir -p .vectorstore .sessions logs \
+    && chown -R chatbot:chatbot /app
+
+USER chatbot
 
 EXPOSE 8000
 

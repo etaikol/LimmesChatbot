@@ -389,6 +389,10 @@ def _load_yaml(path: Path) -> dict | None:
 
 
 def _save_yaml(path: Path, data: dict) -> None:
+    # Prevent path traversal — resolved path must stay inside PROJECT_ROOT
+    resolved = path.resolve()
+    if not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
+        raise HTTPException(403, "Path traversal denied.")
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
@@ -397,6 +401,9 @@ def _save_yaml(path: Path, data: dict) -> None:
 def _update_env_file(updates: dict[str, str]) -> None:
     """Patch the .env file with new key=value pairs."""
     env_path = PROJECT_ROOT / ".env"
+    resolved = env_path.resolve()
+    if not str(resolved).startswith(str(PROJECT_ROOT.resolve())):
+        raise HTTPException(403, "Path traversal denied.")
     lines: list[str] = []
     if env_path.exists():
         with open(env_path, "r", encoding="utf-8") as f:

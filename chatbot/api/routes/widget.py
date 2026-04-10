@@ -121,7 +121,7 @@ def build_widget_js(
 _WIDGET_BODY = r"""
 var STORAGE_SID='cb_sid', STORAGE_LANG='cb_lang';
 var sid = localStorage.getItem(STORAGE_SID);
-if(!sid){ sid = 'web_'+Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem(STORAGE_SID, sid); }
+if(!sid){ var a=new Uint8Array(16);crypto.getRandomValues(a);sid='web_'+Array.from(a,function(b){return b.toString(16).padStart(2,'0')}).join(''); localStorage.setItem(STORAGE_SID, sid); }
 
 var savedLang = localStorage.getItem(STORAGE_LANG);
 var current = CONFIG.languages.find(function(l){return l.code===savedLang;}) || CONFIG.languages.find(function(l){return l.code===CONFIG.primaryLang;}) || CONFIG.languages[0];
@@ -360,14 +360,12 @@ applyLang();
 def demo_page(base_url: str, bot: Chatbot) -> str:
     s = bot.settings
     name = bot.profile.client.name
-    primary = bot.profile.client.language_primary or "en"
-    offered = bot.profile.client.languages_offered or [primary]
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{name} — Chatbot API</title>
+<title>{name} — Chat</title>
 <style>
   *{{box-sizing:border-box;}}
   body{{font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
@@ -377,71 +375,31 @@ def demo_page(base_url: str, bot: Chatbot) -> str:
   header h1{{margin:0;font-size:24px;font-weight:700;letter-spacing:-.01em;}}
   header p{{margin:6px 0 0;color:#94a3b8;font-size:14px;}}
   main{{max-width:920px;margin:32px auto;padding:0 24px;}}
-  .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;}}
   .card{{background:#fff;border-radius:16px;padding:22px;border:1px solid #e2e8f0;
          box-shadow:0 1px 3px rgba(15,23,42,.04);}}
   .card h2{{margin:0 0 12px;font-size:14px;color:#475569;font-weight:600;
            text-transform:uppercase;letter-spacing:.04em;}}
-  code{{background:#f1f5f9;padding:2px 8px;border-radius:6px;font-size:13px;
-        font-family:ui-monospace,Menlo,Consolas,monospace;}}
-  pre{{background:#0f172a;color:#7ee787;padding:16px;border-radius:10px;
-       overflow-x:auto;font-size:13px;line-height:1.6;
-       font-family:ui-monospace,Menlo,Consolas,monospace;}}
   .pill{{display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;
          padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;}}
   .pill::before{{content:"";width:7px;height:7px;border-radius:50%;background:#22c55e;}}
-  .meta{{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;font-size:13px;color:#475569;}}
+  pre{{background:#0f172a;color:#7ee787;padding:16px;border-radius:10px;
+       overflow-x:auto;font-size:13px;line-height:1.6;
+       font-family:ui-monospace,Menlo,Consolas,monospace;}}
 </style></head>
 <body>
 <header>
   <h1>{name}</h1>
-  <p>RAG chatbot template — running</p>
+  <p>AI-powered chat assistant</p>
 </header>
 <main>
   <div class="card" style="margin-bottom:18px;">
     <h2>Status</h2>
     <span class="pill">online</span>
-    <div class="meta">
-      <span>model: <code>{s.llm_model}</code></span>
-      <span>personality: <code>{bot.profile.personality.name}</code></span>
-      <span>languages: <code>{", ".join(offered)}</code></span>
-      <span>rate-limit: <code>{s.rate_limit_ip_per_minute}/min IP</code></span>
-    </div>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Embed widget</h2>
-      <pre>&lt;script src="{base_url}/widget.js" async&gt;&lt;/script&gt;</pre>
-    </div>
-    <div class="card">
-      <h2>REST</h2>
-      <pre>POST {base_url}/chat
-{{
-  "message": "...",
-  "session_id": "user-1",
-  "language": "th"
-}}</pre>
-    </div>
-    <div class="card">
-      <h2>WhatsApp</h2>
-      <pre>POST {base_url}/webhook/whatsapp</pre>
-    </div>
-    <div class="card">
-      <h2>Telegram</h2>
-      <pre>POST {base_url}/webhook/telegram</pre>
-    </div>
-    <div class="card">
-      <h2>LINE</h2>
-      <pre>POST {base_url}/webhook/line</pre>
-    </div>
-    <div class="card">
-      <h2>Docs</h2>
-      <p style="margin:0;color:#475569;font-size:14px;">
-        Swagger: <a href="{base_url}/docs">{base_url}/docs</a><br>
-        Health: <a href="{base_url}/health">{base_url}/health</a>
-      </p>
-    </div>
+  <div class="card">
+    <h2>Embed widget</h2>
+    <pre>&lt;script src="{base_url}/widget.js" async&gt;&lt;/script&gt;</pre>
   </div>
 </main>
 <script src="{base_url}/widget.js" async></script>

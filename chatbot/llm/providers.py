@@ -53,11 +53,11 @@ class LLMProvider:
 
 def _build_openai(s: Settings, temperature: float) -> BaseChatModel:
     if not s.openai_api_key:
-        msg = (
-            "OPENAI_API_KEY is missing. Add it to your .env file "
-            "(see .env.example). Get one at https://platform.openai.com/api-keys."
+        logger.error("OPENAI_API_KEY is missing")
+        raise ConfigError(
+            "OPENAI_API_KEY is missing",
+            user_message="The chatbot is misconfigured. Please contact support.",
         )
-        raise ConfigError(msg, user_message=msg)
     from langchain_openai import ChatOpenAI
 
     logger.debug("Building OpenAI client model={} temp={}", s.llm_model, temperature)
@@ -66,24 +66,25 @@ def _build_openai(s: Settings, temperature: float) -> BaseChatModel:
         temperature=temperature,
         max_tokens=s.llm_max_tokens,
         api_key=s.openai_api_key,
+        request_timeout=s.llm_request_timeout,
     )
 
 
 def _build_anthropic(s: Settings, temperature: float) -> BaseChatModel:
     if not s.anthropic_api_key:
-        msg = (
-            "ANTHROPIC_API_KEY is missing. Add it to your .env file. "
-            "Get one at https://console.anthropic.com/."
+        logger.error("ANTHROPIC_API_KEY is missing")
+        raise ConfigError(
+            "ANTHROPIC_API_KEY is missing",
+            user_message="The chatbot is misconfigured. Please contact support.",
         )
-        raise ConfigError(msg, user_message=msg)
     try:
         from langchain_anthropic import ChatAnthropic
     except ImportError as e:
-        msg = (
-            "Anthropic provider requires langchain-anthropic. "
-            "Install: pip install langchain-anthropic"
-        )
-        raise ConfigError(msg, user_message=msg) from e
+        logger.error("langchain-anthropic not installed")
+        raise ConfigError(
+            "langchain-anthropic not installed",
+            user_message="The chatbot is misconfigured. Please contact support.",
+        ) from e
 
     logger.debug("Building Anthropic client model={} temp={}", s.llm_model, temperature)
     return ChatAnthropic(
@@ -91,4 +92,5 @@ def _build_anthropic(s: Settings, temperature: float) -> BaseChatModel:
         temperature=temperature,
         max_tokens=s.llm_max_tokens or 1024,
         api_key=s.anthropic_api_key,
+        default_request_timeout=s.llm_request_timeout,
     )

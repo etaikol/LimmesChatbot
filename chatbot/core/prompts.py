@@ -25,6 +25,15 @@ RAG_CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
             ),
         ),
         ("system", "Recent conversation:\n{history}"),
+        (
+            "system",
+            (
+                "Reminder: reply in the SAME language the user is writing in. "
+                "If the user writes in Thai, reply in Thai. If in Russian, reply in Russian. "
+                "The context above may be in a different language — translate your answer, "
+                "do not copy it verbatim."
+            ),
+        ),
         ("human", "{question}"),
     ]
 )

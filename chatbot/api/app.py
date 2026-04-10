@@ -122,6 +122,8 @@ def create_app() -> FastAPI:
             "heuristics and a daily token/spend budget."
         ),
         lifespan=lifespan,
+        docs_url="/docs" if settings.debug else None,
+        redoc_url="/redoc" if settings.debug else None,
     )
 
     # ── Middleware order matters: outermost runs first on requests ─────

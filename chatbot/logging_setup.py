@@ -84,7 +84,7 @@ def setup_logging(
             level=level,
             colorize=True,
             backtrace=True,
-            diagnose=True,
+            diagnose=False,
             format=(
                 "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
                 "<level>{level: <8}</level> | "

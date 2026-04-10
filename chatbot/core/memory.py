@@ -77,6 +77,8 @@ class ConversationMemory(BaseModel):
 class SessionStore:
     """Pluggable session store. Use `SessionStore.from_settings(...)` to build."""
 
+    MAX_MEMORY_SESSIONS = 1000  # LRU eviction cap for in-memory backend
+
     def __init__(
         self,
         backend: Literal["memory", "file", "postgres"] = "memory",
@@ -107,6 +109,8 @@ class SessionStore:
     def get(self, session_id: str) -> ConversationMemory:
         """Return the conversation memory for `session_id`, creating it lazily."""
         if session_id in self._memory:
+            # Move to end (most recently used)
+            self._memory[session_id] = self._memory.pop(session_id)
             return self._memory[session_id]
 
         if self.backend == "file":
@@ -115,6 +119,12 @@ class SessionStore:
             mem = self._load_from_postgres(session_id)
         else:
             mem = ConversationMemory(max_turns=self.max_turns)
+
+        # Evict oldest if over cap
+        while len(self._memory) >= self.MAX_MEMORY_SESSIONS:
+            oldest = next(iter(self._memory))
+            self._memory.pop(oldest)
+            logger.debug("Evicted session {} from memory cache", oldest)
 
         self._memory[session_id] = mem
         return mem
@@ -173,8 +183,16 @@ class SessionStore:
     def _persist(self, session_id: str, mem: ConversationMemory) -> None:
         if self.backend == "file":
             try:
-                with open(self._file_for(session_id), "w", encoding="utf-8") as f:
+                target = self._file_for(session_id)
+                # Atomic write: write to temp file, then rename.
+                # This ensures a crash mid-write never corrupts the real file.
+                tmp = target.with_suffix(".json.tmp")
+                with open(tmp, "w", encoding="utf-8") as f:
                     json.dump(mem.model_dump(), f, ensure_ascii=False, indent=2)
+                    f.flush()
+                    import os
+                    os.fsync(f.fileno())
+                tmp.replace(target)
             except Exception as e:
                 logger.warning("Could not save session {}: {}", session_id, e)
         elif self.backend == "postgres":

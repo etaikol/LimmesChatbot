@@ -29,7 +29,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import Runnable, RunnableLambda
 
-from chatbot.core.prompts import RAG_CHAT_TEMPLATE
+from chatbot.core.prompts import RAG_CHAT_TEMPLATE, REWRITE_TEMPLATE
 
 
 def _format_docs(docs: list[Document]) -> str:
@@ -62,13 +62,29 @@ def build_rag_chain(
 
     default_system_prompt = system_prompt
 
-    def fetch_context(inputs: dict[str, Any]) -> str:
+    # Rewrite chain: turns multi-turn follow-ups into standalone queries
+    rewrite_chain = REWRITE_TEMPLATE | llm | StrOutputParser()
+
+    def _maybe_rewrite(inputs: dict[str, Any]) -> str:
+        """Rewrite the question when there is conversation history."""
         question = inputs.get("question", "")
+        history = inputs.get("history") or ""
+        if not history or history == "(no prior conversation)" or history == "(none)":
+            return question
+        try:
+            return rewrite_chain.invoke({"question": question, "history": history})
+        except Exception:
+            return question  # fall back to original on any error
+
+    def fetch_context(inputs: dict[str, Any]) -> str:
+        question = inputs.get("_search_query") or inputs.get("question", "")
         docs = retriever.invoke(question)
         return _format_docs(docs)
 
     chain = (
-        {
+        # First: optionally rewrite the question for better retrieval
+        RunnableLambda(lambda x: {**x, "_search_query": _maybe_rewrite(x)})
+        | {
             "system_prompt": RunnableLambda(
                 lambda x: x.get("system_prompt") or default_system_prompt
             ),

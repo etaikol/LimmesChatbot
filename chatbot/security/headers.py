@@ -47,13 +47,27 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        # ── 1. Body-size guard (Content-Length only; streaming bodies
-        #       are length-checked again inside the route via Pydantic
-        #       max_length on the request models). ─────────────────────
+        # ── 1. Body-size guard ─────────────────────────────────────────
+        #       Check Content-Length header (fast path), then also enforce
+        #       on the actual body for chunked-encoding requests.
         if self.max_body_bytes > 0:
             length_hdr = request.headers.get("content-length")
             if length_hdr and length_hdr.isdigit():
                 if int(length_hdr) > self.max_body_bytes:
+                    return JSONResponse(
+                        {
+                            "detail": (
+                                f"Request body too large "
+                                f"(max {self.max_body_bytes} bytes)."
+                            )
+                        },
+                        status_code=413,
+                    )
+            # For requests without Content-Length (e.g. chunked encoding),
+            # read the body and check actual size.
+            if request.method in ("POST", "PUT", "PATCH") and not length_hdr:
+                body = await request.body()
+                if len(body) > self.max_body_bytes:
                     return JSONResponse(
                         {
                             "detail": (
@@ -76,6 +90,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Permissions-Policy",
             "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
             "magnetometer=(), microphone=(), payment=(), usb=()",
+        )
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+            "connect-src 'self'; frame-ancestors 'none'",
         )
         # X-XSS-Protection is dead in modern browsers; we omit it on
         # purpose so old scanners do not complain when it's missing.

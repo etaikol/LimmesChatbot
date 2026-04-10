@@ -47,7 +47,8 @@ class Settings(BaseSettings):
     llm_provider: Literal["openai", "anthropic"] = "openai"
     llm_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.7
-    llm_max_tokens: Optional[int] = None
+    llm_max_tokens: Optional[int] = 1024
+    llm_request_timeout: int = 30
     embedding_model: str = "text-embedding-3-small"
 
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
@@ -57,6 +58,7 @@ class Settings(BaseSettings):
     chunk_size: int = 1000
     chunk_overlap: int = 200
     retrieval_k: int = 4
+    retrieval_min_score: float = 0.3
     vectorstore_dir: Path = PROJECT_ROOT / ".vectorstore"
     data_dir: Path = PROJECT_ROOT / "data"
 
@@ -71,10 +73,10 @@ class Settings(BaseSettings):
     # ── HTTP API ─────────────────────────────────────────────────────────────
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    api_cors_origins: str = "*"  # comma-separated; "*" allows all
+    api_cors_origins: str = "http://localhost:8000"  # comma-separated; set to your real domain(s) in production
     # When true (recommended for production) the app refuses to start if
     # API_CORS_ORIGINS is "*" or empty.
-    api_strict_cors: bool = False
+    api_strict_cors: bool = True
     # Optional shared secret for the /chat endpoint. When set the caller
     # (e.g. a WordPress site) must send:  X-Api-Key: <value>
     # Empty string = disabled (open access, rate-limiting still applies).
@@ -115,11 +117,16 @@ class Settings(BaseSettings):
     # Minimum characters for a message to be considered meaningful.
     spam_min_message_chars: int = 2
 
+    # ── Security: prompt injection ───────────────────────────────────────────
+    # When true, messages that match prompt-injection heuristics are
+    # rejected outright (HTTP 400) rather than just logged.
+    block_prompt_injection: bool = True
+
     # ── Security: daily spend / token budget ─────────────────────────────────
     # 0 = disabled. Recommended starting point: a few dollars / day until
     # you have telemetry from real traffic.
     daily_token_cap: int = 500_000
-    daily_usd_cap: float = 5.0
+    daily_usd_cap: float = 3.0
     budget_state_file: Path = PROJECT_ROOT / ".budget" / "state.json"
     # Override price table when your model isn't covered by defaults.
     price_in_usd_per_1k: float = 0.0
