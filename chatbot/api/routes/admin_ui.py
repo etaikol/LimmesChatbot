@@ -643,7 +643,18 @@ function buildEnvForm(env){
   document.getElementById('envForm').innerHTML=html;
 }
 
-window.saveEnv=async function(){var body={};document.querySelectorAll('[data-env]').forEach(function(el){body[el.dataset.env]=el.type==='checkbox'?el.checked:el.value});try{var r=await api('/config/env',{method:'PUT',body:body});var msg='Settings saved.';if(r.rejected&&Object.keys(r.rejected).length)msg+=' Rejected: '+Object.keys(r.rejected).join(', ');toast(msg,'ok')}catch(e){toast(e.message,'err')}};
+// ── Config validation ────────────────────────────────────────────────
+// Returns an error message string, or null if the object looks safe to save.
+function validateCfg(type, obj){
+  if(!obj||typeof obj!=='object'||Array.isArray(obj)||!Object.keys(obj).length)
+    return 'Cannot save — config is empty or was wiped.';
+  var req={client:['id','name'],personality:['name','system_prompt'],env:['LLM_PROVIDER','LLM_MODEL']};
+  var missing=(req[type]||[]).filter(function(k){return obj[k]===undefined||obj[k]===null||String(obj[k]).trim()===''});
+  if(missing.length)return 'Required fields are missing or blank: '+missing.join(', ');
+  return null;
+}
+
+window.saveEnv=async function(){var body={};document.querySelectorAll('[data-env]').forEach(function(el){body[el.dataset.env]=el.type==='checkbox'?el.checked:el.value});var err=validateCfg('env',body);if(err){toast(err,'warn');return}try{var r=await api('/config/env',{method:'PUT',body:body});var msg='Settings saved.';if(r.rejected&&Object.keys(r.rejected).length)msg+=' Rejected: '+Object.keys(r.rejected).join(', ');toast(msg,'ok')}catch(e){toast(e.message,'err')}};
 
 window.showConfigTab=function(tab,btn){
   document.querySelectorAll('#page-config .config-panel').forEach(function(p){p.style.display='none'});
@@ -672,6 +683,7 @@ function buildClientForm(d){
 window.saveClientForm=async function(){
   var d={};document.querySelectorAll('[data-cl]').forEach(function(el){var k=el.dataset.cl;if(k==='languages_offered'||k==='data_paths')d[k]=el.value.split(',').map(function(s){return s.trim()}).filter(Boolean);else d[k]=el.value});
   var ch={};document.querySelectorAll('[data-cl-ch]').forEach(function(el){ch[el.dataset.clCh]={enabled:el.checked}});if(Object.keys(ch).length)d.channels=ch;
+  var err=validateCfg('client',d);if(err){toast(err,'warn');return}
   try{await api('/config/client',{method:'PUT',body:d});toast('Client config saved','ok')}catch(e){toast(e.message,'err')}
 };
 window.setClientView=function(v,btn){document.getElementById('clientFormView').style.display=v==='form'?'block':'none';document.getElementById('clientYamlView').style.display=v==='yaml'?'block':'none';btn.parentElement.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active')};
@@ -694,11 +706,12 @@ function buildPersonalityForm(d){
 
 window.savePersonalityForm=async function(){
   var d={};document.querySelectorAll('[data-pers]').forEach(function(el){var k=el.dataset.pers;if(k==='style_keywords')d[k]=el.value.split(',').map(function(s){return s.trim()}).filter(Boolean);else if(k==='temperature')d[k]=parseFloat(el.value)||0.7;else d[k]=el.value});
+  var err=validateCfg('personality',d);if(err){toast(err,'warn');return}
   try{await api('/config/personality',{method:'PUT',body:d});toast('Personality config saved','ok')}catch(e){toast(e.message,'err')}
 };
 window.setPersonalityView=function(v,btn){document.getElementById('personalityFormView').style.display=v==='form'?'block':'none';document.getElementById('personalityYamlView').style.display=v==='yaml'?'block':'none';btn.parentElement.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active')};
 
-window.saveYaml=async function(type){var text=document.getElementById(type==='client'?'clientYaml':'personalityYaml').value;var body;try{body=yamlParse(text)}catch(e){toast('Invalid YAML: '+e.message,'err');return}try{await api('/config/'+type,{method:'PUT',body:body});toast(type+' config saved','ok');loadConfig()}catch(e){toast(e.message,'err')}};
+window.saveYaml=async function(type){var text=document.getElementById(type==='client'?'clientYaml':'personalityYaml').value;if(!text||!text.trim()){toast('Cannot save — YAML textarea is empty.','warn');return}var body;try{body=yamlParse(text)}catch(e){toast('Invalid YAML: '+e.message,'err');return}var err=validateCfg(type,body);if(err){toast(err,'warn');return}try{await api('/config/'+type,{method:'PUT',body:body});toast(type+' config saved','ok');loadConfig()}catch(e){toast(e.message,'err')}};
 
 function ff(prefix,key,value,label){return'<div class="form-group"><label class="form-label">'+label+'</label><input class="form-input" data-'+prefix+'="'+key+'" value="'+esc(String(value||''))+'"></div>'}
 
