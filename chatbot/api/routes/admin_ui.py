@@ -547,6 +547,7 @@ window.tryLogin=async function(){
     document.getElementById('mainContent').style.display='block';
     initLang();
     renderOverview(r);
+    loadConfig().catch(function(){});// pre-load so emoji picker knows active client
   }catch(e){document.getElementById('authErr').textContent=e.message||'Authentication failed';document.getElementById('authErr').style.display='block';KEY=''}
 };
 document.getElementById('keyInput').addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin()});
@@ -743,18 +744,37 @@ function createRichEditor(containerId){
 window.eCmd=function(id,cmd,val){document.getElementById(id).focus();document.execCommand(cmd,false,val||null)};
 window.eBlock=function(id,tag){document.getElementById(id).focus();document.execCommand('formatBlock',false,'<'+tag+'>')};
 
-var EMOJI_CATS=[
-  {l:'⚡ Quick',e:['✅','❌','⚠️','🔥','💡','⭐','👍','❤️','🎉','💯','✨','🌟','💫','🎯','📌','🔑']},
-  {l:'🌿 Nature',e:['🌿','🍃','🌱','☘️','🍀','🌾','🌸','🌺','🌻','🌼','💐','🌲','🌳','🌴','🪴','🎋','🌵','🎍']},
-  {l:'💨 Smoke',e:['💨','🌫️','🫧','♨️','🔥','🚬','🚭','🏮','💭','🌡️','🧪','⚗️','🌪️','💥','🕯️','🪔']},
-  {l:'😊 People',e:['😊','😄','😎','🤗','😍','🥰','😌','🤙','👋','🤝','👏','💪','🙏','👌','🫶','💚','💜','🧡','💛','💙']},
-  {l:'🏪 Business',e:['🛒','🏪','🏠','🏢','🏬','📦','🚚','💰','💳','🎁','💼','📋','📍','🗺️','🏅','🏷️','📊','🔒']},
-  {l:'⏰ Time & Info',e:['🕑','🕐','⏰','📅','📆','🗓️','🔔','📢','ℹ️','💬','📱','✉️','📞','☎️','📣','📝','🔍']},
-];
+// Specialty emoji categories keyed by client id or personality name.
+// Add a new key here whenever a new client type is added to the project.
+var SPECIALTY_CATS={
+  cannabis: {l:'🍃 Cannabis',e:['💨','🌿','🍃','🌱','☘️','🌾','🪴','♨️','🫧','🌫️','💚','🔥','🕯️','🪔','🧪','⚗️','💊','🌡️']},
+  limmes:   {l:'🎨 Design',e:['🪑','🛋️','🖼️','🏠','🎨','🪞','🪟','🛏️','💡','🌈','✏️','📐','📏','🖌️','🪆','🏮','🪴','🎭']},
+  clinic:   {l:'🏥 Health',e:['🏥','💊','🩺','🩹','💉','🧬','🔬','🩻','❤️','🫀','🫁','🧠','🦷','👁️','🩸','🌡️','⚕️','💆']},
+  default:  {l:'⭐ Featured',e:['⭐','🏆','🎖️','💎','🌟','✨','💫','🎯','🎪','🎭','🎨','🎬','🎤','🎵','🎶','🎁','🎉','🏅']},
+};
+// Returns the 5 universal categories with the correct specialty category
+// (slot 3) driven by the currently loaded client config.
+function getEmojiCats(){
+  var id=(cfgCache.client&&cfgCache.client.id)||'';
+  var pers=(cfgCache.client&&cfgCache.client.personality)||'';
+  var key='default';
+  if(SPECIALTY_CATS[id])key=id;
+  else if(id.indexOf('cannabis')>=0||pers.indexOf('budtender')>=0||pers.indexOf('cannabis')>=0)key='cannabis';
+  else if(id.indexOf('limmes')>=0||pers.indexOf('design')>=0)key='limmes';
+  else if(pers.indexOf('clinic')>=0||pers.indexOf('health')>=0)key='clinic';
+  return [
+    {l:'⚡ Quick',e:['✅','❌','⚠️','🔥','💡','⭐','👍','❤️','🎉','💯','✨','🌟','💫','🎯','📌','🔑']},
+    {l:'🌿 Nature',e:['🌿','🍃','🌱','☘️','🍀','🌾','🌸','🌺','🌻','🌼','💐','🌲','🌳','🌴','🪴','🎋','🌵','🎍']},
+    SPECIALTY_CATS[key],
+    {l:'😊 People',e:['😊','😄','😎','🤗','😍','🥰','😌','🤙','👋','🤝','👏','💪','🙏','👌','🫶','💚','💜','🧡','💛','💙']},
+    {l:'🏪 Business',e:['🛒','🏪','🏠','🏢','🏬','📦','🚚','💰','💳','🎁','💼','📋','📍','🗺️','🏅','🏷️','📊','🔒']},
+    {l:'⏰ Time & Info',e:['🕑','🕐','⏰','📅','📆','🗓️','🔔','📢','ℹ️','💬','📱','✉️','📞','☎️','📣','📝','🔍']},
+  ];
+}
 window.emojiPick=function(editorId,ev){
   var old=document.querySelector('.emoji-picker');if(old)old.remove();
   var p=document.createElement('div');p.className='emoji-picker';
-  EMOJI_CATS.forEach(function(cat){
+  getEmojiCats().forEach(function(cat){
     var lbl=document.createElement('span');lbl.className='emoji-cat-label';lbl.textContent=cat.l;p.appendChild(lbl);
     var grid=document.createElement('div');grid.className='emoji-grid';
     cat.e.forEach(function(e){var b=document.createElement('button');b.textContent=e;b.title=e;b.onclick=function(){document.getElementById(editorId).focus();document.execCommand('insertText',false,e);p.remove()};grid.appendChild(b)});
