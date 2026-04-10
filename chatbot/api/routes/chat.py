@@ -72,6 +72,18 @@ async def chat_endpoint(req: ChatRequest, request: Request) -> ChatReply:
     if sess_limiter is not None:
         sess_limiter.check(sanitize_session_id(req.session_id))
 
+    # ── Spam / gibberish detection ────────────────────────────────────
+    spam_tracker = request.app.state.spam_tracker
+    if spam_tracker is not None:
+        rejection = spam_tracker.check(
+            sanitize_session_id(req.session_id), req.message
+        )
+        if rejection:
+            logger.info(
+                "[{}] Spam blocked: {}", req.session_id, rejection
+            )
+            raise HTTPException(status_code=429, detail=rejection)
+
     language = resolve_language(req.language) if req.language else None
 
     # Auto-detect language from the actual message text.  Detected language

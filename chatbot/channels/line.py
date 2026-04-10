@@ -5,6 +5,11 @@ LINE sends each event as a JSON POST signed with your channel secret.
 We verify the signature manually (HMAC-SHA256 base64) so the line-bot-sdk
 package is *optional* — only needed if you want richer features.
 
+Supports:
+    - Plain text replies.
+    - Flex Messages (product cards, contact cards, carousels).
+    - Quick reply suggestion chips.
+
 Setup:
     1. Create a Messaging API channel at https://developers.line.biz/console/.
     2. Copy the channel secret + channel access token.
@@ -21,6 +26,12 @@ from typing import Any
 
 import httpx
 
+from chatbot.channels.line_flex import (
+    contact_bubble,
+    flex_message,
+    quick_reply_message,
+    text_message,
+)
 from chatbot.core.engine import Chatbot
 from chatbot.exceptions import ChannelError, ChatbotError
 from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
@@ -100,18 +111,28 @@ class LineChannel:
         language = detect_language(text, supported=SUPPORTED_LANGUAGE_CODES)
         try:
             resp = self.bot.ask(text, session_id=session_id, language=language)
-            reply = resp.answer
+            messages = self._build_messages(resp.answer)
         except ChatbotError as e:
-            reply = e.user_message
+            messages = [text_message(e.user_message)]
         except Exception as e:  # pragma: no cover
             logger.exception("[line:{}] {}", user_id, e)
-            reply = self.bot.profile.fallback
+            messages = [text_message(self.bot.profile.fallback)]
 
-        await self._reply(reply_token, reply)
+        await self._reply(reply_token, messages)
+
+    def _build_messages(self, answer: str) -> list[dict]:
+        """Convert a text answer into LINE message objects.
+
+        Currently sends plain text.  Override or extend this method to
+        detect keywords and build Flex Messages (product cards, contact
+        cards, etc.) based on answer content.
+        """
+        return [text_message(answer)]
 
     # ── Outbound ────────────────────────────────────────────────────────────
 
-    async def _reply(self, reply_token: str, text: str) -> None:
+    async def _reply(self, reply_token: str, messages: list[dict]) -> None:
+        """Send up to 5 messages using the LINE reply API."""
         token = self.settings.line_channel_access_token
         if not token:
             raise ChannelError("LINE_CHANNEL_ACCESS_TOKEN not configured.")
@@ -126,7 +147,7 @@ class LineChannel:
                     },
                     json={
                         "replyToken": reply_token,
-                        "messages": [{"type": "text", "text": text[:5000]}],
+                        "messages": messages[:5],  # LINE limit: 5 per reply
                     },
                 )
                 if resp.status_code >= 400:

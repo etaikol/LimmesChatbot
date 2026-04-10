@@ -8,20 +8,21 @@ harden before a full public launch.
 
 ## 1. Defence-in-Depth Overview
 
-Every request goes through multiple layers before it costs a cent:
+Every request goes through **10 layers** before it costs a cent:
 
 ```
 Client request
   │
-  ├─ 1  Body-size middleware      (reject > 64 KB before parsing)
-  ├─ 2  Hardened response headers (X-Content-Type-Options, X-Frame-Options, …)
-  ├─ 3  CORS policy               (restrict origins in production)
-  ├─ 4  Per-IP rate limiter        (token bucket, 30 req/min default)
-  ├─ 5  Per-session rate limiter   (12 req/min per chat tab)
-  ├─ 6  Input sanitization         (Unicode NFC, control chars, length cap)
-  ├─ 7  Prompt-injection heuristic (non-blocking, logged for monitoring)
-  ├─ 8  Daily token/spend budget   (hard cap before the LLM call)
-  └─ 9  LLM call (paid)
+  ├─  1  Body-size middleware      (reject > 64 KB before parsing)
+  ├─  2  Hardened response headers (X-Content-Type-Options, X-Frame-Options, …)
+  ├─  3  CORS policy               (restrict origins in production)
+  ├─  4  Per-IP rate limiter        (token bucket, 20 req/min default)
+  ├─  5  Per-session rate limiter   (8 req/min per chat tab)
+  ├─  6  Spam / gibberish filter   (blocks junk BEFORE it reaches the LLM)
+  ├─  7  Input sanitization         (Unicode NFC, control chars, length cap)
+  ├─  8  Prompt-injection heuristic (non-blocking, logged for monitoring)
+  ├─  9  Daily token/spend budget   (hard cap before the LLM call)
+  └─ 10  LLM call (paid)
 ```
 
 Cheapest checks run first so abusive traffic is rejected before it
@@ -50,10 +51,10 @@ Token-bucket rate limiter keyed by IP or session ID:
 
 | Setting               | Env var                         | Default |
 | --------------------- | ------------------------------- | ------- |
-| Per-IP burst          | `RATE_LIMIT_IP_BURST`           | 10      |
-| Per-IP sustained      | `RATE_LIMIT_IP_PER_MINUTE`      | 30      |
-| Per-session burst     | `RATE_LIMIT_SESSION_BURST`      | 4       |
-| Per-session sustained | `RATE_LIMIT_SESSION_PER_MINUTE` | 12      |
+| Per-IP burst          | `RATE_LIMIT_IP_BURST`           | 6       |
+| Per-IP sustained      | `RATE_LIMIT_IP_PER_MINUTE`      | 20      |
+| Per-session burst     | `RATE_LIMIT_SESSION_BURST`      | 3       |
+| Per-session sustained | `RATE_LIMIT_SESSION_PER_MINUTE` | 8       |
 | Enable/disable        | `RATE_LIMIT_ENABLED`            | `true`  |
 
 Implementation: in-memory per process. For multi-instance deployments,
@@ -62,17 +63,55 @@ swap the internal dict for Redis or a shared store.
 When a limit is hit the API returns **HTTP 429** with a `Retry-After`
 header.
 
+### `chatbot/security/spam.py` — Spam & Gibberish Detection (NEW)
+
+Blocks token-wasting messages **before** they reach the LLM. This is
+the layer that catches the exact abuse pattern from testing: users
+mashing keys (`שדג`, `abc`, single characters) and sending rapid-fire
+garbage that burns API credits.
+
+**Three detection strategies:**
+
+| Strategy              | What it catches                                             | Cost          |
+| --------------------- | ----------------------------------------------------------- | ------------- |
+| Gibberish detection   | Single chars, repeated chars, symbol-only, key-mashing      | ~0 (regex)    |
+| Duplicate detection   | Same message sent twice within 60s in the same session      | ~0 (string)   |
+| Progressive cooldown  | After N consecutive bad messages, block the session for 30s+ | ~0 (counter)  |
+
+**Configuration:**
+
+| Setting                | Env var                      | Default | Description                                |
+| ---------------------- | ---------------------------- | ------- | ------------------------------------------ |
+| Enable/disable         | `SPAM_DETECTION_ENABLED`     | `true`  | Master toggle                              |
+| Max strikes            | `SPAM_MAX_STRIKES`           | 5       | Bad messages before temp block             |
+| Initial cooldown       | `SPAM_COOLDOWN_SECONDS`      | 30      | First block duration (doubles each time)   |
+| Max cooldown           | `SPAM_MAX_COOLDOWN_SECONDS`  | 300     | Upper bound on escalating cooldown (5 min) |
+| Min message length     | `SPAM_MIN_MESSAGE_CHARS`     | 2       | Messages shorter are rejected              |
+
+**Progressive cooldown escalation:**
+
+```
+Strike 1-4:  "Message not understood" (HTTP 429, no LLM call)
+Strike 5:    Session blocked 30 seconds
+Strike 10:   Session blocked 60 seconds
+Strike 15:   Session blocked 120 seconds
+Strike 20+:  Session blocked 300 seconds (max)
+```
+
+This means a spammer sending gibberish gets **zero** LLM calls after
+the first few attempts, and gets progressively longer timeouts.
+
 ### `chatbot/security/budget.py` — BudgetGuard
 
 Daily spend cap (tokens and/or USD) persisted to a JSON state file:
 
-| Setting                 | Env var                | Default              |
-| ----------------------- | ---------------------- | -------------------- |
-| Daily token cap         | `DAILY_TOKEN_CAP`      | 0 (disabled)         |
-| Daily USD cap           | `DAILY_USD_CAP`        | 0.0 (disabled)       |
-| State file              | `BUDGET_STATE_FILE`    | `.budget/state.json` |
-| Price override (input)  | `PRICE_IN_USD_PER_1K`  | auto from model      |
-| Price override (output) | `PRICE_OUT_USD_PER_1K` | auto from model      |
+| Setting                 | Env var                | Default                  |
+| ----------------------- | ---------------------- | ------------------------ |
+| Daily token cap         | `DAILY_TOKEN_CAP`      | 500,000                  |
+| Daily USD cap           | `DAILY_USD_CAP`        | 5.00                     |
+| State file              | `BUDGET_STATE_FILE`    | `.budget/state.json`     |
+| Price override (input)  | `PRICE_IN_USD_PER_1K`  | auto from model          |
+| Price override (output) | `PRICE_OUT_USD_PER_1K` | auto from model          |
 
 The guard runs a **pessimistic pre-check** before the LLM call (counts
 the system prompt + history + question) and a **post-record** after the
@@ -113,7 +152,8 @@ through — **never run DEBUG=true in production**.
 
 | Threat                                                                | Mitigation                                                                                    | Status                              |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------- |
-| **Denial-of-wallet** — attacker floods chat to burn LLM credits       | Rate limits (IP + session) + daily budget cap                                                 | Done                                |
+| **Denial-of-wallet** — attacker floods chat to burn LLM credits       | Rate limits (IP + session) + spam filter + daily budget cap                                   | **Done**                            |
+| **Gibberish spam** — key-mashing burns tokens on meaningless replies  | Spam/gibberish detector blocks before LLM + progressive session cooldown                      | **Done**                            |
 | **Prompt injection** — user tricks bot into ignoring its instructions | Heuristic detection + structured prompt (system→context→history→user)                         | Partial (heuristic is non-blocking) |
 | **XSS via widget** — attacker injects script through chat messages    | Widget uses `textContent` (never `innerHTML`) for message bubbles                             | Done                                |
 | **SSRF via scraper** — attacker feeds internal URLs                   | Scraper is a CLI script, not exposed to end users                                             | Done                                |
@@ -131,14 +171,16 @@ Before going live:
 
 - [ ] Set `API_STRICT_CORS=true` and `API_CORS_ORIGINS` to your real domains.
 - [ ] Set `API_HSTS_ENABLED=true` (requires HTTPS via reverse proxy).
-- [ ] Set `DAILY_USD_CAP` to a sensible daily limit (e.g. `5.0`).
-- [ ] Set `DAILY_TOKEN_CAP` as a secondary guard (e.g. `500000`).
+- [x] Set `DAILY_USD_CAP` to a sensible daily limit — **now defaults to $5/day**.
+- [x] Set `DAILY_TOKEN_CAP` as a secondary guard — **now defaults to 500,000/day**.
 - [ ] Set `DEBUG=false`.
 - [ ] Set `TWILIO_AUTH_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `LINE_CHANNEL_SECRET` for any enabled channel.
 - [ ] Put the app behind a reverse proxy (nginx / Caddy / Traefik) for TLS termination.
 - [ ] Use `LOG_FORMAT=json` and ship logs to a central aggregator.
 - [ ] Monitor the prompt-injection log entries and tune `looks_like_prompt_injection()` patterns.
 - [ ] Consider adding a WAF (Cloudflare, AWS WAF) in front of the reverse proxy.
+- [x] Enable spam/gibberish detection — **enabled by default**.
+- [ ] Tune `SPAM_MAX_STRIKES` and `SPAM_COOLDOWN_SECONDS` based on real user behaviour.
 
 ---
 

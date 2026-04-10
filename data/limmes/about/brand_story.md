@@ -246,5 +246,4 @@
 - **אימייל / Email:** limmes.design@gmail.com
 - **פייסבוק / Facebook:** https://www.facebook.com/limmes.co.il/
 - **אינסטגרם / Instagram:** https://instagram.com/limmestudio
-- **יוטיוב / YouTube:** https://www.youtube.com/channel/UCK5IIoRzm4WPDdkV78Hyifg
 - **אתר / Website:** https://www.limmes.co.il/

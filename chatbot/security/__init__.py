@@ -19,6 +19,7 @@ from chatbot.security.sanitize import (
     sanitize_session_id,
     sanitize_user_input,
 )
+from chatbot.security.spam import SpamTracker, is_gibberish
 
 __all__ = [
     "BudgetGuard",
@@ -26,6 +27,8 @@ __all__ = [
     "RateLimiter",
     "RateLimitExceeded",
     "SecurityHeadersMiddleware",
+    "SpamTracker",
+    "is_gibberish",
     "sanitize_user_input",
     "sanitize_session_id",
     "looks_like_prompt_injection",

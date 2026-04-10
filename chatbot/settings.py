@@ -96,17 +96,30 @@ class Settings(BaseSettings):
     # the in-memory bucket store for Redis.
     rate_limit_enabled: bool = True
     # Per source IP — protects the public surface from random scanners.
-    rate_limit_ip_per_minute: int = 30
-    rate_limit_ip_burst: int = 10
+    rate_limit_ip_per_minute: int = 20
+    rate_limit_ip_burst: int = 6
     # Per session_id — protects against a single chat tab spamming.
-    rate_limit_session_per_minute: int = 12
-    rate_limit_session_burst: int = 4
+    rate_limit_session_per_minute: int = 8
+    rate_limit_session_burst: int = 3
+
+    # ── Security: spam / gibberish detection ─────────────────────────────────
+    # Blocks meaningless messages (key-mashing, single chars, duplicates)
+    # BEFORE they reach the LLM, saving tokens and money.
+    spam_detection_enabled: bool = True
+    # Consecutive bad messages before a temporary session block.
+    spam_max_strikes: int = 5
+    # Initial cooldown (seconds) after max_strikes. Doubles each time.
+    spam_cooldown_seconds: float = 30.0
+    # Upper bound on the escalating cooldown.
+    spam_max_cooldown_seconds: float = 300.0
+    # Minimum characters for a message to be considered meaningful.
+    spam_min_message_chars: int = 2
 
     # ── Security: daily spend / token budget ─────────────────────────────────
     # 0 = disabled. Recommended starting point: a few dollars / day until
     # you have telemetry from real traffic.
-    daily_token_cap: int = 0
-    daily_usd_cap: float = 0.0
+    daily_token_cap: int = 500_000
+    daily_usd_cap: float = 5.0
     budget_state_file: Path = PROJECT_ROOT / ".budget" / "state.json"
     # Override price table when your model isn't covered by defaults.
     price_in_usd_per_1k: float = 0.0
@@ -124,6 +137,10 @@ class Settings(BaseSettings):
     # X-Telegram-Bot-Api-Secret-Token header on every update. Set this
     # to the same string and we will reject webhooks without it.
     telegram_webhook_secret: str = ""
+
+    # ── Admin dashboard ────────────────────────────────────────────────────────
+    # API key for the /admin endpoints. When empty the dashboard is disabled.
+    admin_api_key: str = ""
 
     # ── LINE Messaging ───────────────────────────────────────────────────────
     line_channel_secret: str = ""

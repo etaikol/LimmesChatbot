@@ -254,13 +254,19 @@ refuse_topics: [politics, religion]
 | WhatsApp adapter (Twilio HMAC)                   | Ready to configure |
 | Telegram adapter (Bot API)                       | Ready to configure |
 | LINE adapter (HMAC-SHA256)                       | Ready to configure |
+| LINE Flex Messages (product cards, carousels)    | Ready to configure |
+| LINE Rich Menu (CLI setup helper)                | Ready to configure |
 | Rate limiting (IP + session)                     | Production-ready   |
+| Spam / gibberish detection                       | Production-ready   |
 | Daily budget cap (tokens + USD)                  | Production-ready   |
 | Input sanitisation + prompt-injection heuristic  | Production-ready   |
 | Security headers middleware                      | Production-ready   |
 | Docker Compose deployment                        | Production-ready   |
 | CLI chat for testing                             | Production-ready   |
 | File-based session persistence                   | Production-ready   |
+| Admin dashboard (monitoring + config)            | Production-ready   |
+| Admin LINE management (Rich Menu, Flex preview)  | Production-ready   |
+| Admin data files editor (knowledge base)         | Production-ready   |
 | PostgreSQL session backend (opt-in)              | Available          |
 | OpenAI + Anthropic LLM support                   | Available          |
 
@@ -269,11 +275,11 @@ refuse_topics: [politics, religion]
 | Feature                                         | Priority | Notes                                        |
 | ----------------------------------------------- | -------- | -------------------------------------------- |
 | WhatsApp media messages (images, docs)          | High     | Currently text-only                          |
-| LINE Rich Messages / Flex Messages              | High     | Would enable product cards, carousels        |
-| LINE Rich Menu setup helper                     | Medium   | Interactive menu at bottom of chat           |
+| LINE Rich Messages / Flex Messages              | Done ✅  | Product cards, carousels, contact cards       |
+| LINE Rich Menu setup helper                     | Done ✅  | CLI + API for menu creation / management      |
 | Telegram inline keyboards                       | Medium   | Quick replies, buttons                       |
 | Redis-backed rate limiter                       | High     | Required for horizontal scaling              |
-| Admin dashboard                                 | Medium   | View sessions, analytics, budget usage       |
+| Admin dashboard                                 | Done ✅  | Overview, sessions, budget, config, LINE, data|
 | Webhook retry / queue                           | Medium   | Dead-letter handling for failed deliveries   |
 | Per-user authentication (JWT / API key)         | Medium   | For enterprise deployments                   |
 | Content filtering on LLM output                 | Medium   | Catch unsafe responses before delivery       |

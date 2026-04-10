@@ -22,7 +22,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from chatbot.api.routes import chat, health, webhooks, widget
+from chatbot.api.routes import admin, chat, health, webhooks, widget
 from chatbot.core.engine import Chatbot
 from chatbot.exceptions import (
     AbuseError,
@@ -31,7 +31,7 @@ from chatbot.exceptions import (
     LLMError,
 )
 from chatbot.logging_setup import logger, setup_logging
-from chatbot.security import RateLimiter, SecurityHeadersMiddleware
+from chatbot.security import RateLimiter, SecurityHeadersMiddleware, SpamTracker
 from chatbot.security.rate_limit import RateLimitExceeded
 from chatbot.settings import get_settings
 
@@ -97,6 +97,29 @@ async def lifespan(app: FastAPI):
         app.state.session_limiter = None
         logger.warning("Rate limiting DISABLED — every public endpoint is wide open")
 
+    # ── Spam / gibberish detection ─────────────────────────────────────
+    if settings.spam_detection_enabled:
+        app.state.spam_tracker = SpamTracker(
+            max_strikes=settings.spam_max_strikes,
+            cooldown_seconds=settings.spam_cooldown_seconds,
+            max_cooldown_seconds=settings.spam_max_cooldown_seconds,
+        )
+        logger.info(
+            "Spam detection enabled: max_strikes={} cooldown={}s",
+            settings.spam_max_strikes,
+            settings.spam_cooldown_seconds,
+        )
+    else:
+        app.state.spam_tracker = None
+
+    # ── Admin dashboard ────────────────────────────────────────────────
+    app.state.admin_api_key = settings.admin_api_key
+    if settings.admin_api_key:
+        admin.set_start_time()
+        logger.info("Admin dashboard enabled at /admin")
+    else:
+        logger.info("Admin dashboard disabled (ADMIN_API_KEY not set)")
+
     logger.info("API ready: {}", bot.profile.client.name)
     yield
     logger.info("API shutting down")
@@ -125,7 +148,7 @@ def create_app() -> FastAPI:
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Session-Id", "X-Api-Key"],
+        allow_headers=["Content-Type", "Authorization", "X-Session-Id", "X-Api-Key", "X-Admin-Key"],
         max_age=600,
     )
 
@@ -164,6 +187,12 @@ def create_app() -> FastAPI:
     app.include_router(chat.router)
     app.include_router(webhooks.router, prefix="/webhook")
     app.include_router(widget.router)
+    app.include_router(admin.router)  # /admin/api/*
+
+    @app.get("/admin", response_class=HTMLResponse)
+    def admin_dashboard() -> str:
+        from chatbot.api.routes.admin_ui import dashboard_html
+        return dashboard_html()
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> str:
