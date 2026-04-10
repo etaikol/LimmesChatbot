@@ -124,12 +124,14 @@ class SpamTracker:
         max_cooldown_seconds: float = 300.0,
         duplicate_window: float = 60.0,
         idle_ttl: float = 3600.0,
+        min_meaningful_chars: int = 2,
     ) -> None:
         self.max_strikes = max(1, max_strikes)
         self.cooldown_seconds = max(1.0, cooldown_seconds)
         self.max_cooldown_seconds = max(cooldown_seconds, max_cooldown_seconds)
         self.duplicate_window = max(0.0, duplicate_window)
         self.idle_ttl = idle_ttl
+        self.min_meaningful_chars = max(1, min_meaningful_chars)
         self._sessions: dict[str, _SessionRecord] = {}
         self._lock = threading.Lock()
         self._last_gc = time.monotonic()
@@ -170,7 +172,7 @@ class SpamTracker:
                 return self._maybe_block(rec, now, "Duplicate message.")
 
             # 3. Gibberish check.
-            if is_gibberish(message):
+            if is_gibberish(message, min_meaningful_chars=self.min_meaningful_chars):
                 rec.strikes += 1
                 rec.total_rejected += 1
                 rec.last_message = normalized

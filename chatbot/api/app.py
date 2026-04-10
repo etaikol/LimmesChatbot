@@ -103,6 +103,7 @@ async def lifespan(app: FastAPI):
             max_strikes=settings.spam_max_strikes,
             cooldown_seconds=settings.spam_cooldown_seconds,
             max_cooldown_seconds=settings.spam_max_cooldown_seconds,
+            min_meaningful_chars=settings.spam_min_message_chars,
         )
         logger.info(
             "Spam detection enabled: max_strikes={} cooldown={}s",
