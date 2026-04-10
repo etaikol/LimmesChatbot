@@ -147,9 +147,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .field-multiline:focus{border-color:var(--accent)}
 
 /* Emoji picker */
-.emoji-picker{position:fixed;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:var(--shadow);display:grid;grid-template-columns:repeat(6,1fr);gap:4px;max-width:240px}
-.emoji-picker button{font-size:20px;padding:6px;border:none;background:none;cursor:pointer;border-radius:6px;transition:background .1s}
-.emoji-picker button:hover{background:var(--bg3)}
+.emoji-picker{position:fixed;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;box-shadow:var(--shadow);width:340px;max-height:420px;overflow-y:auto}
+.emoji-cat-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:6px 2px 2px;display:block}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;margin-bottom:4px}
+.emoji-grid button{font-size:19px;padding:5px;border:none;background:none;cursor:pointer;border-radius:6px;transition:background .1s;line-height:1}
+.emoji-grid button:hover{background:var(--bg3)}
 
 /* Language switcher */
 .lang-switcher{padding:10px 8px;border-top:1px solid var(--border);display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
@@ -728,12 +730,26 @@ function createRichEditor(containerId){
 window.eCmd=function(id,cmd,val){document.getElementById(id).focus();document.execCommand(cmd,false,val||null)};
 window.eBlock=function(id,tag){document.getElementById(id).focus();document.execCommand('formatBlock',false,'<'+tag+'>')};
 
-var EMOJIS=['😊','👋','🌿','🔥','💚','⭐','✅','❌','📱','📍','🕑','🚚','💰','🎉','👍','❤️','🌟','💡','🛒','📋','🔔','🎨','🏠','✨','🌸','🍃','🌈','💎','🎁','🤝'];
+var EMOJI_CATS=[
+  {l:'⚡ Quick',e:['✅','❌','⚠️','🔥','💡','⭐','👍','❤️','🎉','💯','✨','🌟','💫','🎯','📌','🔑']},
+  {l:'🌿 Nature',e:['🌿','🍃','🌱','☘️','🍀','🌾','🌸','🌺','🌻','🌼','💐','🌲','🌳','🌴','🪴','🎋','🌵','🎍']},
+  {l:'💨 Smoke',e:['💨','🌫️','🫧','♨️','🔥','🚬','🚭','🏮','💭','🌡️','🧪','⚗️','🌪️','💥','🕯️','🪔']},
+  {l:'😊 People',e:['😊','😄','😎','🤗','😍','🥰','😌','🤙','👋','🤝','👏','💪','🙏','👌','🫶','💚','💜','🧡','💛','💙']},
+  {l:'🏪 Business',e:['🛒','🏪','🏠','🏢','🏬','📦','🚚','💰','💳','🎁','💼','📋','📍','🗺️','🏅','🏷️','📊','🔒']},
+  {l:'⏰ Time & Info',e:['🕑','🕐','⏰','📅','📆','🗓️','🔔','📢','ℹ️','💬','📱','✉️','📞','☎️','📣','📝','🔍']},
+];
 window.emojiPick=function(editorId,ev){
   var old=document.querySelector('.emoji-picker');if(old)old.remove();
   var p=document.createElement('div');p.className='emoji-picker';
-  EMOJIS.forEach(function(e){var b=document.createElement('button');b.textContent=e;b.onclick=function(){document.getElementById(editorId).focus();document.execCommand('insertText',false,e);p.remove()};p.appendChild(b)});
-  var rect=ev.target.getBoundingClientRect();p.style.top=(rect.bottom+4)+'px';p.style.left=rect.left+'px';
+  EMOJI_CATS.forEach(function(cat){
+    var lbl=document.createElement('span');lbl.className='emoji-cat-label';lbl.textContent=cat.l;p.appendChild(lbl);
+    var grid=document.createElement('div');grid.className='emoji-grid';
+    cat.e.forEach(function(e){var b=document.createElement('button');b.textContent=e;b.title=e;b.onclick=function(){document.getElementById(editorId).focus();document.execCommand('insertText',false,e);p.remove()};grid.appendChild(b)});
+    p.appendChild(grid);
+  });
+  var rect=ev.target.getBoundingClientRect();
+  var ptop=rect.bottom+4;if(ptop+428>window.innerHeight)ptop=rect.top-432;
+  p.style.top=Math.max(8,ptop)+'px';p.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-348))+'px';
   document.body.appendChild(p);setTimeout(function(){document.addEventListener('click',function h(ev2){if(!p.contains(ev2.target)){p.remove();document.removeEventListener('click',h)}})},0);
 };
 
@@ -747,7 +763,7 @@ function html2md(html){
       case'b':case'strong':return'**'+ch+'**';case'i':case'em':return'*'+ch+'*';
       case'ul':return ch+'\n';case'ol':return ch+'\n';
       case'li':var pa=n.parentElement;if(pa&&pa.tagName.toLowerCase()==='ol'){var idx=1;for(var s=n;s.previousElementSibling;s=s.previousElementSibling)idx++;return idx+'. '+ch.trim()+'\n'}return'- '+ch.trim()+'\n';
-      case'blockquote':return'> '+ch.trim().replace(/\n/g,'\n> ')+'\n\n';case'hr':return'\n---\n\n';case'br':return'\n';case'p':return ch.trim()+'\n\n';case'div':return ch.trim()+'\n';default:return ch;
+      case'blockquote':return'> '+ch.trim().replace(/\n/g,'\n> ')+'\n\n';case'hr':return'\n---\n\n';case'br':return'\n';case'p':return ch.trim()+'\n\n';case'div':return ch.trim()+'\n\n';default:return ch;
     }
   }
   return w(t).replace(/\n{3,}/g,'\n\n').trim();
