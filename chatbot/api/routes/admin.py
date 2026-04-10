@@ -240,6 +240,7 @@ def get_config(request: Request) -> dict:
         "API_HSTS_ENABLED": s.api_hsts_enabled,
         "DEBUG": s.debug,
         "LOG_LEVEL": s.log_level,
+        "LOG_FILE": str(s.log_file) if s.log_file else "",
         # Secret presence indicators (never expose values)
         "_OPENAI_API_KEY_SET": bool(s.openai_api_key),
         "_ANTHROPIC_API_KEY_SET": bool(s.anthropic_api_key),
@@ -276,7 +277,7 @@ async def update_env(request: Request) -> dict:
         "SPAM_MAX_COOLDOWN_SECONDS",
         "DAILY_TOKEN_CAP", "DAILY_USD_CAP",
         "API_CORS_ORIGINS", "API_STRICT_CORS", "API_HSTS_ENABLED",
-        "LOG_LEVEL", "DEBUG", "ACTIVE_CLIENT",
+        "LOG_LEVEL", "DEBUG", "ACTIVE_CLIENT", "LOG_FILE",
     }
 
     updated = {}
@@ -365,13 +366,16 @@ def list_personalities() -> dict:
 def get_logs(request: Request, lines: int = 100) -> dict:
     bot = request.app.state.bot
     log_file = bot.settings.log_file
-    if not log_file or not Path(log_file).exists():
+    if not log_file:
         return {"lines": [], "note": "No log file configured (LOG_FILE env var)"}
+    log_path = Path(log_file)
+    if not log_path.exists():
+        return {"lines": [], "note": f"Log file not created yet: {log_path.name}. Start the server and it will appear automatically."}
 
     try:
-        with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
             all_lines = f.readlines()
-        return {"lines": all_lines[-min(lines, 500):], "total": len(all_lines)}
+        return {"lines": all_lines[-min(lines, 500):], "total": len(all_lines), "file": log_path.name}
     except Exception as e:
         return {"lines": [], "error": str(e)}
 

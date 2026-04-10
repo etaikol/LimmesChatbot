@@ -14,7 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -154,6 +154,19 @@ class Settings(BaseSettings):
     line_channel_access_token: str = ""
 
     # ── Validators ───────────────────────────────────────────────────────────
+    @model_validator(mode="after")
+    def _default_log_file(self) -> "Settings":
+        """Auto-set log_file to logs/<client>/<client>.log when not explicitly set.
+
+        Convention: logs/limmes/limmes.log — loguru daily rotation then creates
+        timestamped archives like logs/limmes/limmes.2026-04-11_00-00-00.log.
+        """
+        if self.log_file is None:
+            self.log_file = (
+                PROJECT_ROOT / "logs" / self.active_client / f"{self.active_client}.log"
+            )
+        return self
+
     @field_validator(
         "vectorstore_dir",
         "sessions_dir",
@@ -181,6 +194,8 @@ class Settings(BaseSettings):
         for path in (self.vectorstore_dir, self.sessions_dir, self.data_dir):
             path.mkdir(parents=True, exist_ok=True)
         self.budget_state_file.parent.mkdir(parents=True, exist_ok=True)
+        if self.log_file:
+            self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
     def assert_production_safe(self) -> None:
         """Raise ConfigError when running prod with insecure defaults.

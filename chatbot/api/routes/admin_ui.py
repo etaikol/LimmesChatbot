@@ -150,6 +150,15 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .emoji-picker{position:fixed;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:var(--shadow);display:grid;grid-template-columns:repeat(6,1fr);gap:4px;max-width:240px}
 .emoji-picker button{font-size:20px;padding:6px;border:none;background:none;cursor:pointer;border-radius:6px;transition:background .1s}
 .emoji-picker button:hover{background:var(--bg3)}
+
+/* Language switcher */
+.lang-switcher{padding:10px 8px;border-top:1px solid var(--border);display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+.lang-btn{padding:4px 11px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.03em}
+.lang-btn:hover{color:var(--fg);border-color:var(--muted)}
+.lang-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+[dir=rtl] .sidebar{left:auto;right:0;border-right:none;border-left:1px solid var(--border)}
+[dir=rtl] .main{margin-left:0;margin-right:240px}
+@media(max-width:768px){[dir=rtl] .main{margin-right:60px}}
 </style>
 </head>
 <body>
@@ -175,34 +184,39 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="sidebar-nav">
     <button class="nav-item active" data-page="overview" onclick="showPage('overview',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      <span>Overview</span>
+      <span data-i18n="nav.overview">Overview</span>
     </button>
     <button class="nav-item" data-page="sessions" onclick="showPage('sessions',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      <span>Sessions</span>
+      <span data-i18n="nav.sessions">Sessions</span>
     </button>
     <button class="nav-item" data-page="budget" onclick="showPage('budget',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      <span>Budget</span>
+      <span data-i18n="nav.budget">Budget</span>
     </button>
     <button class="nav-item" data-page="config" onclick="showPage('config',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      <span>Configuration</span>
+      <span data-i18n="nav.config">Configuration</span>
     </button>
-    <div class="nav-section">Channels</div>
+    <div class="nav-section" data-i18n="nav.section.channels">Channels</div>
     <button class="nav-item" data-page="line" onclick="showPage('line',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-      <span>LINE</span>
+      <span data-i18n="nav.line">LINE</span>
     </button>
-    <div class="nav-section">Content</div>
+    <div class="nav-section" data-i18n="nav.section.content">Content</div>
     <button class="nav-item" data-page="data" onclick="showPage('data',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span>Data Files</span>
+      <span data-i18n="nav.data">Data Files</span>
     </button>
     <button class="nav-item" data-page="logs" onclick="showPage('logs',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-      <span>Logs</span>
+      <span data-i18n="nav.logs">Logs</span>
     </button>
+  </div>
+  <div class="lang-switcher">
+    <button class="lang-btn active" data-lang="en" onclick="setLang('en')" title="English">EN</button>
+    <button class="lang-btn" data-lang="he" onclick="setLang('he')" title="עברית">HE</button>
+    <button class="lang-btn" data-lang="th" onclick="setLang('th')" title="ภาษาไทย">TH</button>
   </div>
 </nav>
 
@@ -211,7 +225,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
   <!-- ═══════ Overview ═══════ -->
   <div class="page active" id="page-overview">
-    <div class="page-title">📊 Overview</div>
+    <div class="page-title" data-i18n="page.overview">📊 Overview</div>
     <div class="cards" id="overviewCards"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div>
@@ -228,8 +242,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <!-- ═══════ Sessions ═══════ -->
   <div class="page" id="page-sessions">
     <div class="page-title" style="justify-content:space-between">
-      <span>💬 Sessions</span>
-      <div><button class="btn btn-ghost btn-sm" onclick="loadSessions()">↻ Refresh</button> <button class="btn btn-danger btn-sm" onclick="clearAllSessions()">Clear All</button></div>
+      <span data-i18n="page.sessions">💬 Sessions</span>
+      <div><button class="btn btn-ghost btn-sm" onclick="loadSessions()" data-i18n="btn.refresh">↻ Refresh</button> <button class="btn btn-danger btn-sm" onclick="clearAllSessions()" data-i18n="btn.clearAll">Clear All</button></div>
     </div>
     <div class="tbl-wrap"><table><thead><tr><th>Session ID</th><th>Messages</th><th>Last Activity</th><th>Actions</th></tr></thead><tbody id="sessionRows"></tbody></table></div>
   </div>
@@ -237,8 +251,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <!-- ═══════ Budget ═══════ -->
   <div class="page" id="page-budget">
     <div class="page-title" style="justify-content:space-between">
-      <span>💰 Budget</span>
-      <button class="btn btn-danger btn-sm" onclick="resetBudget()">Reset Today</button>
+      <span data-i18n="page.budget">💰 Budget</span>
+      <button class="btn btn-danger btn-sm" onclick="resetBudget()" data-i18n="btn.resetToday">Reset Today</button>
     </div>
     <div class="cards" id="budgetCards"></div>
     <div id="budgetBars"></div>
@@ -246,20 +260,20 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
   <!-- ═══════ Configuration ═══════ -->
   <div class="page" id="page-config">
-    <div class="page-title">⚙️ Configuration</div>
+    <div class="page-title" data-i18n="page.config">⚙️ Configuration</div>
 
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="showConfigTab('env',this)">Environment</button>
-      <button class="tab-btn" onclick="showConfigTab('client',this)">Client</button>
-      <button class="tab-btn" onclick="showConfigTab('personality',this)">Personality</button>
+      <button class="tab-btn active" onclick="showConfigTab('env',this)" data-i18n="cfg.tab.env">Environment</button>
+      <button class="tab-btn" onclick="showConfigTab('client',this)" data-i18n="cfg.tab.client">Client</button>
+      <button class="tab-btn" onclick="showConfigTab('personality',this)" data-i18n="cfg.tab.personality">Personality</button>
     </div>
 
     <!-- Env -->
     <div class="config-panel" id="cfg-env">
       <div id="envForm"></div>
       <div style="margin-top:16px;display:flex;align-items:center;gap:12px">
-        <button class="btn btn-primary" onclick="saveEnv()">Save Environment Settings</button>
-        <span style="font-size:11px;color:var(--muted)">Restart required for changes to take effect</span>
+        <button class="btn btn-primary" onclick="saveEnv()" data-i18n="btn.saveEnv">Save Environment Settings</button>
+        <span style="font-size:11px;color:var(--muted)" data-i18n="restart.note">Restart required for changes to take effect</span>
       </div>
     </div>
 
@@ -268,13 +282,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <span style="font-size:13px;color:var(--muted)">Editing: <strong id="clientFile"></strong></span>
         <div class="view-toggle">
-          <button class="tab-btn active" onclick="setClientView('form',this)">Form</button>
-          <button class="tab-btn" onclick="setClientView('yaml',this)">YAML</button>
+          <button class="tab-btn active" onclick="setClientView('form',this)" data-i18n="view.form">Form</button>
+          <button class="tab-btn" onclick="setClientView('yaml',this)" data-i18n="view.yaml">YAML</button>
         </div>
       </div>
       <div id="clientFormView"><div id="clientFormFields"></div>
-        <button class="btn btn-primary" onclick="saveClientForm()" style="margin-top:16px">Save Client Config</button>
-        <span style="font-size:11px;color:var(--muted);margin-left:12px">Restart required</span>
+        <button class="btn btn-primary" onclick="saveClientForm()" style="margin-top:16px" data-i18n="btn.saveClient">Save Client Config</button>
+        <span style="font-size:11px;color:var(--muted);margin-left:12px" data-i18n="restart.note">Restart required</span>
       </div>
       <div id="clientYamlView" style="display:none">
         <textarea class="form-textarea" id="clientYaml" rows="20" style="min-height:300px"></textarea>
@@ -287,13 +301,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <span style="font-size:13px;color:var(--muted)">Editing: <strong id="personalityFile"></strong></span>
         <div class="view-toggle">
-          <button class="tab-btn active" onclick="setPersonalityView('form',this)">Form</button>
-          <button class="tab-btn" onclick="setPersonalityView('yaml',this)">YAML</button>
+          <button class="tab-btn active" onclick="setPersonalityView('form',this)" data-i18n="view.form">Form</button>
+          <button class="tab-btn" onclick="setPersonalityView('yaml',this)" data-i18n="view.yaml">YAML</button>
         </div>
       </div>
       <div id="personalityFormView"><div id="personalityFormFields"></div>
-        <button class="btn btn-primary" onclick="savePersonalityForm()" style="margin-top:16px">Save Personality Config</button>
-        <span style="font-size:11px;color:var(--muted);margin-left:12px">Restart required</span>
+        <button class="btn btn-primary" onclick="savePersonalityForm()" style="margin-top:16px" data-i18n="btn.savePersonality">Save Personality Config</button>
+        <span style="font-size:11px;color:var(--muted);margin-left:12px" data-i18n="restart.note">Restart required</span>
       </div>
       <div id="personalityYamlView" style="display:none">
         <textarea class="form-textarea" id="personalityYaml" rows="20" style="min-height:300px"></textarea>
@@ -304,12 +318,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
   <!-- ═══════ LINE ═══════ -->
   <div class="page" id="page-line">
-    <div class="page-title">💬 LINE Channel</div>
+    <div class="page-title" data-i18n="page.line">💬 LINE Channel</div>
     <div id="lineNotConfigured" style="display:none">
       <div class="card" style="padding:24px;text-align:center">
         <div style="font-size:36px;margin-bottom:12px">📱</div>
-        <h3 style="margin-bottom:8px">LINE Not Configured</h3>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Set <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">LINE_CHANNEL_ACCESS_TOKEN</code> and <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">LINE_CHANNEL_SECRET</code> in your .env file to enable LINE integration.</p>
+        <h3 style="margin-bottom:8px" data-i18n="line.nocfg.title">LINE Not Configured</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px" data-i18n="line.nocfg.body">Set <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">LINE_CHANNEL_ACCESS_TOKEN</code> and <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">LINE_CHANNEL_SECRET</code> in your .env file to enable LINE integration.</p>
         <p style="color:var(--muted);font-size:12px">Go to <a href="#" onclick="showPage('config',document.querySelector('[data-page=config]'));return false">Configuration</a> to set these.</p>
       </div>
     </div>
@@ -352,32 +366,32 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <!-- ═══════ Data Files ═══════ -->
   <div class="page" id="page-data">
     <div class="page-title" style="justify-content:space-between">
-      <span>📁 Data Files</span>
+      <span data-i18n="page.data">📁 Data Files</span>
       <div>
-        <button class="btn btn-ghost btn-sm" onclick="loadDataFiles()">↻ Refresh</button>
-        <button class="btn btn-primary btn-sm" onclick="showNewFileForm()">+ New File</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadDataFiles()" data-i18n="btn.refresh">↻ Refresh</button>
+        <button class="btn btn-primary btn-sm" onclick="showNewFileForm()" data-i18n="btn.newFile">+ New File</button>
       </div>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Knowledge base files for the chatbot. Edit content, then re-ingest to update the vector store.</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px" data-i18n="data.hint">Knowledge base files for the chatbot. Edit content, then re-ingest to update the vector store.</p>
 
     <!-- Upload -->
     <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileUploadInput').click()" style="margin-bottom:16px">
       <input type="file" id="fileUploadInput" accept=".md,.txt,.csv" multiple onchange="handleFileUpload(this.files)">
       <div style="font-size:20px;margin-bottom:6px">📤</div>
-      <div><strong>Click to upload</strong> or drag files here</div>
-      <div style="font-size:11px;margin-top:4px">.md, .txt files — UTF-8 only</div>
+      <div data-i18n="data.upload.cta"><strong>Click to upload</strong> or drag files here</div>
+      <div style="font-size:11px;margin-top:4px" data-i18n="data.upload.hint">.md, .txt files — UTF-8 only</div>
     </div>
 
     <!-- New file -->
     <div id="newFileForm" style="display:none;margin-bottom:16px">
       <div class="card" style="padding:16px">
-        <h4 style="margin-bottom:10px;font-size:14px">Create New Data File</h4>
+        <h4 style="margin-bottom:10px;font-size:14px" data-i18n="data.newfile">Create New Data File</h4>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group"><label class="form-label">Folder (optional)</label><input class="form-input" id="newFileFolder" placeholder="e.g. products"></div>
           <div class="form-group"><label class="form-label">Filename</label><input class="form-input" id="newFileName" placeholder="e.g. new_product.md"></div>
         </div>
         <div class="form-group"><label class="form-label">Content</label><div id="newFileEditorWrap"></div></div>
-        <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="createDataFile()">Create</button><button class="btn btn-ghost btn-sm" onclick="document.getElementById('newFileForm').style.display='none'">Cancel</button></div>
+        <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="createDataFile()" data-i18n="btn.create">Create</button><button class="btn btn-ghost btn-sm" onclick="document.getElementById('newFileForm').style.display='none'" data-i18n="btn.cancel">Cancel</button></div>
       </div>
     </div>
 
@@ -391,10 +405,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <h4 style="font-size:14px" id="editingFileName">Editing: ...</h4>
           <div style="display:flex;gap:8px;align-items:center">
             <div class="view-toggle">
-              <button class="tab-btn active" onclick="setEditorMode('rich',this)">Visual</button>
-              <button class="tab-btn" onclick="setEditorMode('raw',this)">Markdown</button>
+              <button class="tab-btn active" onclick="setEditorMode('rich',this)" data-i18n="view.visual">Visual</button>
+              <button class="tab-btn" onclick="setEditorMode('raw',this)" data-i18n="view.markdown">Markdown</button>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="closeEditor()">✕ Close</button>
+            <button class="btn btn-ghost btn-sm" onclick="closeEditor()" data-i18n="btn.closeEditor">✕ Close</button>
           </div>
         </div>
         <div id="richEditorWrap"></div>
@@ -410,7 +424,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <!-- ═══════ Logs ═══════ -->
   <div class="page" id="page-logs">
     <div class="page-title" style="justify-content:space-between">
-      <span>📋 Logs</span>
+      <span data-i18n="page.logs">📋 Logs</span>
       <div>
         <select class="form-input" id="logLines" style="width:auto;display:inline-block" onchange="loadLogs()">
           <option value="50">Last 50</option><option value="100" selected>Last 100</option><option value="200">Last 200</option><option value="500">Last 500</option>
@@ -421,9 +435,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div id="logNotConfigured" style="display:none">
       <div class="card" style="padding:24px;text-align:center">
         <div style="font-size:36px;margin-bottom:12px">📝</div>
-        <h3 style="margin-bottom:8px">Log File Not Configured</h3>
-        <p style="color:var(--muted);font-size:13px">Set <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">LOG_FILE=chatbot.log</code> in your .env to enable log viewing.</p>
-        <p style="color:var(--muted);font-size:12px;margin-top:8px">Go to <a href="#" onclick="showPage('config',document.querySelector('[data-page=config]'));return false">Configuration → Environment</a> to set this.</p>
+        <h3 style="margin-bottom:8px" data-i18n="logs.nocfg.title">Log File Not Configured</h3>
+        <p style="color:var(--muted);font-size:13px" data-i18n="logs.nocfg.body">Set <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">LOG_FILE=chatbot.log</code> in your .env to enable log viewing.</p>
+        <p style="color:var(--muted);font-size:12px;margin-top:8px"><span data-i18n="logs.nocfg.go">Go to</span> <a href="#" onclick="showPage('config',document.querySelector('[data-page=config]'));return false" data-i18n="logs.nocfg.link">Configuration → Environment</a> <span data-i18n="logs.nocfg.set">to set this.</span></p>
       </div>
     </div>
     <div class="log-viewer" id="logViewer" style="display:none">No logs loaded</div>
@@ -437,6 +451,86 @@ tr:hover td{background:rgba(255,255,255,.02)}
 (function(){
 "use strict";
 
+// ── i18n ─────────────────────────────────────────────────────────────
+var LANGS={
+  en:{
+    'nav.overview':'Overview','nav.sessions':'Sessions','nav.budget':'Budget','nav.config':'Configuration',
+    'nav.line':'LINE','nav.data':'Data Files','nav.logs':'Logs',
+    'nav.section.channels':'Channels','nav.section.content':'Content',
+    'page.overview':'📊 Overview','page.sessions':'💬 Sessions','page.budget':'💰 Budget',
+    'page.config':'⚙️ Configuration','page.line':'💬 LINE Channel','page.data':'📁 Data Files','page.logs':'📋 Logs',
+    'cfg.tab.env':'Environment','cfg.tab.client':'Client','cfg.tab.personality':'Personality',
+    'btn.refresh':'↻ Refresh','btn.clearAll':'Clear All','btn.resetToday':'Reset Today',
+    'btn.saveEnv':'Save Environment Settings','btn.saveClient':'Save Client Config','btn.savePersonality':'Save Personality Config',
+    'btn.newFile':'+ New File','btn.create':'Create','btn.cancel':'Cancel','btn.closeEditor':'✕ Close',
+    'view.form':'Form','view.yaml':'YAML','view.visual':'Visual','view.markdown':'Markdown',
+    'restart.note':'Restart required for changes to take effect',
+    'data.hint':'Knowledge base files for the chatbot. Edit content, then re-ingest to update the vector store.',
+    'data.upload.cta':'<strong>Click to upload</strong> or drag files here',
+    'data.upload.hint':'.md, .txt files — UTF-8 only','data.newfile':'Create New Data File',
+    'line.nocfg.title':'LINE Not Configured',
+    'line.nocfg.body':'Set LINE_CHANNEL_ACCESS_TOKEN and LINE_CHANNEL_SECRET in your .env file to enable LINE integration.',
+    'logs.nocfg.title':'Log File Not Configured',
+    'logs.nocfg.body':'Log file is auto-configured. It will appear after the server starts logging.',
+    'logs.nocfg.go':'Go to','logs.nocfg.link':'Configuration → Environment','logs.nocfg.set':'to set this.',
+  },
+  he:{
+    'nav.overview':'סקירה','nav.sessions':'שיחות','nav.budget':'תקציב','nav.config':'הגדרות',
+    'nav.line':'LINE','nav.data':'קבצי מידע','nav.logs':'לוגים',
+    'nav.section.channels':'ערוצים','nav.section.content':'תוכן',
+    'page.overview':'📊 סקירה כללית','page.sessions':'💬 שיחות','page.budget':'💰 תקציב',
+    'page.config':'⚙️ הגדרות','page.line':'💬 ערוץ LINE','page.data':'📁 קבצי מידע','page.logs':'📋 לוגים',
+    'cfg.tab.env':'סביבה','cfg.tab.client':'לקוח','cfg.tab.personality':'אישיות',
+    'btn.refresh':'↻ רענן','btn.clearAll':'נקה הכל','btn.resetToday':'אפס להיום',
+    'btn.saveEnv':'שמור הגדרות סביבה','btn.saveClient':'שמור הגדרות לקוח','btn.savePersonality':'שמור הגדרות אישיות',
+    'btn.newFile':'+ קובץ חדש','btn.create':'צור','btn.cancel':'ביטול','btn.closeEditor':'✕ סגור',
+    'view.form':'טופס','view.yaml':'YAML','view.visual':'ויזואלי','view.markdown':'Markdown',
+    'restart.note':'נדרש הפעלה מחדש ליישום השינויים',
+    'data.hint':'קבצי בסיס ידע לצ\'אטבוט. ערוך תוכן ואז הכנס מחדש לעדכון מאגר הווקטורים.',
+    'data.upload.cta':'<strong>לחץ להעלאה</strong> או גרור קבצים לכאן',
+    'data.upload.hint':'קבצי .md, .txt — UTF-8 בלבד','data.newfile':'צור קובץ מידע חדש',
+    'line.nocfg.title':'LINE לא מוגדר',
+    'line.nocfg.body':'הגדר LINE_CHANNEL_ACCESS_TOKEN ו-LINE_CHANNEL_SECRET בקובץ ה-.env שלך.',
+    'logs.nocfg.title':'קובץ לוג טרם נוצר',
+    'logs.nocfg.body':'קובץ הלוג מוגדר אוטומטית. הוא יופיע לאחר שהשרת יתחיל לרשום לוגים.',
+    'logs.nocfg.go':'עבור ל','logs.nocfg.link':'הגדרות ← סביבה','logs.nocfg.set':'להגדרה.',
+  },
+  th:{
+    'nav.overview':'ภาพรวม','nav.sessions':'เซสชัน','nav.budget':'งบประมาณ','nav.config':'การตั้งค่า',
+    'nav.line':'LINE','nav.data':'ไฟล์ข้อมูล','nav.logs':'บันทึก',
+    'nav.section.channels':'ช่องทาง','nav.section.content':'เนื้อหา',
+    'page.overview':'📊 ภาพรวม','page.sessions':'💬 เซสชัน','page.budget':'💰 งบประมาณ',
+    'page.config':'⚙️ การตั้งค่า','page.line':'💬 ช่อง LINE','page.data':'📁 ไฟล์ข้อมูล','page.logs':'📋 บันทึก',
+    'cfg.tab.env':'สภาพแวดล้อม','cfg.tab.client':'ลูกค้า','cfg.tab.personality':'บุคลิกภาพ',
+    'btn.refresh':'↻ รีเฟรช','btn.clearAll':'ล้างทั้งหมด','btn.resetToday':'รีเซ็ตวันนี้',
+    'btn.saveEnv':'บันทึกการตั้งค่าสภาพแวดล้อม','btn.saveClient':'บันทึกการตั้งค่าลูกค้า','btn.savePersonality':'บันทึกการตั้งค่าบุคลิกภาพ',
+    'btn.newFile':'+ ไฟล์ใหม่','btn.create':'สร้าง','btn.cancel':'ยกเลิก','btn.closeEditor':'✕ ปิด',
+    'view.form':'ฟอร์ม','view.yaml':'YAML','view.visual':'ภาพ','view.markdown':'Markdown',
+    'restart.note':'ต้องรีสตาร์ทเพื่อให้การเปลี่ยนแปลงมีผล',
+    'data.hint':'ไฟล์ฐานความรู้สำหรับแชทบอท แก้ไขเนื้อหา จากนั้นฝังข้อมูลใหม่เพื่ออัปเดต',
+    'data.upload.cta':'<strong>คลิกเพื่ออัปโหลด</strong> หรือลากไฟล์มาวาง',
+    'data.upload.hint':'ไฟล์ .md, .txt — UTF-8 เท่านั้น','data.newfile':'สร้างไฟล์ข้อมูลใหม่',
+    'line.nocfg.title':'ยังไม่ได้ตั้งค่า LINE',
+    'line.nocfg.body':'ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN และ LINE_CHANNEL_SECRET ใน .env ของคุณ',
+    'logs.nocfg.title':'ยังไม่ได้สร้างไฟล์บันทึก',
+    'logs.nocfg.body':'ไฟล์บันทึกถูกตั้งค่าอัตโนมัติ จะปรากฏหลังจากเซิร์ฟเวอร์เริ่มบันทึก',
+    'logs.nocfg.go':'ไปที่','logs.nocfg.link':'การตั้งค่า → สภาพแวดล้อม','logs.nocfg.set':'เพื่อตั้งค่า',
+  }
+};
+var _lang='en';
+function t(k){return(LANGS[_lang]&&LANGS[_lang][k])||LANGS.en[k]||k}
+window.setLang=function(code){
+  if(!LANGS[code])return;_lang=code;
+  localStorage.setItem('admin_lang',code);
+  document.documentElement.dir=code==='he'?'rtl':'ltr';
+  document.documentElement.lang=code;
+  document.querySelectorAll('.lang-btn').forEach(function(b){b.classList.toggle('active',b.dataset.lang===code)});
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var v=t(el.dataset.i18n);if(v!==undefined)el.innerHTML=v;
+  });
+};
+function initLang(){setLang(localStorage.getItem('admin_lang')||'en')}
+
 var KEY='',BASE=window.location.origin+'/admin/api';
 
 // ── Auth ──────────────────────────────────────────────────────────────
@@ -449,6 +543,7 @@ window.tryLogin=async function(){
     document.getElementById('auth').style.display='none';
     document.getElementById('sidebar').style.display='flex';
     document.getElementById('mainContent').style.display='block';
+    initLang();
     renderOverview(r);
   }catch(e){document.getElementById('authErr').textContent=e.message||'Authentication failed';document.getElementById('authErr').style.display='block';KEY=''}
 };
@@ -729,8 +824,9 @@ window.handleFileUpload=async function(files){
 window.loadLogs=async function(){
   try{var d=await api('/logs?lines='+document.getElementById('logLines').value);
   if(d.lines&&d.lines.length){document.getElementById('logNotConfigured').style.display='none';document.getElementById('logViewer').style.display='block';document.getElementById('logViewer').textContent=d.lines.join('');document.getElementById('logViewer').scrollTop=999999}
-  else if(d.note&&d.note.indexOf('No log file')>=0){document.getElementById('logNotConfigured').style.display='block';document.getElementById('logViewer').style.display='none'}
-  else{document.getElementById('logNotConfigured').style.display='none';document.getElementById('logViewer').style.display='block';document.getElementById('logViewer').textContent=d.note||d.error||'No logs'}}catch(e){toast(e.message,'err')}
+  else if(d.note){document.getElementById('logNotConfigured').style.display='block';document.getElementById('logViewer').style.display='none';
+    var p=document.getElementById('logNotConfigured').querySelector('[data-i18n="logs.nocfg.body"]');if(p)p.textContent=d.note;}
+  else{document.getElementById('logNotConfigured').style.display='none';document.getElementById('logViewer').style.display='block';document.getElementById('logViewer').textContent=d.error||'No logs'}}catch(e){toast(e.message,'err')}
 };
 
 // ══════════════════════════════════════════════════════════════════════
