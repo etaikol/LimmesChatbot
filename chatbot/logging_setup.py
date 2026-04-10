@@ -97,8 +97,9 @@ def setup_logging(
     if log_file:
         log_path = Path(log_file).expanduser().resolve()
         log_path.parent.mkdir(parents=True, exist_ok=True)
+        dated_path = str(log_path.parent / f"{log_path.stem}.{{time:YYYY-MM-DD}}{log_path.suffix}")
         logger.add(
-            log_path,
+            dated_path,
             level=level,
             rotation="00:00",
             retention="14 days",

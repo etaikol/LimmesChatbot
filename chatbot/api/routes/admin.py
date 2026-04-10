@@ -368,9 +368,16 @@ def get_logs(request: Request, lines: int = 100) -> dict:
     log_file = bot.settings.log_file
     if not log_file:
         return {"lines": [], "note": "No log file configured (LOG_FILE env var)"}
-    log_path = Path(log_file)
-    if not log_path.exists():
-        return {"lines": [], "note": f"Log file not created yet: {log_path.name}. Start the server and it will appear automatically."}
+    log_base = Path(log_file)
+    # Logs are date-stamped (e.g. limmes.2026-04-11.log); find the most recent one
+    log_files = sorted(
+        log_base.parent.glob(f"{log_base.stem}.*.log"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    ) if log_base.parent.exists() else []
+    log_path = log_files[0] if log_files else None
+    if not log_path:
+        return {"lines": [], "note": "Log file not created yet. Start the server and it will appear automatically."}
 
     try:
         with open(log_path, "r", encoding="utf-8", errors="replace") as f:
