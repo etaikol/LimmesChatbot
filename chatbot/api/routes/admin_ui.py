@@ -549,10 +549,41 @@ _HTML_BODY = r"""
   <div class="page" id="page-products">
     <div class="page-title" style="justify-content:space-between">
       <span data-i18n="page.products">🛍️ Products</span>
-      <button class="btn btn-ghost btn-sm" onclick="loadProducts()" data-i18n="btn.refresh">↻ Refresh</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="loadProducts()" data-i18n="btn.refresh">↻ Refresh</button>
+        <button class="btn btn-primary btn-sm" data-admin-only onclick="showProductForm(null)">+ Add Product</button>
+      </div>
     </div>
     <div class="cards" id="productStats"></div>
-    <div class="tbl-wrap"><table><thead><tr><th>ID</th><th data-i18n="th.name">Name</th><th data-i18n="th.category">Category</th><th data-i18n="th.price">Price</th><th data-i18n="th.image">Image</th><th data-i18n="th.status">Status</th></tr></thead><tbody id="productRows"></tbody></table></div>
+
+    <!-- Add / Edit form -->
+    <div id="productForm" style="display:none;margin-bottom:16px">
+      <div class="card" style="padding:20px">
+        <h4 style="margin-bottom:14px;font-size:14px" id="productFormTitle">Add Product</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group"><label class="form-label">ID (slug, no spaces)</label><input class="form-input" id="pf_id" placeholder="e.g. roman-blind-blackout"></div>
+          <div class="form-group"><label class="form-label">Name (local language)</label><input class="form-input" id="pf_name" placeholder="e.g. נייר רומי"></div>
+          <div class="form-group"><label class="form-label">Name (English)</label><input class="form-input" id="pf_name_en" placeholder="e.g. Roman Blind"></div>
+          <div class="form-group"><label class="form-label">Category</label><input class="form-input" id="pf_category" list="pf_catlist" placeholder="e.g. Curtains"><datalist id="pf_catlist"></datalist></div>
+          <div class="form-group"><label class="form-label">Price</label><input class="form-input" id="pf_price" placeholder="e.g. ₪600–₪1,200"></div>
+          <div class="form-group"><label class="form-label">Image URL (optional)</label><input class="form-input" id="pf_image_url" placeholder="https://..."></div>
+          <div class="form-group" style="grid-column:1/-1"><label class="form-label">Description (shown to bot &amp; customers)</label><textarea class="form-textarea" id="pf_description" rows="3" style="min-height:70px"></textarea></div>
+          <div class="form-group"><label class="form-label">Tags (comma-separated)</label><input class="form-input" id="pf_tags" placeholder="e.g. blackout, bedroom"></div>
+          <div class="form-group" style="display:flex;align-items:center;gap:10px;padding-top:20px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+              <input type="checkbox" id="pf_in_stock" checked style="width:18px;height:18px;accent-color:var(--accent)">
+              In Stock
+            </label>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('productForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap"><table><thead><tr><th>ID</th><th data-i18n="th.name">Name</th><th data-i18n="th.category">Category</th><th data-i18n="th.price">Price</th><th data-i18n="th.image">Image</th><th data-i18n="th.status">Status</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="productRows"></tbody></table></div>
   </div>
 
   <!-- ═══════ Contacts / Messages ═══════ -->
@@ -1310,21 +1341,104 @@ function yamlParse(text){
 }
 
 // ── Products ──────────────────────────────────────────────────────────
+var _productCache=[];
 async function loadProducts(){
   try{
     var d=await api('/products');
-    var stats=document.getElementById('productStats');
-    stats.innerHTML='<div class="card"><div class="card-label">'+t('products.total')+'</div><div class="card-value">'+d.total+'</div></div>'
-      +'<div class="card"><div class="card-label">'+t('products.categories')+'</div><div class="card-value">'+d.categories.length+'</div></div>';
-    var rows=document.getElementById('productRows');
-    rows.innerHTML='';
-    (d.products||[]).forEach(function(p){
-      var imgCell=p.image_url?'<img src="'+p.image_url+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px">':'<span style="color:var(--muted)">—</span>';
-      var stockTag=p.in_stock?'<span class="tag tag-on">In Stock</span>':'<span class="tag tag-off">Out</span>';
-      rows.innerHTML+='<tr><td><code style="font-size:11px">'+p.id+'</code></td><td>'+p.name+(p.name_en?' <small style="color:var(--muted)">('+p.name_en+')</small>':'')+'</td><td>'+p.category+'</td><td>'+p.price+'</td><td>'+imgCell+'</td><td>'+stockTag+'</td></tr>';
-    });
+    _productCache=d.products||[];
+    var cats=d.categories||[];
+    var dl=document.getElementById('pf_catlist');
+    if(dl){dl.innerHTML='';cats.forEach(function(c){var o=document.createElement('option');o.value=c;dl.appendChild(o)});}
+    var inStock=_productCache.filter(function(p){return p.in_stock;}).length;
+    document.getElementById('productStats').innerHTML=
+      '<div class="card"><div class="card-label">'+t('products.total')+'</div><div class="card-value">'+d.total+'</div></div>'
+      +'<div class="card"><div class="card-label">'+t('products.categories')+'</div><div class="card-value">'+cats.length+'</div></div>'
+      +'<div class="card"><div class="card-label">In Stock</div><div class="card-value" style="color:var(--success)">'+inStock+'</div></div>'
+      +'<div class="card"><div class="card-label">Out of Stock</div><div class="card-value" style="color:var(--danger)">'+(d.total-inStock)+'</div></div>';
+    _renderProductRows();
   }catch(e){toast(e.message,'err')}
 }
+function _renderProductRows(){
+  var rows=document.getElementById('productRows');
+  rows.innerHTML='';
+  _productCache.forEach(function(p,idx){
+    var imgCell=p.image_url?'<img src="'+esc(p.image_url)+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">':'<span style="color:var(--muted)">—</span>';
+    var stockTag=p.in_stock?'<span class="tag tag-on">In Stock</span>':'<span class="tag tag-off">Out</span>';
+    var actions='<button class="btn btn-ghost btn-sm" onclick="showProductForm('+idx+')">Edit</button> '
+      +'<button class="btn btn-ghost btn-sm" onclick="toggleStock('+idx+')">'+(!p.in_stock?'✓ In stock':'✕ Out of stock')+'</button> '
+      +'<button class="btn btn-danger btn-sm" onclick="deleteProduct('+idx+')">Delete</button>';
+    rows.innerHTML+='<tr>'
+      +'<td><code style="font-size:11px">'+esc(p.id)+'</code></td>'
+      +'<td>'+esc(p.name)+(p.name_en?' <small style="color:var(--muted)">('+esc(p.name_en)+')</small>':'')+'</td>'
+      +'<td>'+esc(p.category||'—')+'</td><td>'+esc(p.price||'—')+'</td>'
+      +'<td>'+imgCell+'</td><td>'+stockTag+'</td><td>'+actions+'</td></tr>';
+  });
+  if(!_productCache.length)rows.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted)">No products yet — click "+ Add Product" to start.</td></tr>';
+}
+var _editingIdx=null;
+window.showProductForm=function(idx){
+  _editingIdx=idx;
+  var p=(idx!==null&&idx>=0)?_productCache[idx]:null;
+  document.getElementById('productFormTitle').textContent=p?'Edit: '+p.name:'Add Product';
+  document.getElementById('pf_id').value=p?p.id:'';
+  document.getElementById('pf_id').readOnly=!!p;
+  document.getElementById('pf_id').style.opacity=p?'0.6':'';
+  document.getElementById('pf_name').value=p?p.name:'';
+  document.getElementById('pf_name_en').value=p?(p.name_en||''):'';
+  document.getElementById('pf_category').value=p?(p.category||''):'';
+  document.getElementById('pf_price').value=p?(p.price||''):'';
+  document.getElementById('pf_image_url').value=p?(p.image_url||''):'';
+  document.getElementById('pf_description').value=p?(p.description||''):'';
+  document.getElementById('pf_tags').value=p?(p.tags||[]).join(', '):'';
+  document.getElementById('pf_in_stock').checked=p?p.in_stock:true;
+  document.getElementById('productForm').style.display='block';
+  document.getElementById('productForm').scrollIntoView({behavior:'smooth',block:'center'});
+};
+window.saveProduct=async function(){
+  var id=document.getElementById('pf_id').value.trim();
+  var name=document.getElementById('pf_name').value.trim();
+  if(!id||!name){toast('ID and Name are required','err');return;}
+  var updated=JSON.parse(JSON.stringify(_productCache));
+  var product={id:id,name:name,
+    name_en:document.getElementById('pf_name_en').value.trim(),
+    category:document.getElementById('pf_category').value.trim(),
+    price:document.getElementById('pf_price').value.trim(),
+    image_url:document.getElementById('pf_image_url').value.trim(),
+    description:document.getElementById('pf_description').value.trim(),
+    tags:document.getElementById('pf_tags').value.split(',').map(function(s){return s.trim();}).filter(Boolean),
+    in_stock:document.getElementById('pf_in_stock').checked
+  };
+  if(_editingIdx!==null&&_editingIdx>=0){updated[_editingIdx]=product;}
+  else{
+    if(updated.some(function(p){return p.id===id;})){toast('A product with this ID already exists','err');return;}
+    updated.push(product);
+  }
+  try{
+    await api('/products',{method:'PUT',body:{products:updated}});
+    document.getElementById('productForm').style.display='none';
+    toast(_editingIdx!==null&&_editingIdx>=0?'Product updated':'Product added','ok');
+    await loadProducts();
+  }catch(e){toast(e.message,'err')}
+};
+window.deleteProduct=async function(idx){
+  var p=_productCache[idx];
+  if(!confirm('Delete "'+p.name+'"?'))return;
+  var updated=_productCache.filter(function(_,i){return i!==idx;});
+  try{
+    await api('/products',{method:'PUT',body:{products:updated}});
+    toast('Product deleted','ok');
+    await loadProducts();
+  }catch(e){toast(e.message,'err')}
+};
+window.toggleStock=async function(idx){
+  var updated=JSON.parse(JSON.stringify(_productCache));
+  updated[idx].in_stock=!updated[idx].in_stock;
+  try{
+    await api('/products',{method:'PUT',body:{products:updated}});
+    toast(updated[idx].in_stock?'Marked in stock':'Marked out of stock','ok');
+    await loadProducts();
+  }catch(e){toast(e.message,'err')}
+};
 window.loadProducts=loadProducts;
 
 // ── Contacts / Messages ───────────────────────────────────────────────
