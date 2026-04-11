@@ -884,7 +884,7 @@ function _renderBudgetHistoryTable(d,hist,n){
     var capCls=typeof capPct==='number'?(capPct>80?'color:var(--danger)':capPct>50?'color:var(--warn)':'color:var(--success)'):'color:var(--muted)';
     totalUsd+=row.usd; totalTok+=row.tokens;
     html+='<tr'+(isToday?' style="font-weight:600"':'')+'>'
-      +'<td>'+row.day+(isToday?' <span class="tag tag-on" style="font-size:10px">today</span>':'')+'</td>'
+      +'<td>'+esc(String(row.day))+(isToday?' <span class="tag tag-on" style="font-size:10px">today</span>':'')+'</td>'
       +'<td>'+row.tokens.toLocaleString()+'</td>'
       +'<td>$'+row.usd.toFixed(4)+'</td>'
       +'<td style="'+capCls+'">'+(typeof capPct==='number'?capPct+'%':'-')+'</td>'
