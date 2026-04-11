@@ -319,22 +319,22 @@ _HTML_BODY = r"""
     <!-- Today progress bars -->
     <div id="budgetBars"></div>
     <!-- Spend bar chart (last 30 days) -->
-    <div class="card" style="margin-top:20px;padding:20px" id="budgetChartWrap" style="display:none">
-      <div class="card-label" style="margin-bottom:12px">Daily spend — last 30 days (USD)</div>
+    <div class="card" style="margin-top:20px;padding:20px;display:none" id="budgetChartWrap">
+      <div class="card-label" style="margin-bottom:12px" data-i18n="budget.chart.dailySpend30dUsd">Daily spend — last 30 days (USD)</div>
       <div id="budgetChart" style="display:flex;align-items:flex-end;gap:4px;height:80px;overflow-x:auto"></div>
       <div id="budgetChartLegend" style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted)"></div>
     </div>
     <!-- Full history table -->
     <div style="margin-top:20px" id="budgetHistoryWrap" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span style="font-size:14px;font-weight:600">Spend History</span>
+        <span style="font-size:14px;font-weight:600" data-i18n="budget.history.title">Spend History</span>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" id="bh7" onclick="filterBudgetHistory(7,this)">7 days</button>
-          <button class="btn btn-ghost btn-sm active" id="bh30" onclick="filterBudgetHistory(30,this)">30 days</button>
-          <button class="btn btn-ghost btn-sm" id="bhAll" onclick="filterBudgetHistory(0,this)">All</button>
+          <button class="btn btn-ghost btn-sm" id="bh7" onclick="filterBudgetHistory(7,this)" data-i18n="budget.history.filter.7days">7 days</button>
+          <button class="btn btn-ghost btn-sm active" id="bh30" onclick="filterBudgetHistory(30,this)" data-i18n="budget.history.filter.30days">30 days</button>
+          <button class="btn btn-ghost btn-sm" id="bhAll" onclick="filterBudgetHistory(0,this)" data-i18n="budget.history.filter.all">All</button>
         </div>
       </div>
-      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Tokens Used</th><th>USD Spent</th><th>% of Daily Cap</th></tr></thead><tbody id="budgetHistoryRows"></tbody></table></div>
+      <div class="tbl-wrap"><table><thead><tr><th data-i18n="budget.history.header.date">Date</th><th data-i18n="budget.history.header.tokensUsed">Tokens Used</th><th data-i18n="budget.history.header.usdSpent">USD Spent</th><th data-i18n="budget.history.header.dailyCapPct">% of Daily Cap</th></tr></thead><tbody id="budgetHistoryRows"></tbody></table></div>
       <div style="text-align:right;font-size:12px;color:var(--muted);margin-top:6px" id="budgetHistoryTotal"></div>
     </div>
   </div>
@@ -857,16 +857,16 @@ function renderBudget(d){
   var tok30=sum30.reduce(function(a,r){return a+r.tokens;},0);
 
   document.getElementById('budgetCards').innerHTML=
-    card('Today','$'+d.usd_used.toFixed(4),'📅 '+d.day)+
-    card('Last 7 days','$'+usd7.toFixed(4),tok7.toLocaleString()+' tokens')+
-    card('Last 30 days','$'+usd30.toFixed(4),tok30.toLocaleString()+' tokens')+
-    card('Model',d.model,d.enabled?'<span class="tag tag-on">Budget ON</span>':'<span class="tag tag-off">No cap</span>');
+    card(t('bud.today'),'$'+d.usd_used.toFixed(4),'📅 '+d.day)+
+    card(t('bud.last7'),'$'+usd7.toFixed(4),tok7.toLocaleString()+' '+t('bud.tokens_unit'))+
+    card(t('bud.last30'),'$'+usd30.toFixed(4),tok30.toLocaleString()+' '+t('bud.tokens_unit'))+
+    card(t('bud.model'),d.model,d.enabled?'<span class="tag tag-on">'+t('bud.budget_on')+'</span>':'<span class="tag tag-off">'+t('bud.no_cap')+'</span>');
 
   // ── Today progress bars ──
   var bars='';
   if(tc||uc){
-    if(tc)bars+='<div class="card" style="margin-bottom:12px"><div class="card-label">Token usage today ('+tp+'%) — '+d.tokens_used.toLocaleString()+' / '+tc.toLocaleString()+'</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
-    if(uc)bars+='<div class="card" style="margin-bottom:12px"><div class="card-label">USD usage today ('+up+'%) — $'+d.usd_used.toFixed(4)+' / $'+uc.toFixed(2)+'</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+    if(tc)bars+='<div class="card" style="margin-bottom:12px"><div class="card-label">'+t('bud.token_usage_today')+' ('+tp+'%) — '+d.tokens_used.toLocaleString()+' / '+tc.toLocaleString()+'</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+    if(uc)bars+='<div class="card" style="margin-bottom:12px"><div class="card-label">'+t('bud.usd_usage_today')+' ('+up+'%) — $'+d.usd_used.toFixed(4)+' / $'+uc.toFixed(2)+'</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
   }
   document.getElementById('budgetBars').innerHTML=bars;
 
@@ -882,15 +882,17 @@ function renderBudget(d){
       var isToday=row.day===d.day;
       var col=isToday?'var(--accent)':'var(--bg3)';
       var label=row.day.slice(5); // MM-DD
-      chartHtml+='<div title="'+row.day+': $'+row.usd.toFixed(4)+'" style="flex:1;min-width:12px;max-width:28px;display:flex;flex-direction:column;align-items:center;gap:3px">'
+      var safeDay=esc(row.day);
+      var safeLabel=esc(label);
+      chartHtml+='<div title="'+safeDay+': $'+row.usd.toFixed(4)+'" style="flex:1;min-width:12px;max-width:28px;display:flex;flex-direction:column;align-items:center;gap:3px">'
         +'<div style="width:100%;background:'+col+';border-radius:3px 3px 0 0;height:'+pct+'px;min-height:2px;transition:height .3s"></div>'
-        +'<div style="font-size:9px;color:var(--muted);white-space:nowrap;transform:rotate(-45deg);transform-origin:top center;margin-top:4px">'+label+'</div>'
+        +'<div style="font-size:9px;color:var(--muted);white-space:nowrap;transform:rotate(-45deg);transform-origin:top center;margin-top:4px">'+safeLabel+'</div>'
         +'</div>';
     });
     document.getElementById('budgetChart').innerHTML=chartHtml;
     document.getElementById('budgetChartLegend').innerHTML=
-      '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--accent);border-radius:2px;display:inline-block"></span>Today</span>'
-      +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bg3);border-radius:2px;display:inline-block"></span>Previous days</span>';
+      '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--accent);border-radius:2px;display:inline-block"></span>'+t('bud.today')+'</span>'
+      +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bg3);border-radius:2px;display:inline-block"></span>'+t('bud.prev_days')+'</span>';
   }
 
   // ── History table ──
@@ -915,15 +917,15 @@ function _renderBudgetHistoryTable(d,hist,n){
     var capCls=typeof capPct==='number'?(capPct>80?'color:var(--danger)':capPct>50?'color:var(--warn)':'color:var(--success)'):'color:var(--muted)';
     totalUsd+=row.usd; totalTok+=row.tokens;
     html+='<tr'+(isToday?' style="font-weight:600"':'')+'>'
-      +'<td>'+row.day+(isToday?' <span class="tag tag-on" style="font-size:10px">today</span>':'')+'</td>'
+      +'<td>'+esc(String(row.day))+(isToday?' <span class="tag tag-on" style="font-size:10px">'+t('bud.today')+'</span>':'')+'</td>'
       +'<td>'+row.tokens.toLocaleString()+'</td>'
       +'<td>$'+row.usd.toFixed(4)+'</td>'
       +'<td style="'+capCls+'">'+(typeof capPct==='number'?capPct+'%':'-')+'</td>'
       +'</tr>';
   });
-  if(!html)html='<tr><td colspan="4" style="text-align:center;color:var(--muted)">No data for this period</td></tr>';
+  if(!html)html='<tr><td colspan="4" style="text-align:center;color:var(--muted)">'+t('bud.no_data_period')+'</td></tr>';
   document.getElementById('budgetHistoryRows').innerHTML=html;
-  document.getElementById('budgetHistoryTotal').textContent='Total: $'+totalUsd.toFixed(4)+' across '+rows.length+' day(s), '+totalTok.toLocaleString()+' tokens';
+  document.getElementById('budgetHistoryTotal').textContent=t('bud.history_total')+': $'+totalUsd.toFixed(4)+' across '+rows.length+' day(s), '+totalTok.toLocaleString()+' '+t('bud.tokens_unit');
   // active button state
   ['bh7','bh30','bhAll'].forEach(function(id){if(document.getElementById(id))document.getElementById(id).classList.remove('active')});
   var active=n===7?'bh7':n===30?'bh30':'bhAll';
@@ -1601,6 +1603,25 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "bud.disabled": "\u26a0\ufe0f Disabled",
         "bud.token_usage": "Token Usage",
         "bud.usd_usage": "USD Usage",
+        "bud.last7": "Last 7 days",
+        "bud.last30": "Last 30 days",
+        "bud.budget_on": "Budget ON",
+        "bud.no_cap": "No cap",
+        "bud.tokens_unit": "tokens",
+        "bud.token_usage_today": "Token usage today",
+        "bud.usd_usage_today": "USD usage today",
+        "bud.prev_days": "Previous days",
+        "bud.no_data_period": "No data for this period",
+        "bud.history_total": "Total",
+        "budget.chart.dailySpend30dUsd": "Daily spend \u2014 last 30 days (USD)",
+        "budget.history.title": "Spend History",
+        "budget.history.filter.7days": "7 days",
+        "budget.history.filter.30days": "30 days",
+        "budget.history.filter.all": "All",
+        "budget.history.header.date": "Date",
+        "budget.history.header.tokensUsed": "Tokens Used",
+        "budget.history.header.usdSpent": "USD Spent",
+        "budget.history.header.dailyCapPct": "% of Daily Cap",
         "cfg.llm": "LLM",
         "cfg.rag": "RAG",
         "cfg.conversation": "Conversation",
@@ -1771,6 +1792,25 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "bud.disabled": "\u26a0\ufe0f \u05de\u05d5\u05e9\u05d1\u05ea",
         "bud.token_usage": "\u05e9\u05d9\u05de\u05d5\u05e9 \u05d1\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
         "bud.usd_usage": "\u05e9\u05d9\u05de\u05d5\u05e9 \u05d1\u05d3\u05d5\u05dc\u05e8\u05d9\u05dd",
+        "bud.last7": "7 \u05d9\u05de\u05d9\u05dd \u05d0\u05d7\u05e8\u05d5\u05e0\u05d9\u05dd",
+        "bud.last30": "30 \u05d9\u05de\u05d9\u05dd \u05d0\u05d7\u05e8\u05d5\u05e0\u05d9\u05dd",
+        "bud.budget_on": "\u05ea\u05e7\u05e6\u05d9\u05d1 \u05e4\u05e2\u05d9\u05dc",
+        "bud.no_cap": "\u05dc\u05dc\u05d0 \u05de\u05d2\u05d1\u05dc\u05d4",
+        "bud.tokens_unit": "\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
+        "bud.token_usage_today": "\u05e9\u05d9\u05de\u05d5\u05e9 \u05d1\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd \u05d4\u05d9\u05d5\u05dd",
+        "bud.usd_usage_today": "\u05d4\u05d5\u05e6\u05d0\u05d4 \u05d1\u05d3\u05d5\u05dc\u05e8\u05d9\u05dd \u05d4\u05d9\u05d5\u05dd",
+        "bud.prev_days": "\u05d9\u05de\u05d9\u05dd \u05e7\u05d5\u05d3\u05de\u05d9\u05dd",
+        "bud.no_data_period": "\u05d0\u05d9\u05df \u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05dc\u05ea\u05e7\u05d5\u05e4\u05d4 \u05d6\u05d5",
+        "bud.history_total": '\u05e1\u05d4"\u05db',
+        "budget.chart.dailySpend30dUsd": "\u05d4\u05d5\u05e6\u05d0\u05d4 \u05d9\u05d5\u05de\u05d9\u05ea \u2014 30 \u05d9\u05de\u05d9\u05dd \u05d0\u05d7\u05e8\u05d5\u05e0\u05d9\u05dd (USD)",
+        "budget.history.title": "\u05d4\u05d9\u05e1\u05d8\u05d5\u05e8\u05d9\u05d9\u05ea \u05d4\u05d5\u05e6\u05d0\u05d5\u05ea",
+        "budget.history.filter.7days": "7 \u05d9\u05de\u05d9\u05dd",
+        "budget.history.filter.30days": "30 \u05d9\u05de\u05d9\u05dd",
+        "budget.history.filter.all": "\u05d4\u05db\u05dc",
+        "budget.history.header.date": "\u05ea\u05d0\u05e8\u05d9\u05da",
+        "budget.history.header.tokensUsed": "\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
+        "budget.history.header.usdSpent": "\u05d4\u05d5\u05e6\u05d0\u05d4 ($)",
+        "budget.history.header.dailyCapPct": "% \u05de\u05d4\u05de\u05d2\u05d1\u05dc\u05d4",
         "cfg.llm": "\u05de\u05d5\u05d3\u05dc \u05e9\u05e4\u05d4",
         "cfg.rag": "RAG",
         "cfg.conversation": "\u05e9\u05d9\u05d7\u05d4",
@@ -1934,6 +1974,25 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "bud.disabled": "\u26a0\ufe0f \u0e1b\u0e34\u0e14\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19",
         "bud.token_usage": "\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e42\u0e17\u0e40\u0e04\u0e19",
         "bud.usd_usage": "\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22",
+        "bud.last7": "7 \u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e1c\u0e48\u0e32\u0e19\u0e21\u0e32",
+        "bud.last30": "30 \u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e1c\u0e48\u0e32\u0e19\u0e21\u0e32",
+        "bud.budget_on": "\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13\u0e40\u0e1b\u0e34\u0e14",
+        "bud.no_cap": "\u0e44\u0e21\u0e48\u0e08\u0e33\u0e01\u0e31\u0e14",
+        "bud.tokens_unit": "\u0e42\u0e17\u0e40\u0e04\u0e19",
+        "bud.token_usage_today": "\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e42\u0e17\u0e40\u0e04\u0e19\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49",
+        "bud.usd_usage_today": "\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49",
+        "bud.prev_days": "\u0e27\u0e31\u0e19\u0e01\u0e48\u0e2d\u0e19\u0e2b\u0e19\u0e49\u0e32",
+        "bud.no_data_period": "\u0e44\u0e21\u0e48\u0e21\u0e35\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e43\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e19\u0e35\u0e49",
+        "bud.history_total": "\u0e23\u0e27\u0e21",
+        "budget.chart.dailySpend30dUsd": "\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22\u0e23\u0e32\u0e22\u0e27\u0e31\u0e19 \u2014 30 \u0e27\u0e31\u0e19\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14 (USD)",
+        "budget.history.title": "\u0e1b\u0e23\u0e30\u0e27\u0e31\u0e15\u0e34\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22",
+        "budget.history.filter.7days": "7 \u0e27\u0e31\u0e19",
+        "budget.history.filter.30days": "30 \u0e27\u0e31\u0e19",
+        "budget.history.filter.all": "\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "budget.history.header.date": "\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48",
+        "budget.history.header.tokensUsed": "\u0e42\u0e17\u0e40\u0e04\u0e19\u0e17\u0e35\u0e48\u0e43\u0e0a\u0e49",
+        "budget.history.header.usdSpent": "\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22 ($)",
+        "budget.history.header.dailyCapPct": "% \u0e02\u0e2d\u0e07\u0e27\u0e07\u0e40\u0e07\u0e34\u0e19",
         "cfg.llm": "\u0e42\u0e21\u0e40\u0e14\u0e25\u0e20\u0e32\u0e29\u0e32",
         "cfg.rag": "RAG",
         "cfg.conversation": "\u0e01\u0e32\u0e23\u0e2a\u0e19\u0e17\u0e19\u0e32",
