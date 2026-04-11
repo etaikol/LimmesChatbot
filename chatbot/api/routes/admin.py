@@ -374,6 +374,10 @@ def get_config(request: Request) -> dict:
         "DEBUG": s.debug,
         "LOG_LEVEL": s.log_level,
         "LOG_FILE": str(s.log_file) if s.log_file else "",
+        "HANDOFF_ENABLED": s.handoff_enabled,
+        "PROACTIVE_DELAY_SECONDS": s.proactive_delay_seconds,
+        "PROACTIVE_MESSAGE": s.proactive_message,
+        "BLOCK_PROMPT_INJECTION": s.block_prompt_injection,
         # Secret presence indicators (never expose values)
         "_OPENAI_API_KEY_SET": bool(s.openai_api_key),
         "_ANTHROPIC_API_KEY_SET": bool(s.anthropic_api_key),
@@ -407,10 +411,12 @@ async def update_env(request: Request) -> dict:
         "RATE_LIMIT_ENABLED", "RATE_LIMIT_IP_PER_MINUTE", "RATE_LIMIT_IP_BURST",
         "RATE_LIMIT_SESSION_PER_MINUTE", "RATE_LIMIT_SESSION_BURST",
         "SPAM_DETECTION_ENABLED", "SPAM_MAX_STRIKES", "SPAM_COOLDOWN_SECONDS",
-        "SPAM_MAX_COOLDOWN_SECONDS",
+        "SPAM_MAX_COOLDOWN_SECONDS", "SPAM_MIN_MESSAGE_CHARS",
         "DAILY_TOKEN_CAP", "DAILY_USD_CAP",
         "API_CORS_ORIGINS", "API_STRICT_CORS", "API_HSTS_ENABLED",
         "LOG_LEVEL", "DEBUG", "ACTIVE_CLIENT", "LOG_FILE",
+        "HANDOFF_ENABLED", "PROACTIVE_DELAY_SECONDS", "PROACTIVE_MESSAGE",
+        "BLOCK_PROMPT_INJECTION",
     }
 
     updated = {}
@@ -834,6 +840,9 @@ async def handoff_reply(session_id: str, request: Request) -> dict:
     push = getattr(request.app.state, "push_service", None)
     if push:
         delivered = await push.deliver(session_id, text)
+        # Mark as delivered so engine.ask() doesn't deliver it again
+        if delivered:
+            mgr.mark_delivered(session_id, text)
         return {"ok": True, "pushed": delivered}
 
     return {"ok": True, "pushed": False}

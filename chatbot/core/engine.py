@@ -12,6 +12,7 @@ Lifecycle:
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Any, Optional
 
@@ -39,8 +40,75 @@ from chatbot.security.sanitize import (
     sanitize_session_id,
     sanitize_user_input,
 )
+from chatbot.i18n.messages import get_messages
 from chatbot.security.spam import SpamTracker
 from chatbot.settings import Settings, get_settings
+
+
+# ── Handoff keyword detection ───────────────────────────────────────────────
+# Phrases that indicate the user wants to talk to a human. Checked with
+# simple substring matching (case-insensitive) before any paid LLM call.
+_HANDOFF_PATTERNS = re.compile(
+    r"(?i)"
+    r"(?:"
+    # English
+    r"talk to (?:a |an )?(?:human|person|someone|agent|staff|representative|support)"
+    r"|speak (?:to|with) (?:a |an )?(?:human|person|someone|agent|staff|representative|support)"
+    r"|connect me (?:to|with) (?:a |an )?(?:human|person|someone|agent|staff|representative)"
+    r"|transfer (?:me )?to (?:a |an )?(?:human|agent|staff|person|representative|support)"
+    r"|i (?:want|need) (?:a |to talk to (?:a )?)?(?:human|real person|agent|staff|representative)"
+    r"|(?:get|give) me (?:a )?(?:human|real person|agent|staff)"
+    r"|can i (?:talk|speak|chat) (?:to|with) (?:a )?(?:human|person|someone|agent)"
+    r"|let me (?:talk|speak|chat) (?:to|with) (?:a )?(?:human|person|someone|agent)"
+    # Hebrew
+    r"|לדבר עם (?:נציג|אדם|מישהו|תמיכה)"
+    r"|תעביר(?:ו)? (?:ל)?נציג"
+    r"|אני רוצה (?:לדבר עם )?(?:נציג|אדם|מישהו)"
+    r"|(?:אפשר|אני צריך) (?:לדבר עם )?(?:נציג|אדם|מישהו)"
+    # Thai
+    r"|(?:ขอ)?(?:คุย|พูด)กับ(?:คน|เจ้าหน้าที่|พนักงาน|แอดมิน)"
+    r"|ต้องการ(?:คุย|พูด)กับ(?:คน|เจ้าหน้าที่|พนักงาน)"
+    r"|ขอติดต่อ(?:เจ้าหน้าที่|พนักงาน|แอดมิน)"
+    # Arabic
+    r"|(?:أريد|اريد) (?:التحدث|الكلام) (?:مع|إلى) (?:شخص|موظف|ممثل)"
+    r"|(?:حوّلني|حولني) (?:إلى|الى) (?:شخص|موظف|ممثل)"
+    # Russian
+    r"|(?:хочу|могу) поговорить с (?:человеком|оператором|агентом)"
+    r"|(?:переведите|переключите) (?:на|к) (?:человеку|оператору|агенту)"
+    r")"
+)
+
+
+def _spam_msg(key: str, language: str | None = None) -> str:
+    """Return a localised human-friendly message for a spam/status *key*.
+
+    *key* may be a plain i18n key (e.g. ``"handoff_waiting"``) or a
+    structured spam-tracker reference like ``"spam:gibberish"`` or
+    ``"spam:session_blocked:30"``.
+    """
+    msgs = get_messages(language or "en")
+    if key.startswith("spam:"):
+        parts = key.split(":")
+        sub = parts[1] if len(parts) > 1 else ""
+        secs = parts[2] if len(parts) > 2 else "0"
+        if sub in ("blocked_temporarily", "session_blocked"):
+            template = msgs.get(sub, "")
+            if template:
+                return template.replace("{seconds}", secs)
+            return f"Please try again in {secs} seconds."
+        return msgs.get(sub, key)
+    return msgs.get(key, key)
+
+
+def _channel_from_session(session_id: str) -> str:
+    """Extract channel name from a session ID prefix."""
+    if session_id.startswith("line:"):
+        return "line"
+    if session_id.startswith("telegram:"):
+        return "telegram"
+    if session_id.startswith("whatsapp:"):
+        return "whatsapp"
+    return "web"
 
 
 class SourceDocument(BaseModel):
@@ -202,7 +270,7 @@ class Chatbot:
             if self.settings.block_prompt_injection:
                 raise AbuseError(
                     "Prompt injection detected",
-                    user_message="I can only answer questions about our business. Please rephrase your question.",
+                    user_message=_spam_msg("off_topic", language),
                 )
 
         logger.debug("[{}] User message received ({} chars)", session_id, len(question))
@@ -221,18 +289,34 @@ class Chatbot:
                     metadata={"handoff": True, "from_admin": True},
                 )
             return ChatResponse(
-                answer="A human agent is reviewing your conversation. Please wait for a reply.",
+                answer=_spam_msg("handoff_waiting", language),
                 session_id=session_id,
                 sources=[],
                 metadata={"handoff": True},
             )
 
-        # 3b. Spam / gibberish check (all channels).
+        # 3b. User-initiated handoff: detect phrases like "talk to a human".
+        #     This runs BEFORE the (paid) LLM call to save cost.
+        if self.settings.handoff_enabled and _HANDOFF_PATTERNS.search(question):
+            channel = _channel_from_session(session_id)
+            self.handoff.start_handoff(session_id, channel=channel, reason="user_request")
+            self.handoff.add_message(session_id, "user", question)
+            logger.info("[{}] User-initiated handoff (channel={})", session_id, channel)
+            msg = _spam_msg("handoff_connecting", language)
+            return ChatResponse(
+                answer=msg,
+                session_id=session_id,
+                sources=[],
+                metadata={"handoff": True, "handoff_started": True},
+            )
+
+        # 3c. Spam / gibberish check (all channels).
         if self.spam_tracker is not None:
             rejection = self.spam_tracker.check(session_id, question)
             if rejection:
                 logger.info("[{}] Spam blocked: {}", session_id, rejection)
-                raise AbuseError(rejection, user_message=rejection)
+                msg = _spam_msg(rejection, language)
+                raise AbuseError(rejection, user_message=msg)
 
         history = self.memory.history_text(session_id)
 

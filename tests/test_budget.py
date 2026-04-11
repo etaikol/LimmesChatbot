@@ -1,6 +1,7 @@
 """Tests for chatbot.security.budget."""
 from __future__ import annotations
 
+import datetime
 import json
 from pathlib import Path
 
@@ -57,7 +58,24 @@ def test_budget_persists_to_file(tmp_state):
     bg.record(input_tokens=100, output_tokens=50)
     assert tmp_state.exists()
     data = json.loads(tmp_state.read_text())
-    assert data["tokens"] == 150
+    today = list(data["history"].keys())[0]
+    assert data["history"][today]["tokens"] == 150
+
+
+def test_budget_load_trims_excess_history(tmp_state):
+    """State files with >30 days must be trimmed on load."""
+    today = datetime.date.today()
+    # Write 35 days of fake history
+    history = {}
+    for i in range(35):
+        day = (today - datetime.timedelta(days=i)).strftime("%Y-%m-%d")
+        history[day] = {"tokens": i * 10, "usd": i * 0.001}
+    state = {"current_day": today.strftime("%Y-%m-%d"), "history": history}
+    tmp_state.parent.mkdir(parents=True, exist_ok=True)
+    tmp_state.write_text(json.dumps(state))
+
+    bg = BudgetGuard(state_file=tmp_state, daily_token_cap=0, daily_usd_cap=0.0)
+    assert len(bg._state["history"]) <= 30
 
 
 def test_budget_snapshot(tmp_state):
@@ -67,3 +85,28 @@ def test_budget_snapshot(tmp_state):
     assert snap["tokens_used"] == 150
     assert snap["enabled"] is True
     assert snap["daily_token_cap"] == 1000
+
+
+def test_budget_reset_zeroes_today_and_persists(tmp_state):
+    """reset() must zero today's counters and persist to the state file."""
+    bg = BudgetGuard(state_file=tmp_state, daily_token_cap=1000, daily_usd_cap=1.0)
+    bg.record(input_tokens=200, output_tokens=100)
+
+    # Sanity-check that usage was recorded
+    snap_before = bg.snapshot()
+    assert snap_before["tokens_used"] == 300
+
+    bg.reset()
+
+    # snapshot() should show zeroed counters for today
+    snap_after = bg.snapshot()
+    assert snap_after["tokens_used"] == 0
+    assert snap_after["usd_used"] == 0.0
+
+    # The state file must also reflect zeroed values for today
+    assert tmp_state.exists()
+    data = json.loads(tmp_state.read_text())
+    today = snap_after["day"]
+    assert today in data["history"]
+    assert data["history"][today]["tokens"] == 0
+    assert data["history"][today]["usd"] == 0.0

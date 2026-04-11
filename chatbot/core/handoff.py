@@ -43,6 +43,9 @@ class HandoffSession(BaseModel):
 class HandoffManager:
     """Thread-safe JSON-backed handoff session tracker."""
 
+    # Sessions older than this are auto-resolved to prevent stuck handoffs.
+    TIMEOUT_HOURS = 4
+
     def __init__(self, path: Path | None = None) -> None:
         self._path = path or (PROJECT_ROOT / ".handoff" / "sessions.json")
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -50,6 +53,7 @@ class HandoffManager:
 
     def is_handed_off(self, session_id: str) -> bool:
         """Check if a session is currently in handoff mode."""
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
         for s in data:
@@ -61,6 +65,7 @@ class HandoffManager:
         self, session_id: str, channel: str = "web", reason: str = "user_request"
     ) -> str:
         """Flag a session for human handoff.  Returns the session id."""
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
             # Don't create duplicate active handoffs for the same session
@@ -79,6 +84,7 @@ class HandoffManager:
 
     def add_message(self, session_id: str, role: str, text: str) -> bool:
         """Append a message to the handoff queue (user or admin)."""
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
             for s in data:
@@ -93,21 +99,40 @@ class HandoffManager:
         return False
 
     def get_pending_admin_reply(self, session_id: str) -> str | None:
-        """Pop the oldest admin reply for delivery to the user."""
+        """Return the oldest *undelivered* admin reply for the user.
+
+        Only returns messages that were NOT already pushed in real time
+        (e.g. via SSE).  Marks the returned message as delivered so it
+        won't be returned twice.
+        """
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
             for s in data:
                 if s.get("session_id") == session_id and s.get("is_active"):
                     msgs = s.get("pending_messages", [])
-                    for i, m in enumerate(msgs):
-                        if m.get("role") == "admin":
-                            msgs.pop(i)
+                    for m in msgs:
+                        if m.get("role") == "admin" and not m.get("delivered"):
+                            m["delivered"] = True
                             self._save(data)
                             return m.get("text", "")
         return None
 
+    def mark_delivered(self, session_id: str, text: str) -> None:
+        """Mark the most recent admin message matching *text* as delivered."""
+        with self._lock:
+            data = self._load()
+            for s in data:
+                if s.get("session_id") == session_id and s.get("is_active"):
+                    for m in reversed(s.get("pending_messages", [])):
+                        if m.get("role") == "admin" and m.get("text") == text:
+                            m["delivered"] = True
+                            self._save(data)
+                            return
+
     def resolve(self, session_id: str) -> bool:
         """End handoff, returning session to bot mode."""
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
             for s in data:
@@ -120,6 +145,7 @@ class HandoffManager:
         return False
 
     def list_active(self) -> list[dict]:
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
         return [s for s in data if s.get("is_active")]
@@ -130,6 +156,7 @@ class HandoffManager:
         return list(reversed(data[-limit:]))
 
     def get_session(self, session_id: str) -> dict | None:
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
         for s in data:
@@ -151,3 +178,30 @@ class HandoffManager:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         tmp.replace(self._path)
+
+    def _auto_resolve_stale(self) -> None:
+        """Auto-resolve handoff sessions that exceed TIMEOUT_HOURS."""
+        now = datetime.now(timezone.utc)
+        with self._lock:
+            data = self._load()
+            changed = False
+            for s in data:
+                if not s.get("is_active"):
+                    continue
+                created = s.get("created_at", "")
+                try:
+                    created_dt = datetime.fromisoformat(created)
+                except (ValueError, TypeError):
+                    continue
+                if created_dt.tzinfo is None:
+                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+                if (now - created_dt).total_seconds() > self.TIMEOUT_HOURS * 3600:
+                    s["is_active"] = False
+                    s["resolved_at"] = now.isoformat()
+                    changed = True
+                    logger.info(
+                        "[handoff] Auto-resolved stale session {} (>{}h)",
+                        s.get("session_id"), self.TIMEOUT_HOURS,
+                    )
+            if changed:
+                self._save(data)

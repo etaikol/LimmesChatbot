@@ -150,8 +150,7 @@ class SpamTracker:
             if rec.blocked_until > now:
                 remaining = int(rec.blocked_until - now) + 1
                 return (
-                    f"Session temporarily blocked due to repeated invalid "
-                    f"messages. Try again in {remaining}s."
+                    f"spam:blocked_temporarily:{remaining}"
                 )
 
             # 2. Duplicate check.
@@ -164,7 +163,7 @@ class SpamTracker:
                 rec.strikes += 1
                 rec.total_rejected += 1
                 rec.last_message_time = now
-                return self._maybe_block(rec, now, "Duplicate message.")
+                return self._maybe_block(rec, now, "spam:duplicate_message")
 
             # 3. Gibberish check.
             if is_gibberish(message, min_meaningful_chars=self.min_meaningful_chars):
@@ -172,7 +171,7 @@ class SpamTracker:
                 rec.total_rejected += 1
                 rec.last_message = normalized
                 rec.last_message_time = now
-                return self._maybe_block(rec, now, "Message not understood.")
+                return self._maybe_block(rec, now, "spam:gibberish")
 
             # Good message — reset strikes.
             rec.strikes = 0
@@ -183,9 +182,6 @@ class SpamTracker:
     def _maybe_block(self, rec: _SessionRecord, now: float, reason: str) -> str:
         """Apply progressive cooldown if strikes exceeded."""
         if rec.strikes >= self.max_strikes:
-            # Escalate: double cooldown for each subsequent block event.
-            # block_count starts at 0 so the first block uses the base
-            # cooldown, the second doubles it, and so on.
             multiplier = min(
                 2 ** rec.block_count,
                 self.max_cooldown_seconds / self.cooldown_seconds,
@@ -198,10 +194,7 @@ class SpamTracker:
             rec.strikes = 0
             rec.block_count += 1
             remaining = int(cooldown)
-            return (
-                f"Too many invalid messages. "
-                f"Session blocked for {remaining}s."
-            )
+            return f"spam:session_blocked:{remaining}"
         return reason
 
     def reset(self, session_id: str) -> None:

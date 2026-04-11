@@ -79,6 +79,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent2)}
 .btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{opacity:.85}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--fg);border-color:var(--muted)}
+.btn-ghost.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-sm{padding:5px 12px;font-size:12px}
 
 /* Forms */
@@ -314,8 +315,29 @@ _HTML_BODY = r"""
       <span data-i18n="page.budget">💰 Budget</span>
       <button class="btn btn-danger btn-sm" data-admin-only onclick="resetBudget()" data-i18n="btn.resetToday">Reset Today</button>
     </div>
+    <!-- Summary cards: today / 7d / 30d -->
     <div class="cards" id="budgetCards"></div>
+    <!-- Today progress bars -->
     <div id="budgetBars"></div>
+    <!-- Spend bar chart (last 30 days) -->
+    <div class="card" style="margin-top:20px;padding:20px;display:none" id="budgetChartWrap">
+      <div class="card-label" style="margin-bottom:12px" data-i18n="budget.chart.dailySpend30dUsd">Daily spend — last 30 days (USD)</div>
+      <div id="budgetChart" style="display:flex;align-items:flex-end;gap:4px;height:80px;overflow-x:auto"></div>
+      <div id="budgetChartLegend" style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted)"></div>
+    </div>
+    <!-- Full history table -->
+    <div style="margin-top:20px;display:none" id="budgetHistoryWrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:14px;font-weight:600" data-i18n="budget.history.title">Spend History</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" id="bh7" onclick="filterBudgetHistory(7,this)" data-i18n="budget.history.filter.7days">7 days</button>
+          <button class="btn btn-ghost btn-sm active" id="bh30" onclick="filterBudgetHistory(30,this)" data-i18n="budget.history.filter.30days">30 days</button>
+          <button class="btn btn-ghost btn-sm" id="bhAll" onclick="filterBudgetHistory(0,this)" data-i18n="budget.history.filter.all">All</button>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th data-i18n="budget.history.header.date">Date</th><th data-i18n="budget.history.header.tokensUsed">Tokens Used</th><th data-i18n="budget.history.header.usdSpent">USD Spent</th><th data-i18n="budget.history.header.dailyCapPct">% of Daily Cap</th></tr></thead><tbody id="budgetHistoryRows"></tbody></table></div>
+      <div style="text-align:right;font-size:12px;color:var(--muted);margin-top:6px" id="budgetHistoryTotal"></div>
+    </div>
   </div>
 
   <!-- ═══════ Configuration ═══════ -->
@@ -528,10 +550,40 @@ _HTML_BODY = r"""
   <div class="page" id="page-products">
     <div class="page-title" style="justify-content:space-between">
       <span data-i18n="page.products">🛍️ Products</span>
-      <button class="btn btn-ghost btn-sm" onclick="loadProducts()" data-i18n="btn.refresh">↻ Refresh</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="loadProducts()" data-i18n="btn.refresh">↻ Refresh</button>
+        <button class="btn btn-primary btn-sm" data-admin-only onclick="showProductForm(null)">+ Add Product</button>
+      </div>
     </div>
     <div class="cards" id="productStats"></div>
-    <div class="tbl-wrap"><table><thead><tr><th>ID</th><th data-i18n="th.name">Name</th><th data-i18n="th.category">Category</th><th data-i18n="th.price">Price</th><th data-i18n="th.image">Image</th><th data-i18n="th.status">Status</th></tr></thead><tbody id="productRows"></tbody></table></div>
+
+    <!-- Add / Edit form -->
+    <div id="productForm" style="display:none;margin-bottom:16px">
+      <div class="card" style="padding:20px">
+        <h4 style="margin-bottom:14px;font-size:14px" id="productFormTitle">Add Product</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group"><label class="form-label">Product Name</label><input class="form-input" id="pf_name" placeholder="e.g. Roman Blind Blackout" oninput="autoSlugId()"></div>
+          <div class="form-group"><label class="form-label">English Name (optional)</label><input class="form-input" id="pf_name_en" placeholder="e.g. Roman Blind"></div>
+          <div class="form-group"><label class="form-label">Category</label><input class="form-input" id="pf_category" list="pf_catlist" placeholder="e.g. Curtains"><datalist id="pf_catlist"></datalist></div>
+          <div class="form-group"><label class="form-label">Price</label><input class="form-input" id="pf_price" placeholder="e.g. $50 or $50–$100"></div>
+          <div class="form-group"><label class="form-label">Image URL (optional)</label><input class="form-input" id="pf_image_url" placeholder="https://..."></div>
+          <div class="form-group" style="display:flex;align-items:center;gap:10px;padding-top:20px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+              <input type="checkbox" id="pf_in_stock" checked style="width:18px;height:18px;accent-color:var(--accent)">
+              In Stock
+            </label>
+          </div>
+          <div class="form-group" style="grid-column:1/-1"><label class="form-label">Description (shown to bot &amp; customers)</label><textarea class="form-textarea" id="pf_description" rows="3" style="min-height:70px"></textarea></div>
+          <div class="form-group" style="grid-column:1/-1"><label class="form-label">ID (auto-generated)</label><input class="form-input" id="pf_id" placeholder="auto-generated-from-name" style="opacity:0.6;font-family:monospace;font-size:12px"></div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('productForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap"><table><thead><tr><th>ID</th><th data-i18n="th.name">Name</th><th data-i18n="th.category">Category</th><th data-i18n="th.price">Price</th><th data-i18n="th.image">Image</th><th data-i18n="th.status">Status</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="productRows"></tbody></table></div>
   </div>
 
   <!-- ═══════ Contacts / Messages ═══════ -->
@@ -554,11 +606,12 @@ _HTML_BODY = r"""
     <div id="handoffReplyBox" style="display:none;margin-top:16px">
       <div class="card" style="padding:16px">
         <h4 style="margin-bottom:10px;font-size:14px">Reply to session: <span id="handoffReplyTarget"></span></h4>
+        <div id="handoffMsgHistory" style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;background:var(--bg)"></div>
         <div class="form-group"><textarea class="form-textarea" id="handoffReplyText" rows="3" placeholder="Type your reply..."></textarea></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-sm" onclick="sendHandoffReply()">Send Reply</button>
           <button class="btn btn-danger btn-sm" onclick="resolveCurrentHandoff()">Resolve &amp; Return to Bot</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('handoffReplyBox').style.display='none'">Cancel</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelHandoffReply()">Cancel</button>
         </div>
       </div>
     </div>
@@ -587,9 +640,7 @@ _HTML_BODY = r"""
   <div class="onb-body" id="onbBody"></div>
   <div class="onb-dots" id="onbDots"></div>
   <div class="onb-btns" id="onbBtns"></div>
-</div>
-
-<div class="toast" id="toast"></div>"""
+</div>"""
 
 # ══════════════════════════════════════════════════════════════════════
 # JS  (the placeholder __LANGS_JSON__ is replaced at render time)
@@ -781,8 +832,16 @@ function card(l,v,s){return'<div class="card"><div class="card-label">'+l+'</div
 window.loadSessions=async function(){
   try{var d=await api('/sessions');var html='';
   if(!d.sessions.length)html='<tr><td colspan="4" style="text-align:center;color:var(--muted)">No sessions</td></tr>';
-  d.sessions.forEach(function(s){var ts=s.last_activity?new Date(s.last_activity).toLocaleString():'—';html+='<tr><td style="font-family:monospace;font-size:12px">'+esc(s.session_id)+'</td><td>'+s.message_count+'</td><td>'+ts+'</td><td><button class="btn btn-ghost btn-sm" onclick="viewSession(\''+esc(s.session_id)+'\')">View</button> <button class="btn btn-danger btn-sm" onclick="deleteSession(\''+esc(s.session_id)+'\')">Delete</button></td></tr>'});
-  document.getElementById('sessionRows').innerHTML=html}catch(e){toast(e.message,'err')}
+  d.sessions.forEach(function(s){var ts=s.last_activity?new Date(s.last_activity).toLocaleString():'—';html+='<tr><td style="font-family:monospace;font-size:12px">'+esc(s.session_id)+'</td><td>'+s.message_count+'</td><td>'+ts+'</td><td><button class="btn btn-ghost btn-sm" data-action="view-session" data-session-id="'+esc(s.session_id)+''+'">View</button> <button class="btn btn-primary btn-sm" data-admin-only data-action="start-handoff" data-session-id="'+esc(s.session_id)+''+'">🤝 Take Over</button> <button class="btn btn-danger btn-sm" data-action="delete-session" data-session-id="'+esc(s.session_id)+''+'">Delete</button></td></tr>'});
+  var sessionRows=document.getElementById('sessionRows');sessionRows.innerHTML=html;sessionRows.querySelectorAll('[data-action][data-session-id]').forEach(function(btn){btn.addEventListener('click',function(){var sid=btn.getAttribute('data-session-id');if(btn.getAttribute('data-action')==='view-session')viewSession(sid);else if(btn.getAttribute('data-action')==='start-handoff')startHandoffFromSession(sid);else if(btn.getAttribute('data-action')==='delete-session')deleteSession(sid)})})}catch(e){toast(e.message,'err')}
+};
+window.startHandoffFromSession=async function(sid){
+  if(!confirm('Take over session '+sid+'? The bot will be silenced and you can reply directly.'))return;
+  var channel='web';
+  if(sid.startsWith('line:'))channel='line';
+  else if(sid.startsWith('telegram:'))channel='telegram';
+  else if(sid.startsWith('whatsapp:'))channel='whatsapp';
+  try{await api('/handoff/'+encodeURIComponent(sid)+'/start',{method:'POST',body:{channel:channel,reason:'admin_takeover'}});toast('Handoff started — go to Handoff page to reply','ok');loadSessions()}catch(e){toast(e.message,'err')}
 };
 window.viewSession=async function(id){try{var d=await api('/sessions/'+encodeURIComponent(id));var html='<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal"><div class="modal-head"><h3>Session: '+esc(id.slice(0,20))+(id.length>20?'…':'')+'</h3><button class="btn btn-ghost btn-sm" onclick="this.closest(\'.modal-bg\').remove()">&times;</button></div><div class="modal-body">';if(!d.messages.length)html+='<p style="color:var(--muted)">No messages</p>';d.messages.forEach(function(m){var role=m.role||m.type||'unknown';html+='<div class="msg-row '+(role==='human'?'human':'ai')+'"><div class="msg-role">'+role+'</div><div class="msg-text">'+esc(m.content||m.text||'')+'</div></div>'});html+='</div></div></div>';document.body.insertAdjacentHTML('beforeend',html)}catch(e){toast(e.message,'err')}};
 window.deleteSession=async function(id){if(!confirm('Delete session '+id+'?'))return;try{await api('/sessions/'+encodeURIComponent(id),{method:'DELETE'});toast('Session deleted','ok');loadSessions()}catch(e){toast(e.message,'err')}};
@@ -790,13 +849,115 @@ window.clearAllSessions=async function(){if(!confirm('Clear ALL sessions?'))retu
 
 // ── Budget ────────────────────────────────────────────────────────────
 var _lastBudgetData=null;
+var _budgetHistoryFilter=30;
 function renderBudget(d){
   _lastBudgetData=d;
-  var tc=d.daily_token_cap||1,uc=d.daily_usd_cap||1;
-  var tp=Math.min(100,Math.round(d.tokens_used/tc*100)),up=Math.min(100,Math.round(d.usd_used/uc*100));
-  document.getElementById('budgetCards').innerHTML=card(t('bud.today'),'📅 '+d.day,'')+card(t('bud.model'),d.model,'')+card(t('bud.tokens'),d.tokens_used.toLocaleString(),'/ '+tc.toLocaleString())+card(t('bud.usd'),'$'+d.usd_used.toFixed(4),'/ $'+d.daily_usd_cap.toFixed(2))+card(t('bud.status'),d.enabled?t('bud.enabled'):t('bud.disabled'),'');
-  document.getElementById('budgetBars').innerHTML='<div class="card" style="margin-bottom:16px"><div class="card-label">'+t('bud.token_usage')+' ('+tp+'%)</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div><div class="card"><div class="card-label">'+t('bud.usd_usage')+' ('+up+'%)</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+  var hist=d.history||[];
+  var tc=d.daily_token_cap||0,uc=d.daily_usd_cap||0;
+  var tp=tc?Math.min(100,Math.round(d.tokens_used/tc*100)):0;
+  var up=uc?Math.min(100,Math.round(d.usd_used/uc*100)):0;
+
+  // ── Summary totals ──
+  var sum7=hist.filter(function(r){return daysDiff(r.day,d.day)<=6;});
+  var sum30=hist.filter(function(r){return daysDiff(r.day,d.day)<=29;});
+  var usd7=sum7.reduce(function(a,r){return a+r.usd;},0);
+  var usd30=sum30.reduce(function(a,r){return a+r.usd;},0);
+  var tok7=sum7.reduce(function(a,r){return a+r.tokens;},0);
+  var tok30=sum30.reduce(function(a,r){return a+r.tokens;},0);
+
+  document.getElementById('budgetCards').innerHTML=
+    card(t('bud.today'),'$'+d.usd_used.toFixed(4),'📅 '+d.day)+
+    card(t('bud.last7'),'$'+usd7.toFixed(4),tok7.toLocaleString()+' '+t('bud.tokens_unit'))+
+    card(t('bud.last30'),'$'+usd30.toFixed(4),tok30.toLocaleString()+' '+t('bud.tokens_unit'))+
+    card(t('bud.model'),d.model,d.enabled?'<span class="tag tag-on">'+t('bud.budget_on')+'</span>':'<span class="tag tag-off">'+t('bud.no_cap')+'</span>');
+
+  // ── Today progress bars ──
+  var bars='';
+  if(tc||uc){
+    if(tc)bars+='<div class="card" style="margin-bottom:12px"><div class="card-label">'+t('bud.token_usage_today')+' ('+tp+'%) — '+d.tokens_used.toLocaleString()+' / '+tc.toLocaleString()+'</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+    if(uc)bars+='<div class="card" style="margin-bottom:12px"><div class="card-label">'+t('bud.usd_usage_today')+' ('+up+'%) — $'+d.usd_used.toFixed(4)+' / $'+uc.toFixed(2)+'</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+  }
+  document.getElementById('budgetBars').innerHTML=bars;
+
+  // ── Bar chart ──
+  if(hist.length){
+    document.getElementById('budgetChartWrap').style.display='';
+    var chartDays=hist.slice(0,30);
+    var maxUsd=Math.max.apply(null,chartDays.map(function(r){return r.usd;}));
+    var chartHeightPx=80;
+    if(maxUsd===0)maxUsd=1;
+    var chartHtml='';
+    chartDays.slice().reverse().forEach(function(row){
+      var pct=Math.max(2,Math.round(row.usd/maxUsd*100));
+      var barHeightPx=Math.max(2,Math.round(chartHeightPx*pct/100));
+      var isToday=row.day===d.day;
+      var col=isToday?'var(--accent)':'var(--bg3)';
+      var label=row.day.slice(5); // MM-DD
+      var safeDay=esc(row.day);
+      var safeLabel=esc(label);
+      chartHtml+='<div title="'+safeDay+': $'+row.usd.toFixed(4)+'" style="flex:1;min-width:12px;max-width:28px;display:flex;flex-direction:column;align-items:center;gap:3px">'
+        +'<div style="width:100%;background:'+col+';border-radius:3px 3px 0 0;height:'+barHeightPx+'px;min-height:2px;transition:height .3s"></div>'
+        +'<div style="font-size:9px;color:var(--muted);white-space:nowrap;transform:rotate(-45deg);transform-origin:top center;margin-top:4px">'+safeLabel+'</div>'
+        +'</div>';
+    });
+    document.getElementById('budgetChart').innerHTML=chartHtml;
+    document.getElementById('budgetChartLegend').innerHTML=
+      '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--accent);border-radius:2px;display:inline-block"></span>'+t('bud.today')+'</span>'
+      +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bg3);border-radius:2px;display:inline-block"></span>'+t('bud.prev_days')+'</span>';
+  }
+
+  // ── History table ──
+  if(hist.length){
+    document.getElementById('budgetHistoryWrap').style.display='';
+    _renderBudgetHistoryTable(d,hist,_budgetHistoryFilter);
+  }
 }
+
+function _parseDayUtc(dayStr){
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dayStr||''));
+  if(!m)return NaN;
+  return Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]));
+}
+
+function daysDiff(dayStr,todayStr){
+  try{
+    var todayUtc=_parseDayUtc(todayStr);
+    var dayUtc=_parseDayUtc(dayStr);
+    if(!isFinite(todayUtc)||!isFinite(dayUtc))return 999;
+    return Math.floor((todayUtc-dayUtc)/(1000*60*60*24));
+  }catch(e){return 999;}
+}
+
+function _renderBudgetHistoryTable(d,hist,n){
+  var rows=n?hist.filter(function(r){return daysDiff(r.day,d.day)<n;}):hist;
+  var uc=d.daily_usd_cap||0;
+  var html='';
+  var totalUsd=0,totalTok=0;
+  rows.forEach(function(row){
+    var isToday=row.day===d.day;
+    var capPct=uc?Math.round(row.usd/uc*100):'-';
+    var capCls=typeof capPct==='number'?(capPct>80?'color:var(--danger)':capPct>50?'color:var(--warn)':'color:var(--success)'):'color:var(--muted)';
+    totalUsd+=row.usd; totalTok+=row.tokens;
+    html+='<tr'+(isToday?' style="font-weight:600"':'')+'>'
+      +'<td>'+esc(String(row.day))+(isToday?' <span class="tag tag-on" style="font-size:10px">'+t('bud.today')+'</span>':'')+'</td>'
+      +'<td>'+row.tokens.toLocaleString()+'</td>'
+      +'<td>$'+row.usd.toFixed(4)+'</td>'
+      +'<td style="'+capCls+'">'+(typeof capPct==='number'?capPct+'%':'-')+'</td>'
+      +'</tr>';
+  });
+  if(!html)html='<tr><td colspan="4" style="text-align:center;color:var(--muted)">'+t('bud.no_data_period')+'</td></tr>';
+  document.getElementById('budgetHistoryRows').innerHTML=html;
+  document.getElementById('budgetHistoryTotal').textContent=t('bud.history_total')+': $'+totalUsd.toFixed(4)+' across '+rows.length+' day(s), '+totalTok.toLocaleString()+' '+t('bud.tokens_unit');
+  // active button state
+  ['bh7','bh30','bhAll'].forEach(function(id){if(document.getElementById(id))document.getElementById(id).classList.remove('active')});
+  var active=n===7?'bh7':n===30?'bh30':'bhAll';
+  if(document.getElementById(active))document.getElementById(active).classList.add('active');
+}
+
+window.filterBudgetHistory=function(n,btn){
+  _budgetHistoryFilter=n;
+  if(_lastBudgetData)_renderBudgetHistoryTable(_lastBudgetData,_lastBudgetData.history||[],n);
+};
 async function loadBudget(){try{var d=await api('/budget');renderBudget(d)}catch(e){toast(e.message,'err')}}
 window.resetBudget=async function(){if(!confirm('Reset budget?'))return;try{await api('/budget/reset',{method:'POST'});toast('Budget reset','ok');loadBudget()}catch(e){toast(e.message,'err')}};
 
@@ -811,9 +972,10 @@ var ENV_GROUPS=[
   {label:'cfg.rag',keys:['EMBEDDING_MODEL','CHUNK_SIZE','CHUNK_OVERLAP','RETRIEVAL_K']},
   {label:'cfg.conversation',keys:['MAX_HISTORY_TURNS','MAX_MESSAGE_CHARS']},
   {label:'cfg.rate',keys:['RATE_LIMIT_ENABLED','RATE_LIMIT_IP_PER_MINUTE','RATE_LIMIT_IP_BURST','RATE_LIMIT_SESSION_PER_MINUTE','RATE_LIMIT_SESSION_BURST']},
-  {label:'cfg.spam',keys:['SPAM_DETECTION_ENABLED','SPAM_MAX_STRIKES','SPAM_COOLDOWN_SECONDS']},
+  {label:'cfg.spam',keys:['SPAM_DETECTION_ENABLED','SPAM_MAX_STRIKES','SPAM_COOLDOWN_SECONDS','SPAM_MIN_MESSAGE_CHARS']},
   {label:'cfg.budget_cap',keys:['DAILY_TOKEN_CAP','DAILY_USD_CAP']},
-  {label:'cfg.security',keys:['API_CORS_ORIGINS','API_STRICT_CORS','API_HSTS_ENABLED']},
+  {label:'cfg.security',keys:['API_CORS_ORIGINS','API_STRICT_CORS','API_HSTS_ENABLED','BLOCK_PROMPT_INJECTION']},
+  {label:'cfg.handoff',keys:['HANDOFF_ENABLED','PROACTIVE_DELAY_SECONDS','PROACTIVE_MESSAGE']},
   {label:'cfg.general',keys:['ACTIVE_CLIENT','LOG_LEVEL','DEBUG']}
 ];
 
@@ -1204,21 +1366,106 @@ function yamlParse(text){
 }
 
 // ── Products ──────────────────────────────────────────────────────────
+var _productCache=[];
 async function loadProducts(){
   try{
     var d=await api('/products');
-    var stats=document.getElementById('productStats');
-    stats.innerHTML='<div class="card"><div class="card-label">'+t('products.total')+'</div><div class="card-value">'+d.total+'</div></div>'
-      +'<div class="card"><div class="card-label">'+t('products.categories')+'</div><div class="card-value">'+d.categories.length+'</div></div>';
-    var rows=document.getElementById('productRows');
-    rows.innerHTML='';
-    (d.products||[]).forEach(function(p){
-      var imgCell=p.image_url?'<img src="'+p.image_url+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px">':'<span style="color:var(--muted)">—</span>';
-      var stockTag=p.in_stock?'<span class="tag tag-on">In Stock</span>':'<span class="tag tag-off">Out</span>';
-      rows.innerHTML+='<tr><td><code style="font-size:11px">'+p.id+'</code></td><td>'+p.name+(p.name_en?' <small style="color:var(--muted)">('+p.name_en+')</small>':'')+'</td><td>'+p.category+'</td><td>'+p.price+'</td><td>'+imgCell+'</td><td>'+stockTag+'</td></tr>';
-    });
+    _productCache=d.products||[];
+    var cats=d.categories||[];
+    var dl=document.getElementById('pf_catlist');
+    if(dl){dl.innerHTML='';cats.forEach(function(c){var o=document.createElement('option');o.value=c;dl.appendChild(o)});}
+    var inStock=_productCache.filter(function(p){return p.in_stock;}).length;
+    document.getElementById('productStats').innerHTML=
+      '<div class="card"><div class="card-label">'+t('products.total')+'</div><div class="card-value">'+d.total+'</div></div>'
+      +'<div class="card"><div class="card-label">'+t('products.categories')+'</div><div class="card-value">'+cats.length+'</div></div>'
+      +'<div class="card"><div class="card-label">'+t('products.inStock')+'</div><div class="card-value" style="color:var(--success)">'+inStock+'</div></div>'
+      +'<div class="card"><div class="card-label">'+t('products.outOfStock')+'</div><div class="card-value" style="color:var(--danger)">'+(d.total-inStock)+'</div></div>';
+    _renderProductRows();
   }catch(e){toast(e.message,'err')}
 }
+function _renderProductRows(){
+  var rows=document.getElementById('productRows');
+  rows.innerHTML='';
+  _productCache.forEach(function(p,idx){
+    var imgCell=p.image_url?'<img src="'+esc(p.image_url)+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px" onerror="this.style.display=\'none\'">':'<span style="color:var(--muted)">—</span>';
+    var stockTag=p.in_stock?'<span class="tag tag-on">In Stock</span>':'<span class="tag tag-off">Out</span>';
+    var actions='<button class="btn btn-ghost btn-sm" onclick="showProductForm('+idx+')">Edit</button> '
+      +'<button class="btn btn-ghost btn-sm" onclick="toggleStock('+idx+')">'+(!p.in_stock?'✓ In stock':'✕ Out of stock')+'</button> '
+      +'<button class="btn btn-danger btn-sm" onclick="deleteProduct('+idx+')">Delete</button>';
+    rows.innerHTML+='<tr>'
+      +'<td><code style="font-size:11px">'+esc(p.id)+'</code></td>'
+      +'<td>'+esc(p.name)+(p.name_en?' <small style="color:var(--muted)">('+esc(p.name_en)+')</small>':'')+'</td>'
+      +'<td>'+esc(p.category||'—')+'</td><td>'+esc(p.price||'—')+'</td>'
+      +'<td>'+imgCell+'</td><td>'+stockTag+'</td><td>'+actions+'</td></tr>';
+  });
+  if(!_productCache.length)rows.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted)">No products yet — click "+ Add Product" to start.</td></tr>';
+}
+var _editingIdx=null;
+function slugify(s){return s.toLowerCase().replace(/[^a-z0-9\u0590-\u05ff\u0e00-\u0e7f]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);}
+window.autoSlugId=function(){if(_editingIdx!==null&&_editingIdx>=0)return;var n=document.getElementById('pf_name').value;document.getElementById('pf_id').value=slugify(n);};
+window.showProductForm=function(idx){
+  _editingIdx=idx;
+  var p=(idx!==null&&idx>=0)?_productCache[idx]:null;
+  document.getElementById('productFormTitle').textContent=p?'Edit: '+p.name:'Add Product';
+  document.getElementById('pf_id').value=p?p.id:'';
+  document.getElementById('pf_id').readOnly=!!p;
+  document.getElementById('pf_id').style.opacity=p?'0.6':'0.6';
+  document.getElementById('pf_name').value=p?p.name:'';
+  document.getElementById('pf_name_en').value=p?(p.name_en||''):'';
+  document.getElementById('pf_category').value=p?(p.category||''):'';
+  document.getElementById('pf_price').value=p?(p.price||''):'';
+  document.getElementById('pf_image_url').value=p?(p.image_url||''):'';
+  document.getElementById('pf_description').value=p?(p.description||''):'';
+  document.getElementById('pf_in_stock').checked=p?p.in_stock:true;
+  document.getElementById('productForm').style.display='block';
+  document.getElementById('productForm').scrollIntoView({behavior:'smooth',block:'center'});
+};
+window.saveProduct=async function(){
+  var name=document.getElementById('pf_name').value.trim();
+  if(!name){toast('Product name is required','err');return;}
+  var id=document.getElementById('pf_id').value.trim()||slugify(name);
+  if(!id){toast('Could not generate ID — enter a name','err');return;}
+  var updated=JSON.parse(JSON.stringify(_productCache));
+  var product={id:id,name:name,
+    name_en:document.getElementById('pf_name_en').value.trim(),
+    category:document.getElementById('pf_category').value.trim(),
+    price:document.getElementById('pf_price').value.trim(),
+    image_url:document.getElementById('pf_image_url').value.trim(),
+    description:document.getElementById('pf_description').value.trim(),
+    tags:[],
+    in_stock:document.getElementById('pf_in_stock').checked
+  };
+  if(_editingIdx!==null&&_editingIdx>=0){updated[_editingIdx]=product;}
+  else{
+    if(updated.some(function(p){return p.id===id;})){toast('A product with this ID already exists','err');return;}
+    updated.push(product);
+  }
+  try{
+    await api('/products',{method:'PUT',body:{products:updated}});
+    document.getElementById('productForm').style.display='none';
+    toast(_editingIdx!==null&&_editingIdx>=0?'Product updated':'Product added','ok');
+    await loadProducts();
+  }catch(e){toast(e.message,'err')}
+};
+window.deleteProduct=async function(idx){
+  var p=_productCache[idx];
+  if(!confirm('Delete "'+p.name+'"?'))return;
+  var updated=_productCache.filter(function(_,i){return i!==idx;});
+  try{
+    await api('/products',{method:'PUT',body:{products:updated}});
+    toast('Product deleted','ok');
+    await loadProducts();
+  }catch(e){toast(e.message,'err')}
+};
+window.toggleStock=async function(idx){
+  var updated=JSON.parse(JSON.stringify(_productCache));
+  updated[idx].in_stock=!updated[idx].in_stock;
+  try{
+    await api('/products',{method:'PUT',body:{products:updated}});
+    toast(updated[idx].in_stock?'Marked in stock':'Marked out of stock','ok');
+    await loadProducts();
+  }catch(e){toast(e.message,'err')}
+};
 window.loadProducts=loadProducts;
 
 // ── Contacts / Messages ───────────────────────────────────────────────
@@ -1244,6 +1491,11 @@ window.deleteContact=async function(id){if(!confirm('Delete this message?'))retu
 
 // ── Handoff ───────────────────────────────────────────────────────────
 var _handoffTarget='';
+var _handoffPollTimer=null;
+var _handoffLastMsgCount=0;
+function _stopHandoffPoll(){if(_handoffPollTimer){clearInterval(_handoffPollTimer);_handoffPollTimer=null}}
+function cancelHandoffReply(){_stopHandoffPoll();_handoffTarget='';document.getElementById('handoffReplyBox').style.display='none'}
+window.cancelHandoffReply=cancelHandoffReply;
 async function loadHandoffs(){
   try{
     var d=await api('/handoff?active_only=true');
@@ -1251,31 +1503,61 @@ async function loadHandoffs(){
     rows.innerHTML='';
     (d.sessions||[]).forEach(function(s){
       var msgCount=(s.pending_messages||[]).length;
-      var actions='<button class="btn btn-primary btn-sm" onclick="openHandoffReply(\''+s.session_id+'\')">Reply</button> <button class="btn btn-danger btn-sm" onclick="resolveHandoff(\''+s.session_id+'\')">Resolve</button>';
-      rows.innerHTML+='<tr><td><code style="font-size:11px">'+s.session_id+'</code></td><td>'+s.channel+'</td><td>'+s.reason+'</td><td>'+msgCount+'</td><td style="font-size:11px">'+new Date(s.created_at).toLocaleString()+'</td><td>'+actions+'</td></tr>';
+      var userMsgs=(s.pending_messages||[]).filter(function(m){return m.role==='user'}).length;
+      var channelTag='<span class="tag '+(s.channel==='line'?'tag-on':s.channel==='web'?'tag-on':'')+'">'+s.channel+'</span>';
+      var reasonTag=s.reason==='user_request'?'<span class="tag" style="background:rgba(59,130,246,.15);color:#3b82f6">User request</span>':'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Admin takeover</span>';
+      var actions='<button class="btn btn-primary btn-sm" onclick="openHandoffReply(\''+esc(s.session_id)+'\')">💬 Reply</button> <button class="btn btn-danger btn-sm" onclick="resolveHandoff(\''+esc(s.session_id)+'\')">✓ Resolve</button>';
+      rows.innerHTML+='<tr><td><code style="font-size:11px">'+esc(s.session_id)+'</code></td><td>'+channelTag+'</td><td>'+reasonTag+'</td><td>'+msgCount+' <span style="color:var(--muted);font-size:11px">('+userMsgs+' from user)</span></td><td style="font-size:11px">'+new Date(s.created_at).toLocaleString()+'</td><td>'+actions+'</td></tr>';
     });
     if(!d.sessions||!d.sessions.length)rows.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No active handoffs</td></tr>';
   }catch(e){toast(e.message,'err')}
 }
 window.loadHandoffs=loadHandoffs;
-window.openHandoffReply=function(sid){
+async function _refreshHandoffMessages(sid){
+  try{
+    var s=await api('/handoff/'+encodeURIComponent(sid));
+    var msgs=s.pending_messages||[];
+    if(msgs.length===_handoffLastMsgCount)return;
+    _handoffLastMsgCount=msgs.length;
+    var historyEl=document.getElementById('handoffMsgHistory');
+    if(!historyEl)return;
+    var html='';
+    msgs.forEach(function(m){
+      var cls=m.role==='admin'?'ai':'human';
+      var label=m.role==='admin'?'👤 Admin':'💬 User';
+      var time=m.at?new Date(m.at).toLocaleTimeString():'';
+      html+='<div class="msg-row '+cls+'" style="margin-bottom:6px"><div class="msg-role" style="font-size:11px">'+label+' <span style="color:var(--muted)">'+time+'</span></div><div class="msg-text" style="font-size:13px">'+esc(m.text||'')+'</div></div>';
+    });
+    if(!html)html='<p style="color:var(--muted);font-size:12px">No messages yet — the user is waiting for your reply.</p>';
+    historyEl.innerHTML=html;
+    historyEl.scrollTop=historyEl.scrollHeight;
+    loadHandoffs();
+  }catch(e){}
+}
+window.openHandoffReply=async function(sid){
+  _stopHandoffPoll();
   _handoffTarget=sid;
+  _handoffLastMsgCount=0;
   document.getElementById('handoffReplyTarget').textContent=sid;
   document.getElementById('handoffReplyText').value='';
+  await _refreshHandoffMessages(sid);
   document.getElementById('handoffReplyBox').style.display='block';
+  _handoffPollTimer=setInterval(function(){_refreshHandoffMessages(sid)},3000);
 };
 window.sendHandoffReply=async function(){
   var text=document.getElementById('handoffReplyText').value.trim();
   if(!text)return;
-  try{await api('/handoff/'+_handoffTarget+'/reply',{method:'POST',body:{text:text}});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  try{await api('/handoff/'+encodeURIComponent(_handoffTarget)+'/reply',{method:'POST',body:{text:text}});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');_handoffLastMsgCount=0;await _refreshHandoffMessages(_handoffTarget);loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 window.resolveCurrentHandoff=async function(){
   if(!confirm('Resolve this handoff and return session to bot?'))return;
-  try{await api('/handoff/'+_handoffTarget+'/resolve',{method:'POST'});document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  _stopHandoffPoll();
+  try{await api('/handoff/'+encodeURIComponent(_handoffTarget)+'/resolve',{method:'POST'});document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved — bot is back in control','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 window.resolveHandoff=async function(sid){
-  if(!confirm('Resolve handoff for '+sid+'?'))return;
-  try{await api('/handoff/'+sid+'/resolve',{method:'POST'});toast('Resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  if(!confirm('Resolve handoff for '+sid+'? Bot will resume.'))return;
+  _stopHandoffPoll();
+  try{await api('/handoff/'+encodeURIComponent(sid)+'/resolve',{method:'POST'});toast('Resolved','ok');if(sid===_handoffTarget)document.getElementById('handoffReplyBox').style.display='none';loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 
 // ── Fallback / Unanswered ─────────────────────────────────────────────
@@ -1381,6 +1663,25 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "bud.disabled": "\u26a0\ufe0f Disabled",
         "bud.token_usage": "Token Usage",
         "bud.usd_usage": "USD Usage",
+        "bud.last7": "Last 7 days",
+        "bud.last30": "Last 30 days",
+        "bud.budget_on": "Budget ON",
+        "bud.no_cap": "No cap",
+        "bud.tokens_unit": "tokens",
+        "bud.token_usage_today": "Token usage today",
+        "bud.usd_usage_today": "USD usage today",
+        "bud.prev_days": "Previous days",
+        "bud.no_data_period": "No data for this period",
+        "bud.history_total": "Total",
+        "budget.chart.dailySpend30dUsd": "Daily spend \u2014 last 30 days (USD)",
+        "budget.history.title": "Spend History",
+        "budget.history.filter.7days": "7 days",
+        "budget.history.filter.30days": "30 days",
+        "budget.history.filter.all": "All",
+        "budget.history.header.date": "Date",
+        "budget.history.header.tokensUsed": "Tokens Used",
+        "budget.history.header.usdSpent": "USD Spent",
+        "budget.history.header.dailyCapPct": "% of Daily Cap",
         "cfg.llm": "LLM",
         "cfg.rag": "RAG",
         "cfg.conversation": "Conversation",
@@ -1474,6 +1775,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "th.message": "Message",
         "th.time": "Time",
         "th.question": "Question",
+        "cfg.handoff": "Handoff & Proactive",
     },
     "he": {
         "nav.overview": "\u05e1\u05e7\u05d9\u05e8\u05d4",
@@ -1551,6 +1853,25 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "bud.disabled": "\u26a0\ufe0f \u05de\u05d5\u05e9\u05d1\u05ea",
         "bud.token_usage": "\u05e9\u05d9\u05de\u05d5\u05e9 \u05d1\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
         "bud.usd_usage": "\u05e9\u05d9\u05de\u05d5\u05e9 \u05d1\u05d3\u05d5\u05dc\u05e8\u05d9\u05dd",
+        "bud.last7": "7 \u05d9\u05de\u05d9\u05dd \u05d0\u05d7\u05e8\u05d5\u05e0\u05d9\u05dd",
+        "bud.last30": "30 \u05d9\u05de\u05d9\u05dd \u05d0\u05d7\u05e8\u05d5\u05e0\u05d9\u05dd",
+        "bud.budget_on": "\u05ea\u05e7\u05e6\u05d9\u05d1 \u05e4\u05e2\u05d9\u05dc",
+        "bud.no_cap": "\u05dc\u05dc\u05d0 \u05de\u05d2\u05d1\u05dc\u05d4",
+        "bud.tokens_unit": "\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
+        "bud.token_usage_today": "\u05e9\u05d9\u05de\u05d5\u05e9 \u05d1\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd \u05d4\u05d9\u05d5\u05dd",
+        "bud.usd_usage_today": "\u05d4\u05d5\u05e6\u05d0\u05d4 \u05d1\u05d3\u05d5\u05dc\u05e8\u05d9\u05dd \u05d4\u05d9\u05d5\u05dd",
+        "bud.prev_days": "\u05d9\u05de\u05d9\u05dd \u05e7\u05d5\u05d3\u05de\u05d9\u05dd",
+        "bud.no_data_period": "\u05d0\u05d9\u05df \u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05dc\u05ea\u05e7\u05d5\u05e4\u05d4 \u05d6\u05d5",
+        "bud.history_total": '\u05e1\u05d4"\u05db',
+        "budget.chart.dailySpend30dUsd": "\u05d4\u05d5\u05e6\u05d0\u05d4 \u05d9\u05d5\u05de\u05d9\u05ea \u2014 30 \u05d9\u05de\u05d9\u05dd \u05d0\u05d7\u05e8\u05d5\u05e0\u05d9\u05dd (USD)",
+        "budget.history.title": "\u05d4\u05d9\u05e1\u05d8\u05d5\u05e8\u05d9\u05d9\u05ea \u05d4\u05d5\u05e6\u05d0\u05d5\u05ea",
+        "budget.history.filter.7days": "7 \u05d9\u05de\u05d9\u05dd",
+        "budget.history.filter.30days": "30 \u05d9\u05de\u05d9\u05dd",
+        "budget.history.filter.all": "\u05d4\u05db\u05dc",
+        "budget.history.header.date": "\u05ea\u05d0\u05e8\u05d9\u05da",
+        "budget.history.header.tokensUsed": "\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
+        "budget.history.header.usdSpent": "\u05d4\u05d5\u05e6\u05d0\u05d4 ($)",
+        "budget.history.header.dailyCapPct": "% \u05de\u05d4\u05de\u05d2\u05d1\u05dc\u05d4",
         "cfg.llm": "\u05de\u05d5\u05d3\u05dc \u05e9\u05e4\u05d4",
         "cfg.rag": "RAG",
         "cfg.conversation": "\u05e9\u05d9\u05d7\u05d4",
@@ -1637,6 +1958,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "contacts.unread": "\u05dc\u05d0 \u05e0\u05e7\u05e8\u05d0\u05d5",
         "contacts.total": "\u05e1\u05d4\u05f4\u05db \u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
         "fallback.unresolved": "\u05dc\u05d0 \u05e0\u05e4\u05ea\u05e8\u05d5",
+        "th.name": "\u05e9\u05dd",
+        "th.category": "\u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d4",
+        "th.price": "\u05de\u05d7\u05d9\u05e8",
+        "th.image": "\u05ea\u05de\u05d5\u05e0\u05d4",
+        "th.message": "\u05d4\u05d5\u05d3\u05e2\u05d4",
+        "th.time": "\u05d6\u05de\u05df",
+        "th.question": "\u05e9\u05d0\u05dc\u05d4",
+        "cfg.handoff": "\u05d4\u05e2\u05d1\u05e8\u05d4 \u05d5\u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
     },
     "th": {
         "nav.overview": "\u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
@@ -1714,6 +2043,25 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "bud.disabled": "\u26a0\ufe0f \u0e1b\u0e34\u0e14\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19",
         "bud.token_usage": "\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e42\u0e17\u0e40\u0e04\u0e19",
         "bud.usd_usage": "\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22",
+        "bud.last7": "7 \u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e1c\u0e48\u0e32\u0e19\u0e21\u0e32",
+        "bud.last30": "30 \u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e1c\u0e48\u0e32\u0e19\u0e21\u0e32",
+        "bud.budget_on": "\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13\u0e40\u0e1b\u0e34\u0e14",
+        "bud.no_cap": "\u0e44\u0e21\u0e48\u0e08\u0e33\u0e01\u0e31\u0e14",
+        "bud.tokens_unit": "\u0e42\u0e17\u0e40\u0e04\u0e19",
+        "bud.token_usage_today": "\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e42\u0e17\u0e40\u0e04\u0e19\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49",
+        "bud.usd_usage_today": "\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49",
+        "bud.prev_days": "\u0e27\u0e31\u0e19\u0e01\u0e48\u0e2d\u0e19\u0e2b\u0e19\u0e49\u0e32",
+        "bud.no_data_period": "\u0e44\u0e21\u0e48\u0e21\u0e35\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e43\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e19\u0e35\u0e49",
+        "bud.history_total": "\u0e23\u0e27\u0e21",
+        "budget.chart.dailySpend30dUsd": "\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22\u0e23\u0e32\u0e22\u0e27\u0e31\u0e19 \u2014 30 \u0e27\u0e31\u0e19\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14 (USD)",
+        "budget.history.title": "\u0e1b\u0e23\u0e30\u0e27\u0e31\u0e15\u0e34\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22",
+        "budget.history.filter.7days": "7 \u0e27\u0e31\u0e19",
+        "budget.history.filter.30days": "30 \u0e27\u0e31\u0e19",
+        "budget.history.filter.all": "\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "budget.history.header.date": "\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48",
+        "budget.history.header.tokensUsed": "\u0e42\u0e17\u0e40\u0e04\u0e19\u0e17\u0e35\u0e48\u0e43\u0e0a\u0e49",
+        "budget.history.header.usdSpent": "\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22 ($)",
+        "budget.history.header.dailyCapPct": "% \u0e02\u0e2d\u0e07\u0e27\u0e07\u0e40\u0e07\u0e34\u0e19",
         "cfg.llm": "\u0e42\u0e21\u0e40\u0e14\u0e25\u0e20\u0e32\u0e29\u0e32",
         "cfg.rag": "RAG",
         "cfg.conversation": "\u0e01\u0e32\u0e23\u0e2a\u0e19\u0e17\u0e19\u0e32",
@@ -1800,5 +2148,13 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "contacts.unread": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e2d\u0e48\u0e32\u0e19",
         "contacts.total": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
         "fallback.unresolved": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e41\u0e01\u0e49\u0e44\u0e02",
+        "th.name": "\u0e0a\u0e37\u0e48\u0e2d",
+        "th.category": "\u0e2b\u0e21\u0e27\u0e14\u0e2b\u0e21\u0e39\u0e48",
+        "th.price": "\u0e23\u0e32\u0e04\u0e32",
+        "th.image": "\u0e23\u0e39\u0e1b\u0e20\u0e32\u0e1e",
+        "th.message": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21",
+        "th.time": "\u0e40\u0e27\u0e25\u0e32",
+        "th.question": "\u0e04\u0e33\u0e16\u0e32\u0e21",
+        "cfg.handoff": "\u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d\u0e41\u0e25\u0e30\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19",
     },
 }

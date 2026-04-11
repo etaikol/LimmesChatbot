@@ -38,6 +38,7 @@ from chatbot.core.engine import Chatbot, ChatResponse
 from chatbot.exceptions import ChannelError, ChatbotError
 from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
 from chatbot.i18n.detect import detect_language
+from chatbot.i18n.messages import get_messages
 from chatbot.logging_setup import logger
 
 REPLY_ENDPOINT = "https://api.line.me/v2/bot/message/reply"
@@ -113,7 +114,13 @@ class LineChannel:
         language = detect_language(text, supported=SUPPORTED_LANGUAGE_CODES)
         try:
             resp = self.bot.ask(text, session_id=session_id, language=language)
-            messages = self._build_messages(resp)
+            # `resp.answer` already contains the localized handoff text for
+            # user-initiated handoff, so avoid appending a duplicate LINE
+            # message when handoff has just started.
+            if resp.metadata.get("handoff"):
+                messages = [text_message(resp.answer)]
+            else:
+                messages = self._build_messages(resp)
         except ChatbotError as e:
             messages = [text_message(e.user_message)]
         except Exception as e:  # pragma: no cover
@@ -143,7 +150,7 @@ class LineChannel:
                     action_text=f"Tell me about {p['name']}",
                 ))
         if bubbles:
-            messages.append(carousel(bubbles[:10]))  # LINE carousel max 12
+            messages.append(flex_message("Products", carousel(bubbles[:10])))
 
         return messages[:5]  # LINE reply limit: 5 messages
 
