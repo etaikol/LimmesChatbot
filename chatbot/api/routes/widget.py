@@ -343,12 +343,12 @@ async function send(text){
     } else if (res.status === 402) {
       add(data.detail || bundle().budget_reached || '', 'b');
     } else {
-      var d = add(data.detail || bundle().connection_error || 'Error', 'b');
+      var d = add(data.detail || bundle().server_error || bundle().connection_error || 'Error', 'b');
       d.classList.add('err');
     }
   } catch(e) {
     t.remove();
-    var d = add(bundle().connection_error || 'Connection error.', 'b');
+    var d = add(bundle().server_error || bundle().connection_error || 'Connection error.', 'b');
     d.classList.add('err');
   } finally {
     $send.disabled = false;
@@ -363,8 +363,8 @@ function showHandoffBanner(show){
     _handoffBanner = document.createElement('div');
     _handoffBanner.className = 'cb-handoff-banner';
     _handoffBanner.innerHTML = '🤝 <strong>' + (bundle().handoff_active || 'Connected to a human agent') + '</strong>';
-    var bodyEl = panel.querySelector('.cb-body');
-    if (bodyEl) bodyEl.insertBefore(_handoffBanner, bodyEl.firstChild);
+    var msgsEl = panel.querySelector('.cb-msgs');
+    if (msgsEl) msgsEl.parentNode.insertBefore(_handoffBanner, msgsEl);
   }
   if (!show && _handoffBanner) {
     _handoffBanner.remove();

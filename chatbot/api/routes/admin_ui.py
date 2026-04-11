@@ -1477,6 +1477,9 @@ window.deleteContact=async function(id){if(!confirm('Delete this message?'))retu
 
 // ── Handoff ───────────────────────────────────────────────────────────
 var _handoffTarget='';
+var _handoffPollTimer=null;
+var _handoffLastMsgCount=0;
+function _stopHandoffPoll(){if(_handoffPollTimer){clearInterval(_handoffPollTimer);_handoffPollTimer=null}}
 async function loadHandoffs(){
   try{
     var d=await api('/handoff?active_only=true');
@@ -1487,47 +1490,58 @@ async function loadHandoffs(){
       var userMsgs=(s.pending_messages||[]).filter(function(m){return m.role==='user'}).length;
       var channelTag='<span class="tag '+(s.channel==='line'?'tag-on':s.channel==='web'?'tag-on':'')+'">'+s.channel+'</span>';
       var reasonTag=s.reason==='user_request'?'<span class="tag" style="background:rgba(59,130,246,.15);color:#3b82f6">User request</span>':'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Admin takeover</span>';
-      var actions='<button class="btn btn-primary btn-sm" onclick="openHandoffReply(\''+s.session_id+'\')">💬 Reply</button> <button class="btn btn-danger btn-sm" onclick="resolveHandoff(\''+s.session_id+'\')">✓ Resolve</button>';
-      rows.innerHTML+='<tr><td><code style="font-size:11px">'+s.session_id+'</code></td><td>'+channelTag+'</td><td>'+reasonTag+'</td><td>'+msgCount+' <span style="color:var(--muted);font-size:11px">('+userMsgs+' from user)</span></td><td style="font-size:11px">'+new Date(s.created_at).toLocaleString()+'</td><td>'+actions+'</td></tr>';
+      var actions='<button class="btn btn-primary btn-sm" onclick="openHandoffReply(\''+esc(s.session_id)+'\')">💬 Reply</button> <button class="btn btn-danger btn-sm" onclick="resolveHandoff(\''+esc(s.session_id)+'\')">✓ Resolve</button>';
+      rows.innerHTML+='<tr><td><code style="font-size:11px">'+esc(s.session_id)+'</code></td><td>'+channelTag+'</td><td>'+reasonTag+'</td><td>'+msgCount+' <span style="color:var(--muted);font-size:11px">('+userMsgs+' from user)</span></td><td style="font-size:11px">'+new Date(s.created_at).toLocaleString()+'</td><td>'+actions+'</td></tr>';
     });
     if(!d.sessions||!d.sessions.length)rows.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No active handoffs</td></tr>';
   }catch(e){toast(e.message,'err')}
 }
 window.loadHandoffs=loadHandoffs;
-window.openHandoffReply=async function(sid){
-  _handoffTarget=sid;
-  document.getElementById('handoffReplyTarget').textContent=sid;
-  document.getElementById('handoffReplyText').value='';
-  // Load and show message history for this handoff
+async function _refreshHandoffMessages(sid){
   try{
     var s=await api('/handoff/'+encodeURIComponent(sid));
+    var msgs=s.pending_messages||[];
+    if(msgs.length===_handoffLastMsgCount)return;
+    _handoffLastMsgCount=msgs.length;
     var historyEl=document.getElementById('handoffMsgHistory');
-    if(historyEl){
-      var html='';
-      (s.pending_messages||[]).forEach(function(m){
-        var cls=m.role==='admin'?'ai':'human';
-        var label=m.role==='admin'?'👤 Admin':'💬 User';
-        var time=m.at?new Date(m.at).toLocaleTimeString():'';
-        html+='<div class="msg-row '+cls+'" style="margin-bottom:6px"><div class="msg-role" style="font-size:11px">'+label+' <span style="color:var(--muted)">'+time+'</span></div><div class="msg-text" style="font-size:13px">'+esc(m.text||'')+'</div></div>';
-      });
-      if(!html)html='<p style="color:var(--muted);font-size:12px">No messages yet — the user is waiting for your reply.</p>';
-      historyEl.innerHTML=html;
-    }
+    if(!historyEl)return;
+    var html='';
+    msgs.forEach(function(m){
+      var cls=m.role==='admin'?'ai':'human';
+      var label=m.role==='admin'?'👤 Admin':'💬 User';
+      var time=m.at?new Date(m.at).toLocaleTimeString():'';
+      html+='<div class="msg-row '+cls+'" style="margin-bottom:6px"><div class="msg-role" style="font-size:11px">'+label+' <span style="color:var(--muted)">'+time+'</span></div><div class="msg-text" style="font-size:13px">'+esc(m.text||'')+'</div></div>';
+    });
+    if(!html)html='<p style="color:var(--muted);font-size:12px">No messages yet — the user is waiting for your reply.</p>';
+    historyEl.innerHTML=html;
+    historyEl.scrollTop=historyEl.scrollHeight;
+    loadHandoffs();
   }catch(e){}
+}
+window.openHandoffReply=async function(sid){
+  _stopHandoffPoll();
+  _handoffTarget=sid;
+  _handoffLastMsgCount=0;
+  document.getElementById('handoffReplyTarget').textContent=sid;
+  document.getElementById('handoffReplyText').value='';
+  await _refreshHandoffMessages(sid);
   document.getElementById('handoffReplyBox').style.display='block';
+  _handoffPollTimer=setInterval(function(){_refreshHandoffMessages(sid)},3000);
 };
 window.sendHandoffReply=async function(){
   var text=document.getElementById('handoffReplyText').value.trim();
   if(!text)return;
-  try{await api('/handoff/'+_handoffTarget+'/reply',{method:'POST',body:{text:text}});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');openHandoffReply(_handoffTarget);loadHandoffs()}catch(e){toast(e.message,'err')}
+  try{await api('/handoff/'+encodeURIComponent(_handoffTarget)+'/reply',{method:'POST',body:{text:text}});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');_handoffLastMsgCount=0;await _refreshHandoffMessages(_handoffTarget);loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 window.resolveCurrentHandoff=async function(){
   if(!confirm('Resolve this handoff and return session to bot?'))return;
-  try{await api('/handoff/'+_handoffTarget+'/resolve',{method:'POST'});document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved — bot is back in control','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  _stopHandoffPoll();
+  try{await api('/handoff/'+encodeURIComponent(_handoffTarget)+'/resolve',{method:'POST'});document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved — bot is back in control','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 window.resolveHandoff=async function(sid){
   if(!confirm('Resolve handoff for '+sid+'? Bot will resume.'))return;
-  try{await api('/handoff/'+sid+'/resolve',{method:'POST'});toast('Resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  _stopHandoffPoll();
+  try{await api('/handoff/'+encodeURIComponent(sid)+'/resolve',{method:'POST'});toast('Resolved','ok');if(sid===_handoffTarget)document.getElementById('handoffReplyBox').style.display='none';loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 
 // ── Fallback / Unanswered ─────────────────────────────────────────────

@@ -834,6 +834,9 @@ async def handoff_reply(session_id: str, request: Request) -> dict:
     push = getattr(request.app.state, "push_service", None)
     if push:
         delivered = await push.deliver(session_id, text)
+        # Mark as delivered so engine.ask() doesn't deliver it again
+        if delivered:
+            mgr.mark_delivered(session_id, text)
         return {"ok": True, "pushed": delivered}
 
     return {"ok": True, "pushed": False}

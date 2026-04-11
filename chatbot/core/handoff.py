@@ -97,18 +97,35 @@ class HandoffManager:
         return False
 
     def get_pending_admin_reply(self, session_id: str) -> str | None:
-        """Pop the oldest admin reply for delivery to the user."""
+        """Return the oldest *undelivered* admin reply for the user.
+
+        Only returns messages that were NOT already pushed in real time
+        (e.g. via SSE).  Marks the returned message as delivered so it
+        won't be returned twice.
+        """
         with self._lock:
             data = self._load()
             for s in data:
                 if s.get("session_id") == session_id and s.get("is_active"):
                     msgs = s.get("pending_messages", [])
-                    for i, m in enumerate(msgs):
-                        if m.get("role") == "admin":
-                            msgs.pop(i)
+                    for m in msgs:
+                        if m.get("role") == "admin" and not m.get("delivered"):
+                            m["delivered"] = True
                             self._save(data)
                             return m.get("text", "")
         return None
+
+    def mark_delivered(self, session_id: str, text: str) -> None:
+        """Mark the most recent admin message matching *text* as delivered."""
+        with self._lock:
+            data = self._load()
+            for s in data:
+                if s.get("session_id") == session_id and s.get("is_active"):
+                    for m in reversed(s.get("pending_messages", [])):
+                        if m.get("role") == "admin" and m.get("text") == text:
+                            m["delivered"] = True
+                            self._save(data)
+                            return
 
     def resolve(self, session_id: str) -> bool:
         """End handoff, returning session to bot mode."""
