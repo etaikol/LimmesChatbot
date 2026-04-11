@@ -1,6 +1,7 @@
 """Tests for chatbot.security.budget."""
 from __future__ import annotations
 
+import datetime
 import json
 from pathlib import Path
 
@@ -57,7 +58,24 @@ def test_budget_persists_to_file(tmp_state):
     bg.record(input_tokens=100, output_tokens=50)
     assert tmp_state.exists()
     data = json.loads(tmp_state.read_text())
-    assert data["tokens"] == 150
+    today = list(data["history"].keys())[0]
+    assert data["history"][today]["tokens"] == 150
+
+
+def test_budget_load_trims_excess_history(tmp_state):
+    """State files with >30 days must be trimmed on load."""
+    today = datetime.date.today()
+    # Write 35 days of fake history
+    history = {}
+    for i in range(35):
+        day = (today - datetime.timedelta(days=i)).strftime("%Y-%m-%d")
+        history[day] = {"tokens": i * 10, "usd": i * 0.001}
+    state = {"current_day": today.strftime("%Y-%m-%d"), "history": history}
+    tmp_state.parent.mkdir(parents=True, exist_ok=True)
+    tmp_state.write_text(json.dumps(state))
+
+    bg = BudgetGuard(state_file=tmp_state, daily_token_cap=0, daily_usd_cap=0.0)
+    assert len(bg._state["history"]) <= 30
 
 
 def test_budget_snapshot(tmp_state):

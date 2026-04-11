@@ -61,6 +61,13 @@ def _today_utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def _trim_history_dict(history: dict, keep: int = 30) -> None:
+    """Trim *history* in-place, retaining only the most recent *keep* days."""
+    if len(history) > keep:
+        for old_day in sorted(history.keys())[:-keep]:
+            del history[old_day]
+
+
 def estimate_tokens(text: str) -> int:
     """Return a *conservative* token-count estimate.
 
@@ -182,6 +189,7 @@ class BudgetGuard:
         with self._lock:
             day = _today_utc()
             self._ensure_day(day)
+            self._trim_history()
             entry = self._state["history"][day]
             history = [
                 {"day": d, "tokens": v["tokens"], "usd": round(v["usd"], 4)}
@@ -218,10 +226,7 @@ class BudgetGuard:
 
     def _trim_history(self, keep: int = 30) -> None:
         """Keep only the most recent `keep` days."""
-        history = self._state.get("history", {})
-        if len(history) > keep:
-            for old_day in sorted(history.keys())[:-keep]:
-                del history[old_day]
+        _trim_history_dict(self._state.get("history", {}), keep)
 
     def _counters_for(self, day: str) -> tuple[int, float]:
         """Return (tokens, usd) for the given day from the history dict."""
@@ -246,6 +251,13 @@ class BudgetGuard:
                                 }
                             },
                         }
+                    # Enforce 30-day retention on load
+                    history = data.get("history", {})
+                    if not isinstance(history, dict):
+                        history = {}
+                    data["history"] = history
+                    if history:
+                        _trim_history_dict(history)
                     return data
         except Exception as e:
             logger.warning("Could not load budget state ({}): {}", self.state_file, e)
