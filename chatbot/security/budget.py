@@ -189,7 +189,10 @@ class BudgetGuard:
         with self._lock:
             day = _today_utc()
             self._ensure_day(day)
+            history_count_before_trim = len(self._state.get("history", {}))
             self._trim_history()
+            if len(self._state.get("history", {})) < history_count_before_trim:
+                self._save()
             entry = self._state["history"][day]
             history = [
                 {"day": d, "tokens": v["tokens"], "usd": round(v["usd"], 4)}
@@ -258,14 +261,6 @@ class BudgetGuard:
                     data["history"] = history
                     if history:
                         _trim_history_dict(history)
-
-                    history = data.get("history", {})
-                    if not isinstance(history, dict):
-                        history = {}
-                    if len(history) > 30:
-                        for old_day in sorted(history.keys())[:-30]:
-                            del history[old_day]
-
                     return {
                         "current_day": data.get("current_day", _today_utc()),
                         "history": history,
