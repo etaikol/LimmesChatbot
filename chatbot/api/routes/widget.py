@@ -362,7 +362,10 @@ function showHandoffBanner(show){
   if (show && !_handoffBanner) {
     _handoffBanner = document.createElement('div');
     _handoffBanner.className = 'cb-handoff-banner';
-    _handoffBanner.innerHTML = '🤝 <strong>' + (bundle().handoff_active || 'Connected to a human agent') + '</strong>';
+    _handoffBanner.appendChild(document.createTextNode('🤝 '));
+    var strongEl = document.createElement('strong');
+    strongEl.textContent = bundle().handoff_active || 'Connected to a human agent';
+    _handoffBanner.appendChild(strongEl);
     var msgsEl = panel.querySelector('.cb-msgs');
     if (msgsEl) msgsEl.parentNode.insertBefore(_handoffBanner, msgsEl);
   }
