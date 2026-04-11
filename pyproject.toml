@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "limmes-chatbot"
+version = "0.2.0"
+description = "Multi-channel AI chatbot template with RAG, personality presets, and pluggable channels."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Limmes Chatbot Template" }]
+
+dependencies = [
+    "langchain==1.2.15",
+    "langchain-core==1.2.26",
+    "langchain-openai==1.1.12",
+    "langchain-community==0.4.1",
+    "langchain-text-splitters==1.1.1",
+    "langchain-chroma==1.1.0",
+    "openai==2.30.0",
+    "chromadb==1.5.6",
+    "pypdf==6.9.2",
+    "pydantic==2.10.3",
+    "pydantic-settings==2.10.1",
+    "loguru==0.7.3",
+    "python-dotenv==1.0.1",
+    "PyYAML==6.0.2",
+]
+
+[project.optional-dependencies]
+api = [
+    "fastapi==0.115.12",
+    "uvicorn[standard]==0.34.0",
+    "python-multipart==0.0.20",
+    "httpx==0.28.1",
+    "twilio==9.3.8",
+]
+extras = [
+    "beautifulsoup4==4.12.3",
+    "docx2txt==0.8",
+    "lxml==5.3.0",
+    "tiktoken==0.8.0",
+]
+anthropic = ["langchain-anthropic==0.3.0"]
+postgres = ["psycopg[binary]>=3.2"]
+all = [
+    "fastapi==0.115.12",
+    "uvicorn[standard]==0.34.0",
+    "python-multipart==0.0.20",
+    "httpx==0.28.1",
+    "twilio==9.3.8",
+    "beautifulsoup4==4.12.3",
+    "docx2txt==0.8",
+    "lxml==5.3.0",
+    "tiktoken==0.8.0",
+    "langchain-anthropic==0.3.0",
+]
+
+[project.scripts]
+chatbot-chat   = "scripts.chat:main"
+chatbot-ingest = "scripts.ingest:main"
+chatbot-serve  = "scripts.serve:main"
+chatbot-scrape = "scripts.scrape:main"
+
+[tool.setuptools.packages.find]
+include = ["chatbot*", "scripts*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

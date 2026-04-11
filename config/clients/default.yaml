@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Default client configuration.
+#
+# Make a copy of this file under config/clients/<your-client>.yaml and edit
+# it for each customer. Then either:
+#   * set ACTIVE_CLIENT=<your-client> in .env, or
+#   * call Chatbot.from_client("<your-client>") in code.
+# ─────────────────────────────────────────────────────────────────────────────
+
+id: default
+name: AI Assistant
+language_primary: en
+language_fallback: en
+# Languages offered in the widget picker. Drop / add codes from
+# chatbot/i18n/messages.py::SUPPORTED_LANGUAGES. Empty list = primary only.
+languages_offered:
+  - en
+  - es
+  - fr
+  - de
+  - th
+  - ja
+  - zh
+  - ar
+location: ""
+timezone: UTC
+
+# Pick any file from config/personalities/<name>.yaml
+personality: default
+
+# Optional: extra information appended to the personality's system prompt.
+# This is the cleanest place to inject business facts (hours, address, USPs).
+system_prompt_extra: ""
+
+# Optional override of the personality's greeting.
+greeting_override: ""
+
+# Where to look for ingestible documents (relative to project root).
+data_paths:
+  - data
+
+# Optional URLs to scrape into data/scraped/ before ingestion.
+scrape_urls: []
+
+# Channel toggles. Tokens themselves go in .env (never in this file).
+channels:
+  web:        { enabled: true }
+  whatsapp:   { enabled: false }
+  telegram:   { enabled: false }
+  line:       { enabled: false }

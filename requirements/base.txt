@@ -1,0 +1,31 @@
+# =====================================================================
+# BASE — minimal dependencies for the RAG engine + CLI
+# =====================================================================
+# Use this if you only need the local CLI chatbot (no HTTP server).
+#
+#   pip install -r requirements/base.txt
+# =====================================================================
+
+# ── LangChain core stack ────────────────────────────────────────────
+langchain==1.2.15
+langchain-core==1.2.26
+langchain-openai==1.1.12
+langchain-community==0.4.1
+langchain-text-splitters==1.1.1
+langchain-chroma==1.1.0
+
+# ── LLM providers ──────────────────────────────────────────────────
+openai==2.30.0
+
+# ── Vector store + PDF ─────────────────────────────────────────────
+chromadb==1.5.6
+pypdf==6.9.2
+
+# ── Settings, validation ───────────────────────────────────────────
+pydantic==2.10.3
+pydantic-settings==2.10.1
+
+# ── Logging, env ───────────────────────────────────────────────────
+loguru==0.7.3
+python-dotenv==1.0.1
+PyYAML==6.0.2

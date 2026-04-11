@@ -29,15 +29,20 @@ share/python-wheels/
 MANIFEST
 
 # Virtual environments
+.venv/
 venv/
 env/
 ENV/
 env.bak/
 venv.bak/
 
-# ChromaDB cache
+# Chatbot runtime state
 .chroma/
 chroma_data/
+.vectorstore/
+.sessions/
+logs/
+conversation_history.json
 
 # IDE
 .vscode/
@@ -50,6 +55,11 @@ chroma_data/
 .DS_Store
 Thumbs.db
 
+# Claude local settings (machine-specific paths, not portable)
+.claude/settings.local.json
+
 # Project specific
-*.pdf
-docs/
+# (PDFs intentionally NOT ignored — they live in data/<client>/ and need
+# to ship with the repo for clients that want everything checked-in.
+# Add a more specific rule here if you prefer.)
+

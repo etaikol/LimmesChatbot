@@ -1,0 +1,21 @@
+# =====================================================================
+# EXTRAS — opt-in features
+# =====================================================================
+# Install only the bits you actually need.
+#
+#   pip install -r requirements/extras.txt
+# =====================================================================
+
+# ── Document loaders ────────────────────────────────────────────────
+beautifulsoup4==4.12.3         # HTML parsing + scraper
+docx2txt==0.8                  # .docx loader
+lxml==5.3.0                    # faster HTML/XML parsing for bs4
+
+# ── Optional LLM providers ──────────────────────────────────────────
+langchain-anthropic==0.3.0     # enables LLM_PROVIDER=anthropic
+
+# ── PostgreSQL backend ──────────────────────────────────────────────
+# psycopg[binary]>=3.2          # uncomment if you set MEMORY_BACKEND=postgres
+
+# ── Tokenizer (used by some text-splitters) ─────────────────────────
+tiktoken==0.8.0
