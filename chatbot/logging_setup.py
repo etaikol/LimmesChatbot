@@ -108,6 +108,12 @@ def setup_logging(
             backtrace=True,
             diagnose=False,
             serialize=json_format,
+            format=(
+                "{time:HH:mm:ss} | "
+                "{level: <8} | "
+                "{name}:{function}:{line} "
+                "- {message}"
+            ),
         )
 
     # Route stdlib logging through Loguru

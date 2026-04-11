@@ -1238,9 +1238,9 @@ async function loadContacts(){
   }catch(e){toast(e.message,'err')}
 }
 window.loadContacts=loadContacts;
-window.markContactRead=async function(id){try{await api('/contacts/'+id+'/read','PATCH');loadContacts();toast('Marked read','ok')}catch(e){toast(e.message,'err')}};
-window.markContactReplied=async function(id){try{await api('/contacts/'+id+'/replied','PATCH');loadContacts();toast('Marked replied','ok')}catch(e){toast(e.message,'err')}};
-window.deleteContact=async function(id){if(!confirm('Delete this message?'))return;try{await api('/contacts/'+id,'DELETE');loadContacts();toast('Deleted','ok')}catch(e){toast(e.message,'err')}};
+window.markContactRead=async function(id){try{await api('/contacts/'+id+'/read',{method:'PATCH'});loadContacts();toast('Marked read','ok')}catch(e){toast(e.message,'err')}};
+window.markContactReplied=async function(id){try{await api('/contacts/'+id+'/replied',{method:'PATCH'});loadContacts();toast('Marked replied','ok')}catch(e){toast(e.message,'err')}};
+window.deleteContact=async function(id){if(!confirm('Delete this message?'))return;try{await api('/contacts/'+id,{method:'DELETE'});loadContacts();toast('Deleted','ok')}catch(e){toast(e.message,'err')}};
 
 // ── Handoff ───────────────────────────────────────────────────────────
 var _handoffTarget='';
@@ -1267,15 +1267,15 @@ window.openHandoffReply=function(sid){
 window.sendHandoffReply=async function(){
   var text=document.getElementById('handoffReplyText').value.trim();
   if(!text)return;
-  try{await api('/handoff/'+_handoffTarget+'/reply','POST',{text:text});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  try{await api('/handoff/'+_handoffTarget+'/reply',{method:'POST',body:{text:text}});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 window.resolveCurrentHandoff=async function(){
   if(!confirm('Resolve this handoff and return session to bot?'))return;
-  try{await api('/handoff/'+_handoffTarget+'/resolve','POST');document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  try{await api('/handoff/'+_handoffTarget+'/resolve',{method:'POST'});document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 window.resolveHandoff=async function(sid){
   if(!confirm('Resolve handoff for '+sid+'?'))return;
-  try{await api('/handoff/'+sid+'/resolve','POST');toast('Resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  try{await api('/handoff/'+sid+'/resolve',{method:'POST'});toast('Resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 
 // ── Fallback / Unanswered ─────────────────────────────────────────────
@@ -1295,9 +1295,9 @@ async function loadFallbacks(){
   }catch(e){toast(e.message,'err')}
 }
 window.loadFallbacks=loadFallbacks;
-window.resolveFallback=async function(q){try{await api('/fallback-log/resolve','PATCH',{question:decodeURIComponent(q)});loadFallbacks();toast('Resolved','ok')}catch(e){toast(e.message,'err')}};
-window.addToKb=async function(q){try{await api('/fallback-log/add-to-kb','PATCH',{question:decodeURIComponent(q)});loadFallbacks();toast('Marked as added to KB','ok')}catch(e){toast(e.message,'err')}};
-window.deleteFallback=async function(q){if(!confirm('Delete this entry?'))return;try{await api('/fallback-log','DELETE',{question:decodeURIComponent(q)});loadFallbacks();toast('Deleted','ok')}catch(e){toast(e.message,'err')}};
+window.resolveFallback=async function(q){try{await api('/fallback-log/resolve',{method:'PATCH',body:{question:decodeURIComponent(q)}});loadFallbacks();toast('Resolved','ok')}catch(e){toast(e.message,'err')}};
+window.addToKb=async function(q){try{await api('/fallback-log/add-to-kb',{method:'PATCH',body:{question:decodeURIComponent(q)}});loadFallbacks();toast('Marked as added to KB','ok')}catch(e){toast(e.message,'err')}};
+window.deleteFallback=async function(q){if(!confirm('Delete this entry?'))return;try{await api('/fallback-log',{method:'DELETE',body:{question:decodeURIComponent(q)}});loadFallbacks();toast('Deleted','ok')}catch(e){toast(e.message,'err')}};
 
 })();"""
 
