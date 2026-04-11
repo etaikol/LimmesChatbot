@@ -987,6 +987,22 @@ async def line_flex_preview(request: Request) -> dict:
 # Data Files (knowledge base)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
+def _safe_data_path(file_path: str, active_client: str) -> tuple[Path, Path]:
+    """Resolve and verify a data file path is within the allowed data root.
+
+    Returns (full_path, data_root). Raises HTTPException on traversal.
+    """
+    clean = Path(file_path.replace("..", "").strip("/"))
+    data_root = (PROJECT_ROOT / "data" / active_client).resolve()
+    full_path = (data_root / clean).resolve()
+    try:
+        full_path.relative_to(data_root)
+    except ValueError:
+        raise HTTPException(403, "Path traversal blocked")
+    return full_path, data_root
+
+
 @router.get("/data", dependencies=[Depends(_require_admin_key)])
 def list_data_files(request: Request) -> dict:
     """List all data files for the active client."""
@@ -1017,13 +1033,7 @@ def list_data_files(request: Request) -> dict:
 def read_data_file(file_path: str, request: Request) -> dict:
     """Read a data file's content."""
     s = request.app.state.bot.settings
-    # Sanitize: prevent path traversal
-    clean = Path(file_path.replace("..", "").strip("/"))
-    full_path = (PROJECT_ROOT / "data" / s.active_client / clean).resolve()
-    data_root = (PROJECT_ROOT / "data" / s.active_client).resolve()
-
-    if not str(full_path).startswith(str(data_root)):
-        raise HTTPException(403, "Path traversal blocked")
+    full_path, data_root = _safe_data_path(file_path, s.active_client)
     if not full_path.exists():
         raise HTTPException(404, f"File not found: {file_path}")
 
@@ -1062,11 +1072,7 @@ async def update_data_file(file_path: str, request: Request) -> dict:
         raise HTTPException(400, "content must be a string")
 
     clean = Path(file_path.replace("..", "").strip("/"))
-    full_path = (PROJECT_ROOT / "data" / s.active_client / clean).resolve()
-    data_root = (PROJECT_ROOT / "data" / s.active_client).resolve()
-
-    if not str(full_path).startswith(str(data_root)):
-        raise HTTPException(403, "Path traversal blocked")
+    full_path, _ = _safe_data_path(file_path, s.active_client)
 
     full_path.parent.mkdir(parents=True, exist_ok=True)
     full_path.write_text(content, encoding="utf-8")
@@ -1089,11 +1095,7 @@ async def create_data_file(request: Request) -> dict:
         raise HTTPException(400, "path and content are required")
 
     clean = Path(file_path.replace("..", "").strip("/"))
-    full_path = (PROJECT_ROOT / "data" / s.active_client / clean).resolve()
-    data_root = (PROJECT_ROOT / "data" / s.active_client).resolve()
-
-    if not str(full_path).startswith(str(data_root)):
-        raise HTTPException(403, "Path traversal blocked")
+    full_path, _ = _safe_data_path(file_path, s.active_client)
     if full_path.exists():
         raise HTTPException(409, f"File already exists: {file_path}")
 
@@ -1108,11 +1110,7 @@ def delete_data_file(file_path: str, request: Request) -> dict:
     """Delete a data file."""
     s = request.app.state.bot.settings
     clean = Path(file_path.replace("..", "").strip("/"))
-    full_path = (PROJECT_ROOT / "data" / s.active_client / clean).resolve()
-    data_root = (PROJECT_ROOT / "data" / s.active_client).resolve()
-
-    if not str(full_path).startswith(str(data_root)):
-        raise HTTPException(403, "Path traversal blocked")
+    full_path, _ = _safe_data_path(file_path, s.active_client)
     if not full_path.exists():
         raise HTTPException(404, f"File not found: {file_path}")
 
@@ -1139,12 +1137,7 @@ async def upload_data_file(request: Request) -> dict:
 
     s = request.app.state.bot.settings
     rel_path = f"{folder}/{filename}" if folder else filename
-    clean = Path(rel_path.replace("..", "").strip("/"))
-    full_path = (PROJECT_ROOT / "data" / s.active_client / clean).resolve()
-    data_root = (PROJECT_ROOT / "data" / s.active_client).resolve()
-
-    if not str(full_path).startswith(str(data_root)):
-        raise HTTPException(403, "Path traversal blocked")
+    full_path, data_root = _safe_data_path(rel_path, s.active_client)
 
     content = await upload.read()
     if b"\x00" in content:

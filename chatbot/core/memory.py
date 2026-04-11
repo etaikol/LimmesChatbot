@@ -16,6 +16,7 @@ The store is intentionally simple. For higher scale swap in Redis/DB.
 from __future__ import annotations
 
 import json
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, Literal, Optional
@@ -89,6 +90,8 @@ class SessionStore:
         self.max_turns = max_turns
         self.sessions_dir = sessions_dir
         self._memory: dict[str, ConversationMemory] = {}
+        self._locks: dict[str, threading.Lock] = {}
+        self._locks_guard = threading.Lock()
 
         if backend == "file":
             assert sessions_dir is not None, "sessions_dir is required for file backend"
@@ -157,6 +160,13 @@ class SessionStore:
 
     # ── Internals ───────────────────────────────────────────────────────────
 
+    def _session_lock(self, session_id: str) -> threading.Lock:
+        """Return a per-session lock, creating it lazily."""
+        with self._locks_guard:
+            if session_id not in self._locks:
+                self._locks[session_id] = threading.Lock()
+            return self._locks[session_id]
+
     def _file_for(self, session_id: str) -> Path:
         assert self.sessions_dir is not None
         # Sanitize id for filesystem use
@@ -168,8 +178,9 @@ class SessionStore:
         if not path.exists():
             return ConversationMemory(max_turns=self.max_turns)
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            with self._session_lock(session_id):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
             return ConversationMemory(**data)
         except Exception as e:
             logger.warning("Could not load session {}: {}", session_id, e)
@@ -186,13 +197,15 @@ class SessionStore:
                 target = self._file_for(session_id)
                 # Atomic write: write to temp file, then rename.
                 # This ensures a crash mid-write never corrupts the real file.
-                tmp = target.with_suffix(".json.tmp")
-                with open(tmp, "w", encoding="utf-8") as f:
-                    json.dump(mem.model_dump(), f, ensure_ascii=False, indent=2)
-                    f.flush()
-                    import os
-                    os.fsync(f.fileno())
-                tmp.replace(target)
+                # Per-session lock prevents two requests from racing.
+                with self._session_lock(session_id):
+                    tmp = target.with_suffix(".json.tmp")
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        json.dump(mem.model_dump(), f, ensure_ascii=False, indent=2)
+                        f.flush()
+                        import os
+                        os.fsync(f.fileno())
+                    tmp.replace(target)
             except Exception as e:
                 logger.warning("Could not save session {}: {}", session_id, e)
         elif self.backend == "postgres":

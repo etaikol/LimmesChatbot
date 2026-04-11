@@ -766,7 +766,10 @@ var ONB_STEPS=[
   {icon:'📁',titleK:'onb.step1_title',bodyK:'onb.step1_body',page:'data'},
   {icon:'🏢',titleK:'onb.step2_title',bodyK:'onb.step2_body',page:'config',configTab:'client'},
   {icon:'🤖',titleK:'onb.step3_title',bodyK:'onb.step3_body',page:'config',configTab:'personality'},
-  {icon:'📊',titleK:'onb.step4_title',bodyK:'onb.step4_body',page:'overview'},
+  {icon:'�️',titleK:'onb.step4_title',bodyK:'onb.step4_body',page:'products'},
+  {icon:'💬',titleK:'onb.step5_title',bodyK:'onb.step5_body',page:'line'},
+  {icon:'🤝',titleK:'onb.step6_title',bodyK:'onb.step6_body',page:'handoff'},
+  {icon:'📊',titleK:'onb.step7_title',bodyK:'onb.step7_body',page:'overview'},
 ];
 function showOnboarding(){
   document.getElementById('onbOverlay').style.display='block';
@@ -1566,7 +1569,7 @@ async function loadContacts(){
     (d.messages||[]).forEach(function(m){
       var statusTag=m.replied?'<span class="tag tag-on">Replied</span>':m.read?'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Read</span>':'<span class="tag tag-off">Unread</span>';
       var actions='<button class="btn btn-ghost btn-sm" onclick="markContactRead(\''+m.id+'\')">✓ Read</button> <button class="btn btn-ghost btn-sm" onclick="markContactReplied(\''+m.id+'\')">↩ Replied</button> <button class="btn btn-danger btn-sm" onclick="deleteContact(\''+m.id+'\')">✕</button>';
-      rows.innerHTML+='<tr><td>'+m.channel+'</td><td>'+m.customer_name+'</td><td style="font-size:12px">'+m.customer_contact+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+m.message+'</td><td style="font-size:11px">'+new Date(m.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
+      rows.innerHTML+='<tr><td>'+esc(m.channel)+'</td><td>'+esc(m.customer_name)+'</td><td style="font-size:12px">'+esc(m.customer_contact)+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+esc(m.message)+'</td><td style="font-size:11px">'+new Date(m.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
     });
   }catch(e){toast(e.message,'err')}
 }
@@ -1657,7 +1660,7 @@ async function loadFallbacks(){
     (d.questions||[]).forEach(function(q){
       var statusTag=q.added_to_kb?'<span class="tag tag-on">In KB</span>':q.resolved?'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Resolved</span>':'<span class="tag tag-off">Open</span>';
       var actions='<button class="btn btn-ghost btn-sm" onclick="resolveFallback(\''+encodeURIComponent(q.question)+'\')">✓ Resolve</button> <button class="btn btn-primary btn-sm" onclick="addToKb(\''+encodeURIComponent(q.question)+'\')">+ KB</button> <button class="btn btn-danger btn-sm" onclick="deleteFallback(\''+encodeURIComponent(q.question)+'\')">✕</button>';
-      rows.innerHTML+='<tr><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+q.question+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:11px;color:var(--muted)">'+q.answer_given.substring(0,100)+'</td><td style="font-size:11px">'+q.session_id+'</td><td style="font-size:11px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
+      rows.innerHTML+='<tr><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+esc(q.question)+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:11px;color:var(--muted)">'+esc((q.answer_given||'').substring(0,100))+'</td><td style="font-size:11px">'+esc(q.session_id)+'</td><td style="font-size:11px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
     });
     if(!d.questions||!d.questions.length)rows.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No unanswered questions — great!</td></tr>';
   }catch(e){toast(e.message,'err')}
@@ -1671,18 +1674,19 @@ window.deleteFallback=async function(q){if(!confirm('Delete this entry?'))return
 window.loadAnalytics=async function(){
   try{
     var d=await api('/analytics');
+    var dv=d.daily_volume||{};
     document.getElementById('analyticsCards').innerHTML=
-      card(t('analytics.total'),d.total_events||0,'')+
-      card(t('analytics.avgResponse'),(d.avg_response_time||0).toFixed(2)+'s','')+
+      card(t('analytics.total'),d.total_questions||0,'')+
+      card(t('analytics.avgResponse'),((d.avg_response_time_ms||0)/1000).toFixed(2)+'s','')+
       card(t('analytics.unanswered'),d.unanswered_count||0,'')+
-      card(t('analytics.dailyVolume'),(d.daily_volume||[]).length+' days','');
-    var topR='';(d.top_questions||[]).forEach(function(q){topR+='<tr><td style="font-size:12px;max-width:300px;white-space:pre-wrap">'+esc(q[0])+'</td><td>'+q[1]+'</td></tr>'});
+      card(t('analytics.dailyVolume'),Object.keys(dv).length+' days','');
+    var topR='';(d.top_questions||[]).forEach(function(q){topR+='<tr><td style="font-size:12px;max-width:300px;white-space:pre-wrap">'+esc(q.question||'')+'</td><td>'+q.count+'</td></tr>'});
     document.getElementById('analyticsTopRows').innerHTML=topR||'<tr><td colspan="2" style="text-align:center;color:var(--muted)">No data</td></tr>';
-    var langR='';Object.entries(d.by_language||{}).forEach(function(e){langR+='<tr><td>'+esc(e[0])+'</td><td>'+e[1]+'</td></tr>'});
+    var langR='';Object.entries(d.language_breakdown||{}).forEach(function(e){langR+='<tr><td>'+esc(e[0])+'</td><td>'+e[1]+'</td></tr>'});
     document.getElementById('analyticsLangRows').innerHTML=langR||'<tr><td colspan="2" style="text-align:center;color:var(--muted)">No data</td></tr>';
-    var chR='';Object.entries(d.by_channel||{}).forEach(function(e){chR+='<tr><td style="text-transform:capitalize">'+esc(e[0])+'</td><td>'+e[1]+'</td></tr>'});
+    var chR='';Object.entries(d.channel_breakdown||{}).forEach(function(e){chR+='<tr><td style="text-transform:capitalize">'+esc(e[0])+'</td><td>'+e[1]+'</td></tr>'});
     document.getElementById('analyticsChannelRows').innerHTML=chR||'<tr><td colspan="2" style="text-align:center;color:var(--muted)">No data</td></tr>';
-    var vR='';Object.entries(d.by_variant||{}).forEach(function(e){vR+='<tr><td>'+esc(e[0])+'</td><td>'+e[1]+'</td></tr>'});
+    var vR='';Object.entries(d.ab_test_results||{}).forEach(function(e){vR+='<tr><td>'+esc(e[0])+'</td><td>'+e[1].questions+'</td></tr>'});
     document.getElementById('analyticsVariantRows').innerHTML=vR||'<tr><td colspan="2" style="text-align:center;color:var(--muted)">No data</td></tr>';
   }catch(e){toast(e.message,'err')}
 };
@@ -1693,7 +1697,7 @@ var _feedbackData=null;var _feedbackFilter='all';
 window.loadFeedback=async function(){
   try{
     var d=await api('/feedback');_feedbackData=d;
-    var entries=d.entries||[];var up=entries.filter(function(e){return e.feedback==='up'}).length;var down=entries.filter(function(e){return e.feedback==='down'}).length;
+    var entries=d.feedback||[];var up=entries.filter(function(e){return e.feedback==='up'}).length;var down=entries.filter(function(e){return e.feedback==='down'}).length;
     document.getElementById('feedbackCards').innerHTML=
       card(t('feedback.total'),entries.length,'')+
       card('👍 '+t('feedback.positive'),up,'')+
@@ -1714,7 +1718,7 @@ window.showFeedbackTab=function(tab,btn){
   _feedbackFilter=tab;
   document.querySelectorAll('#page-feedback .tab-btn').forEach(function(b){b.classList.remove('active')});
   btn.classList.add('active');
-  if(_feedbackData)renderFeedbackTable(_feedbackData.entries||[]);
+  if(_feedbackData)renderFeedbackTable(_feedbackData.feedback||[]);
 };
 window.clearFeedback=async function(){if(!confirm('Clear all feedback data?'))return;try{await api('/feedback',{method:'DELETE'});toast('Cleared','ok');loadFeedback()}catch(e){toast(e.message,'err')}};
 
@@ -1722,14 +1726,14 @@ window.clearFeedback=async function(){if(!confirm('Clear all feedback data?'))re
 window.loadABTest=async function(){
   try{
     var d=await api('/ab-test');
-    var test=d.test||{};var stats=d.stats||{};
+    var cfg=d.config||{};var dist=d.distribution||{};
     document.getElementById('abtestCards').innerHTML=
-      card(t('abtest.status'),test.name?'<span class="tag tag-on">Active</span>':'<span class="tag tag-off">Not Set</span>',test.name||'')+
-      card(t('abtest.totalUsers'),stats.total_assignments||0,'');
-    if(test.name)document.getElementById('abTestName').value=test.name;
-    if(test.variants)document.getElementById('abTestVariants').value=JSON.stringify(test.variants,null,2);
-    var rows='';(test.variants||[]).forEach(function(v){
-      var count=stats.variant_counts?stats.variant_counts[v.name]||0:0;
+      card(t('abtest.status'),cfg.name?'<span class="tag tag-on">Active</span>':'<span class="tag tag-off">Not Set</span>',cfg.name||'')+
+      card(t('abtest.totalUsers'),d.total_assigned||0,'');
+    if(cfg.name)document.getElementById('abTestName').value=cfg.name;
+    if(cfg.variants)document.getElementById('abTestVariants').value=JSON.stringify(cfg.variants,null,2);
+    var rows='';(cfg.variants||[]).forEach(function(v){
+      var count=dist[v.name]||0;
       rows+='<tr><td>'+esc(v.name)+'</td><td>'+count+'</td><td>'+v.weight+'%</td><td>'+esc(v.personality||'default')+'</td></tr>';
     });
     document.getElementById('abtestRows').innerHTML=rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted)">No test configured</td></tr>';
@@ -1748,10 +1752,10 @@ window.clearABAssignments=async function(){if(!confirm('Clear all A/B user assig
 window.loadUserMemory=async function(){
   try{
     var d=await api('/user-memory');
-    var profiles=d.profiles||[];
-    document.getElementById('umCards').innerHTML=card(t('um.totalProfiles'),profiles.length,'');
+    var profiles=d.users||[];
+    document.getElementById('umCards').innerHTML=card(t('um.totalProfiles'),d.total||profiles.length,'');
     var html='';profiles.forEach(function(p){
-      var facts=(p.facts||[]).length;
+      var facts=p.facts_count||0;
       var tags=(p.tags||[]).map(function(t){return'<span class="tag tag-on" style="margin:1px">'+esc(t)+'</span>'}).join(' ');
       html+='<tr><td style="font-size:11px;font-family:monospace">'+esc((p.user_id||'').slice(0,20))+'</td><td>'+esc(p.display_name||'—')+'</td><td>'+facts+'</td><td>'+tags+'</td><td style="font-size:11px">'+new Date(p.last_seen).toLocaleString()+'</td><td><button class="btn btn-ghost btn-sm" onclick="viewUserMemory(\''+esc(p.user_id)+'\')">View</button> <button class="btn btn-danger btn-sm" data-admin-only onclick="deleteUserMemory(\''+esc(p.user_id)+'\')">Delete</button></td></tr>';
     });
@@ -1760,10 +1764,10 @@ window.loadUserMemory=async function(){
 };
 window.viewUserMemory=async function(uid){
   try{
-    var d=await api('/user-memory/'+encodeURIComponent(uid));var p=d.profile||d;
+    var d=await api('/user-memory/'+encodeURIComponent(uid));var p=d;
     var html='<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal"><div class="modal-head"><h3>User: '+esc(p.display_name||p.user_id)+'</h3><button class="btn btn-ghost btn-sm" onclick="this.closest(\'.modal-bg\').remove()">&times;</button></div><div class="modal-body">';
     html+='<div class="cfg-card"><h4>Facts</h4>';
-    (p.facts||[]).forEach(function(f){html+='<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><strong>'+esc(f.key||'')+':</strong> '+esc(f.value||'')+'<span style="color:var(--muted);font-size:11px;margin-left:8px">'+esc(f.source||'')+'</span></div>'});
+    (p.facts||[]).forEach(function(f){html+='<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><strong>['+esc(f.category||'general')+']</strong> '+esc(f.fact||'')+'<span style="color:var(--muted);font-size:11px;margin-left:8px">'+esc(f.source||'')+'</span></div>'});
     if(!p.facts||!p.facts.length)html+='<p style="color:var(--muted)">No facts stored</p>';
     html+='</div>';
     html+='<div class="cfg-card"><h4>Tags</h4><p>'+(p.tags||[]).map(function(t){return'<span class="tag tag-on" style="margin:2px">'+esc(t)+'</span>'}).join(' ')||'<span style="color:var(--muted)">No tags</span>'+'</p></div>';
@@ -1899,8 +1903,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "onb.step2_body": "Set your business name, location, language, and which personality preset to use. This tells the bot who it's representing.",
         "onb.step3_title": "\U0001f916 AI Personalization",
         "onb.step3_body": "Customize the bot's tone, character, and response style. The personality shapes how the bot speaks to your customers.",
-        "onb.step4_title": "\U0001f4ca Overview",
-        "onb.step4_body": "Monitor sessions, budget, and channels. All live stats in one place.",
+        "onb.step4_title": "\U0001f6cd\ufe0f Products",
+        "onb.step4_body": "Manage your product catalog \u2014 add items with images and details. The bot can recommend and display them in LINE carousels.",
+        "onb.step5_title": "\U0001f4ac LINE Channel",
+        "onb.step5_body": "Connect your LINE Official Account. The bot can respond to customers, send product carousels, and push admin replies in real time.",
+        "onb.step6_title": "\U0001f91d Handoff & Messages",
+        "onb.step6_body": "When the bot can't help, it hands off to you. Review pending conversations and reply directly \u2014 your message is pushed to the customer instantly.",
+        "onb.step7_title": "\U0001f4ca Analytics & Overview",
+        "onb.step7_body": "Monitor sessions, budget, feedback, and unanswered questions. All live stats in one place to measure your bot's performance.",
         "onb.skip": "Skip",
         "onb.next": "Next",
         "onb.prev": "Back",
@@ -1956,6 +1966,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "page.fallback": "\u2753 Unanswered Questions",
         "products.total": "Total Products",
         "products.categories": "Categories",
+        "products.inStock": "In Stock",
+        "products.outOfStock": "Out of Stock",
+        "btn.save": "Save",
         "contacts.unread": "Unread",
         "contacts.total": "Total Messages",
         "fallback.unresolved": "Unresolved",
@@ -2133,8 +2146,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "onb.step2_body": "\u05d4\u05d2\u05d3\u05d9\u05e8\u05d5 \u05e9\u05dd \u05e2\u05e1\u05e7, \u05de\u05d9\u05e7\u05d5\u05dd, \u05e9\u05e4\u05d4 \u05d5\u05d0\u05d9\u05d6\u05d5 \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05dc\u05d4\u05e9\u05ea\u05de\u05e9. \u05d4\u05d1\u05d5\u05d8 \u05d9\u05d3\u05e2 \u05de\u05d9 \u05d4\u05d5\u05d0 \u05de\u05d9\u05d9\u05e6\u05d2.",
         "onb.step3_title": "\U0001f916 \u05d4\u05ea\u05d0\u05de\u05ea AI",
         "onb.step3_body": "\u05d4\u05ea\u05d0\u05d9\u05de\u05d5 \u05d0\u05ea \u05d4\u05d8\u05d5\u05df, \u05d4\u05d0\u05d5\u05e4\u05d9 \u05d5\u05e1\u05d2\u05e0\u05d5\u05df \u05d4\u05ea\u05d2\u05d5\u05d1\u05d4. \u05d4\u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05e7\u05d5\u05d1\u05e2\u05ea \u05d0\u05d9\u05da \u05d4\u05d1\u05d5\u05d8 \u05de\u05d3\u05d1\u05e8 \u05e2\u05dd \u05d4\u05dc\u05e7\u05d5\u05d7\u05d5\u05ea \u05e9\u05dc\u05db\u05dd.",
-        "onb.step4_title": "\U0001f4ca \u05e1\u05e7\u05d9\u05e8\u05d4",
-        "onb.step4_body": "\u05e2\u05e7\u05d1\u05d5 \u05d0\u05d7\u05e8\u05d9 \u05e9\u05d9\u05d7\u05d5\u05ea, \u05ea\u05e7\u05e6\u05d9\u05d1 \u05d5\u05e2\u05e8\u05d5\u05e6\u05d9\u05dd. \u05db\u05dc \u05d4\u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05d1\u05de\u05e7\u05d5\u05dd \u05d0\u05d7\u05d3.",
+        "onb.step4_title": "\U0001f6cd\ufe0f \u05de\u05d5\u05e6\u05e8\u05d9\u05dd",
+        "onb.step4_body": "\u05e0\u05d4\u05dc\u05d5 \u05d0\u05ea \u05e7\u05d8\u05dc\u05d5\u05d2 \u05d4\u05de\u05d5\u05e6\u05e8\u05d9\u05dd \u2014 \u05d4\u05d5\u05e1\u05d9\u05e4\u05d5 \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05e2\u05dd \u05ea\u05de\u05d5\u05e0\u05d5\u05ea \u05d5\u05e4\u05e8\u05d8\u05d9\u05dd. \u05d4\u05d1\u05d5\u05d8 \u05d9\u05db\u05d5\u05dc \u05dc\u05d4\u05de\u05dc\u05d9\u05e5 \u05d5\u05dc\u05d4\u05e6\u05d9\u05d2 \u05d0\u05d5\u05ea\u05dd \u05d1\u05e7\u05e8\u05d5\u05e1\u05dc\u05d5\u05ea LINE.",
+        "onb.step5_title": "\U0001f4ac \u05e2\u05e8\u05d5\u05e5 LINE",
+        "onb.step5_body": "\u05d7\u05d1\u05e8\u05d5 \u05d0\u05ea \u05d7\u05e9\u05d1\u05d5\u05df LINE \u05d4\u05e8\u05e9\u05de\u05d9 \u05e9\u05dc\u05db\u05dd. \u05d4\u05d1\u05d5\u05d8 \u05d9\u05e2\u05e0\u05d4 \u05dc\u05dc\u05e7\u05d5\u05d7\u05d5\u05ea, \u05d9\u05e9\u05dc\u05d7 \u05e7\u05e8\u05d5\u05e1\u05dc\u05d5\u05ea \u05de\u05d5\u05e6\u05e8\u05d9\u05dd \u05d5\u05d9\u05d3\u05d7\u05d5\u05e3 \u05ea\u05e9\u05d5\u05d1\u05d5\u05ea \u05de\u05e0\u05d4\u05dc \u05d1\u05d6\u05de\u05df \u05d0\u05de\u05ea.",
+        "onb.step6_title": "\U0001f91d \u05d4\u05e2\u05d1\u05e8\u05d4 \u05d5\u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
+        "onb.step6_body": "\u05db\u05e9\u05d4\u05d1\u05d5\u05d8 \u05dc\u05d0 \u05d9\u05db\u05d5\u05dc \u05dc\u05e2\u05d6\u05d5\u05e8, \u05d4\u05d5\u05d0 \u05de\u05e2\u05d1\u05d9\u05e8 \u05d0\u05dc\u05d9\u05db\u05dd. \u05e6\u05e4\u05d5 \u05d1\u05e9\u05d9\u05d7\u05d5\u05ea \u05de\u05de\u05ea\u05d9\u05e0\u05d5\u05ea \u05d5\u05d4\u05e9\u05d9\u05d1\u05d5 \u05d9\u05e9\u05d9\u05e8\u05d5\u05ea \u2014 \u05d4\u05d4\u05d5\u05d3\u05e2\u05d4 \u05e0\u05d3\u05d7\u05e4\u05ea \u05dc\u05dc\u05e7\u05d5\u05d7 \u05de\u05d9\u05d3.",
+        "onb.step7_title": "\U0001f4ca \u05d0\u05e0\u05dc\u05d9\u05d8\u05d9\u05e7\u05d4 \u05d5\u05e1\u05e7\u05d9\u05e8\u05d4",
+        "onb.step7_body": "\u05e2\u05e7\u05d1\u05d5 \u05d0\u05d7\u05e8\u05d9 \u05e9\u05d9\u05d7\u05d5\u05ea, \u05ea\u05e7\u05e6\u05d9\u05d1, \u05de\u05e9\u05d5\u05d1 \u05d5\u05e9\u05d0\u05dc\u05d5\u05ea \u05dc\u05dc\u05d0 \u05de\u05e2\u05e0\u05d4. \u05db\u05dc \u05d4\u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05d1\u05de\u05e7\u05d5\u05dd \u05d0\u05d7\u05d3 \u05dc\u05de\u05d3\u05d9\u05d3\u05ea \u05d1\u05d9\u05e6\u05d5\u05e2\u05d9 \u05d4\u05d1\u05d5\u05d8.",
         "onb.skip": "\u05d3\u05dc\u05d2",
         "onb.next": "\u05d4\u05d1\u05d0",
         "onb.prev": "\u05d4\u05e7\u05d5\u05d3\u05dd",
@@ -2190,6 +2209,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "page.fallback": "\u2753 \u05e9\u05d0\u05dc\u05d5\u05ea \u05dc\u05dc\u05d0 \u05de\u05e2\u05e0\u05d4",
         "products.total": "\u05e1\u05d4\u05f4\u05db \u05de\u05d5\u05e6\u05e8\u05d9\u05dd",
         "products.categories": "\u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d5\u05ea",
+        "products.inStock": "\u05d1\u05de\u05dc\u05d0\u05d9",
+        "products.outOfStock": "\u05d0\u05d6\u05dc",
+        "btn.save": "\u05e9\u05de\u05d5\u05e8",
         "contacts.unread": "\u05dc\u05d0 \u05e0\u05e7\u05e8\u05d0\u05d5",
         "contacts.total": "\u05e1\u05d4\u05f4\u05db \u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
         "fallback.unresolved": "\u05dc\u05d0 \u05e0\u05e4\u05ea\u05e8\u05d5",
@@ -2367,8 +2389,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "onb.step2_body": "\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32\u0e0a\u0e37\u0e48\u0e2d\u0e18\u0e38\u0e23\u0e01\u0e34\u0e08, \u0e2a\u0e16\u0e32\u0e19\u0e17\u0e35\u0e48, \u0e20\u0e32\u0e29\u0e32, \u0e41\u0e25\u0e30\u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e \u0e1a\u0e2d\u0e17\u0e08\u0e30\u0e23\u0e39\u0e49\u0e27\u0e48\u0e32\u0e15\u0e31\u0e27\u0e40\u0e2d\u0e07\u0e01\u0e33\u0e25\u0e31\u0e07\u0e40\u0e1b\u0e47\u0e19\u0e15\u0e31\u0e27\u0e41\u0e17\u0e19\u0e02\u0e2d\u0e07\u0e43\u0e04\u0e23",
         "onb.step3_title": "\U0001f916 \u0e1b\u0e23\u0e31\u0e1a\u0e41\u0e15\u0e48\u0e07 AI",
         "onb.step3_body": "\u0e1b\u0e23\u0e31\u0e1a\u0e41\u0e15\u0e48\u0e07\u0e42\u0e17\u0e19, \u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01, \u0e41\u0e25\u0e30\u0e23\u0e39\u0e1b\u0e41\u0e1a\u0e1a\u0e01\u0e32\u0e23\u0e15\u0e2d\u0e1a\u0e02\u0e2d\u0e07\u0e1a\u0e2d\u0e17 \u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e27\u0e34\u0e18\u0e35\u0e17\u0e35\u0e48\u0e1a\u0e2d\u0e17\u0e1e\u0e39\u0e14\u0e01\u0e31\u0e1a\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13",
-        "onb.step4_title": "\U0001f4ca \u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
-        "onb.step4_body": "\u0e14\u0e39\u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19, \u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13, \u0e41\u0e25\u0e30\u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07 \u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e2a\u0e14\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14\u0e43\u0e19\u0e17\u0e35\u0e48\u0e40\u0e14\u0e35\u0e22\u0e27",
+        "onb.step4_title": "\U0001f6cd\ufe0f \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32",
+        "onb.step4_body": "\u0e08\u0e31\u0e14\u0e01\u0e32\u0e23\u0e41\u0e04\u0e15\u0e15\u0e32\u0e25\u0e47\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u2014 \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e23\u0e39\u0e1b\u0e20\u0e32\u0e1e\u0e41\u0e25\u0e30\u0e23\u0e32\u0e22\u0e25\u0e30\u0e40\u0e2d\u0e35\u0e22\u0e14 \u0e1a\u0e2d\u0e17\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e41\u0e19\u0e30\u0e19\u0e33\u0e41\u0e25\u0e30\u0e41\u0e2a\u0e14\u0e07\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19 LINE carousel",
+        "onb.step5_title": "\U0001f4ac \u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07 LINE",
+        "onb.step5_body": "\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d\u0e1a\u0e31\u0e0d\u0e0a\u0e35 LINE Official \u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13 \u0e1a\u0e2d\u0e17\u0e08\u0e30\u0e15\u0e2d\u0e1a\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32 \u0e2a\u0e48\u0e07 carousel \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u0e41\u0e25\u0e30\u0e2a\u0e48\u0e07\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e08\u0e32\u0e01\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19\u0e41\u0e1a\u0e1a\u0e40\u0e23\u0e35\u0e22\u0e25\u0e44\u0e17\u0e21\u0e4c",
+        "onb.step6_title": "\U0001f91d \u0e01\u0e32\u0e23\u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d\u0e41\u0e25\u0e30\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21",
+        "onb.step6_body": "\u0e40\u0e21\u0e37\u0e48\u0e2d\u0e1a\u0e2d\u0e17\u0e0a\u0e48\u0e27\u0e22\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49 \u0e08\u0e30\u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e04\u0e38\u0e13 \u0e14\u0e39\u0e1a\u0e17\u0e2a\u0e19\u0e17\u0e19\u0e32\u0e17\u0e35\u0e48\u0e23\u0e2d\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23\u0e41\u0e25\u0e30\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e31\u0e1a\u0e44\u0e14\u0e49\u0e42\u0e14\u0e22\u0e15\u0e23\u0e07 \u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e08\u0e30\u0e2a\u0e48\u0e07\u0e16\u0e36\u0e07\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e17\u0e31\u0e19\u0e17\u0e35",
+        "onb.step7_title": "\U0001f4ca \u0e27\u0e34\u0e40\u0e04\u0e23\u0e32\u0e30\u0e2b\u0e4c\u0e41\u0e25\u0e30\u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
+        "onb.step7_body": "\u0e14\u0e39\u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19, \u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13, \u0e1f\u0e35\u0e14\u0e41\u0e1a\u0e47\u0e04, \u0e41\u0e25\u0e30\u0e04\u0e33\u0e16\u0e32\u0e21\u0e17\u0e35\u0e48\u0e44\u0e21\u0e48\u0e21\u0e35\u0e04\u0e33\u0e15\u0e2d\u0e1a \u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e2a\u0e14\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14\u0e43\u0e19\u0e17\u0e35\u0e48\u0e40\u0e14\u0e35\u0e22\u0e27\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e27\u0e31\u0e14\u0e1c\u0e25\u0e1a\u0e2d\u0e17",
         "onb.skip": "\u0e02\u0e49\u0e32\u0e21",
         "onb.next": "\u0e16\u0e31\u0e14\u0e44\u0e1b",
         "onb.prev": "\u0e01\u0e25\u0e31\u0e1a",
@@ -2424,6 +2452,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "page.fallback": "\u2753 \u0e04\u0e33\u0e16\u0e32\u0e21\u0e17\u0e35\u0e48\u0e44\u0e21\u0e48\u0e21\u0e35\u0e04\u0e33\u0e15\u0e2d\u0e1a",
         "products.total": "\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
         "products.categories": "\u0e2b\u0e21\u0e27\u0e14\u0e2b\u0e21\u0e39\u0e48",
+        "products.inStock": "\u0e21\u0e35\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32",
+        "products.outOfStock": "\u0e2b\u0e21\u0e14\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32",
+        "btn.save": "\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01",
         "contacts.unread": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e2d\u0e48\u0e32\u0e19",
         "contacts.total": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
         "fallback.unresolved": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e41\u0e01\u0e49\u0e44\u0e02",

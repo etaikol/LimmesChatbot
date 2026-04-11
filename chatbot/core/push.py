@@ -38,6 +38,11 @@ import httpx
 
 from chatbot.logging_setup import logger
 
+# Retryable HTTP status codes (transient errors)
+_RETRY_STATUSES = {429, 500, 502, 503, 504}
+_MAX_RETRIES = 2
+_RETRY_BACKOFF = 1.5  # seconds, doubled on each retry
+
 
 class PushService:
     """Dispatch admin messages to the user's channel in real time."""
@@ -105,24 +110,61 @@ class PushService:
             "to": user_id,
             "messages": [{"type": "text", "text": text}],
         }
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.post(
-                    url,
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
-                if resp.status_code >= 400:
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        last_status = 0
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                async with httpx.AsyncClient(timeout=15) as client:
+                    resp = await client.post(url, headers=headers, json=payload)
+                    last_status = resp.status_code
+
+                    if resp.status_code < 400:
+                        logger.info("[push] LINE message sent to {}", user_id)
+                        return True
+
+                    # 401 = expired or invalid channel access token — not retryable
+                    if resp.status_code == 401:
+                        logger.error(
+                            "[push] LINE token expired or invalid (401). "
+                            "Refresh your LINE_CHANNEL_ACCESS_TOKEN in .env "
+                            "and restart. user={} body={}",
+                            user_id,
+                            resp.text,
+                        )
+                        return False
+
+                    # Retryable transient error
+                    if resp.status_code in _RETRY_STATUSES and attempt < _MAX_RETRIES:
+                        wait = _RETRY_BACKOFF * (2 ** attempt)
+                        logger.warning(
+                            "[push] LINE push attempt {}/{} got {} — retrying in {:.1f}s",
+                            attempt + 1, _MAX_RETRIES + 1, resp.status_code, wait,
+                        )
+                        await asyncio.sleep(wait)
+                        continue
+
+                    # Non-retryable 4xx or exhausted retries
                     logger.warning("[push] LINE push failed [{}]: {}", resp.status_code, resp.text)
                     return False
-            logger.info("[push] LINE message sent to {}", user_id)
-            return True
-        except httpx.HTTPError as e:
-            logger.warning("[push] LINE push error: {}", e)
-            return False
+
+            except httpx.HTTPError as e:
+                if attempt < _MAX_RETRIES:
+                    wait = _RETRY_BACKOFF * (2 ** attempt)
+                    logger.warning(
+                        "[push] LINE push attempt {}/{} error: {} — retrying in {:.1f}s",
+                        attempt + 1, _MAX_RETRIES + 1, e, wait,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                logger.warning("[push] LINE push error after {} attempts: {}", _MAX_RETRIES + 1, e)
+                return False
+
+        logger.warning("[push] LINE push exhausted retries (last status {})", last_status)
+        return False
 
     # ── Telegram Push ───────────────────────────────────────────────────
 
