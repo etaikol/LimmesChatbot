@@ -151,10 +151,12 @@ def test_top_questions(tmp_path):
     for _ in range(3):
         t.track(_question("s1", question="hello"))
     t.track(_question("s1", question="what is your name?"))
+    t.track(_question("s1", question="really?!"))
     s = t.dashboard_summary(days=7)
     top = {item["question"]: item["count"] for item in s["top_questions"]}
     assert top["hello"] == 3
-    assert top["what is your name"] == 1  # trailing ? stripped by normalization
+    assert top["what is your name"] == 1  # trailing ? stripped
+    assert top["really"] == 1             # trailing ?! stripped
 
 
 # ── feedback stats ─────────────────────────────────────────────────────────────
@@ -229,9 +231,24 @@ def test_batch_flush(tmp_path):
         t.track(_question(f"s{i}"))
     assert not events_file.exists(), "Should not flush before batch threshold"
 
-    # Explicit flush writes the file
+    # Adding the Nth event (exactly at threshold) triggers an automatic flush
+    t.track(_question("s_threshold"))
+    assert events_file.exists(), "Should auto-flush at exactly FLUSH_BATCH_SIZE"
+
+
+def test_explicit_flush(tmp_path):
+    """flush() writes un-persisted events to disk immediately."""
+    t = _tracker(tmp_path)
+    events_file = tmp_path / "analytics" / "events.json"
+
+    t.track(_question("s1"))
+    assert not events_file.exists(), "Should not flush before explicit call"
+
     t.flush()
     assert events_file.exists()
+
+    # Second flush with no new events is a no-op (no error)
+    t.flush()
 
 
 def test_clear_resets_pending(tmp_path):

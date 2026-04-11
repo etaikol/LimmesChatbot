@@ -60,7 +60,9 @@ class ABTestManager:
                     self._assignments = json.load(f)
             except Exception as e:
                 logger.warning("Could not load A/B assignments: {}", e)
-        # A persisted config override takes precedence over the YAML source.
+        # A persisted config override (written by update_config() via the admin
+        # API) takes precedence over the YAML source. This allows runtime
+        # config changes to survive restarts without requiring a YAML redeploy.
         if self._config_file.exists():
             try:
                 with open(self._config_file, "r", encoding="utf-8") as f:
