@@ -69,3 +69,55 @@ def test_spam_tracker_detects_duplicates():
     tracker.check("s1", "same message")
     result = tracker.check("s1", "same message")
     assert result is not None  # duplicate detected
+
+
+# ── Thai / CJK short-word exceptions (should NOT be gibberish) ───────────────
+
+
+def test_thai_two_char_word_not_gibberish():
+    # ดี = "good" (consonant + upper vowel), 2 chars
+    assert not is_gibberish("ดี")
+
+
+def test_thai_leading_vowel_word_not_gibberish():
+    # ไป = "go" (leading vowel + consonant), 2 chars
+    assert not is_gibberish("ไป")
+
+
+def test_thai_three_char_word_not_gibberish():
+    # ไม่ = "no/not" (leading vowel + consonant + tone mark), 3 chars
+    assert not is_gibberish("ไม่")
+
+
+def test_cjk_two_char_word_not_gibberish():
+    # 你好 = "hello" in Chinese, 2 CJK chars
+    assert not is_gibberish("你好")
+
+
+def test_cjk_single_common_char_not_gibberish_only_if_min_chars_adjusted():
+    # A single CJK character is too short (below default min_meaningful_chars=2)
+    # but should pass when the caller lowers the threshold
+    assert not is_gibberish("好", min_meaningful_chars=1)
+
+
+# ── Thai keyboard-mash detection (should be gibberish) ───────────────────────
+
+
+def test_thai_leading_combining_mark_is_gibberish():
+    # Starts with a tone mark (่ = U+0E48); no base consonant → mash
+    assert is_gibberish("\u0e48\u0e01")  # ่ก
+
+
+def test_thai_high_combining_ratio_is_gibberish():
+    # ก (1 consonant) + ่่้ (3 tone marks) → ratio 3.0 > 1.5
+    assert is_gibberish("\u0e01\u0e48\u0e48\u0e49")  # ก่่้
+
+
+def test_thai_short_no_consonants_is_gibberish():
+    # เเ = two leading-vowel chars, Thai block, no consonants, ≤4 chars
+    assert is_gibberish("\u0e40\u0e40")  # เเ
+
+
+def test_thai_short_consonants_only_no_vowels_is_gibberish():
+    # กขค = 3 consonants, no vowels — random consonant mash
+    assert is_gibberish("\u0e01\u0e02\u0e04")  # กขค
