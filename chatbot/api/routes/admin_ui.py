@@ -884,17 +884,19 @@ function renderBudget(d){
     document.getElementById('budgetChartWrap').style.display='';
     var chartDays=hist.slice(0,30);
     var maxUsd=Math.max.apply(null,chartDays.map(function(r){return r.usd;}));
+    var chartHeightPx=80;
     if(maxUsd===0)maxUsd=1;
     var chartHtml='';
     chartDays.slice().reverse().forEach(function(row){
       var pct=Math.max(2,Math.round(row.usd/maxUsd*100));
+      var barHeightPx=Math.max(2,Math.round(chartHeightPx*pct/100));
       var isToday=row.day===d.day;
       var col=isToday?'var(--accent)':'var(--bg3)';
       var label=row.day.slice(5); // MM-DD
       var safeDay=esc(row.day);
       var safeLabel=esc(label);
       chartHtml+='<div title="'+safeDay+': $'+row.usd.toFixed(4)+'" style="flex:1;min-width:12px;max-width:28px;display:flex;flex-direction:column;align-items:center;gap:3px">'
-        +'<div style="width:100%;background:'+col+';border-radius:3px 3px 0 0;height:'+pct+'px;min-height:2px;transition:height .3s"></div>'
+        +'<div style="width:100%;background:'+col+';border-radius:3px 3px 0 0;height:'+barHeightPx+'px;min-height:2px;transition:height .3s"></div>'
         +'<div style="font-size:9px;color:var(--muted);white-space:nowrap;transform:rotate(-45deg);transform-origin:top center;margin-top:4px">'+safeLabel+'</div>'
         +'</div>';
     });
