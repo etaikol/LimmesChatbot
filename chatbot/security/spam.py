@@ -64,13 +64,16 @@ _THAI_BLOCK_RANGE = range(0x0E00, 0x0E80)
 def _is_thai_gibberish(text: str) -> bool:
     """Return True if the text looks like Thai keyboard mashing.
 
-    Two heuristics:
+    Four heuristics:
     1. If the message starts with a Thai combining mark (no consonant
        base), it is almost certainly accidental key-mashing.
     2. If Thai characters are present and the ratio of combining marks
-       to consonants is >= 1.0, the text has more modifiers than
-       letters — not meaningful Thai.
+       to consonants is > 1.5, the text has far more modifiers than
+       letters, which is unlikely to be meaningful Thai.
     3. Very short Thai-only text (≤4 chars) with no consonant is gibberish.
+    4. Very short Thai-only text (≤4 chars) containing only consonants
+       and no vowels or combining marks is treated as random consonant
+       mashing.
     """
     stripped = text.strip()
     if not stripped:
