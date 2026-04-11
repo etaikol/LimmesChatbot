@@ -8,6 +8,7 @@ using Reciprocal Rank Fusion (RRF).
 
 from __future__ import annotations
 
+import hashlib
 import math
 import re
 from collections import Counter, defaultdict
@@ -193,7 +194,8 @@ class HybridRetriever:
         """Create a stable ID for deduplication."""
         content = doc.page_content[:200]
         source = doc.metadata.get("source", "")
-        return f"{source}:{hash(content)}"
+        digest = hashlib.sha256(f"{source}:{content}".encode()).hexdigest()[:16]
+        return f"{source}:{digest}"
 
     def as_langchain_retriever(self, k: Optional[int] = None):
         """Return a LangChain-compatible retriever wrapper."""
