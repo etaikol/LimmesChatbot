@@ -206,6 +206,7 @@ class BudgetGuard:
             day = _today_utc()
             self._state.setdefault("history", {})[day] = {"tokens": 0, "usd": 0.0}
             self._state["current_day"] = day
+            self._trim_history()
             self._save()
 
     def _ensure_day(self, day: str) -> None:
