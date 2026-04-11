@@ -44,6 +44,72 @@ _SYMBOL_ONLY_RE = re.compile(
     r"^[\s\d\W]+$", re.UNICODE
 )
 
+# Thai combining marks (above/below vowels, tone marks, etc.) that cannot
+# appear at the start of a syllable or in isolation. When the *majority* of
+# Thai characters in a message are combining marks, the text is gibberish
+# produced by mashing the keyboard with a Thai layout.
+_THAI_COMBINING = set(
+    "\u0e31"           # mai han akat (อั)
+    "\u0e34\u0e35\u0e36\u0e37\u0e38\u0e39"  # upper/lower vowels (อิีึืุู)
+    "\u0e47"           # mai tai khu (อ็)
+    "\u0e48\u0e49\u0e4a\u0e4b"  # tone marks (อ่้๊๋)
+    "\u0e4c\u0e4d\u0e4e"        # thanthakhat, nikhahit, yamakkan
+)
+# Thai consonant range: ก (0E01) – ฮ (0E2E)
+_THAI_CONSONANT_RANGE = range(0x0E01, 0x0E2F)
+# Full Thai block range
+_THAI_BLOCK_RANGE = range(0x0E00, 0x0E80)
+
+
+def _is_thai_gibberish(text: str) -> bool:
+    """Return True if the text looks like Thai keyboard mashing.
+
+    Two heuristics:
+    1. If the message starts with a Thai combining mark (no consonant
+       base), it is almost certainly accidental key-mashing.
+    2. If Thai characters are present and the ratio of combining marks
+       to consonants is >= 1.0, the text has more modifiers than
+       letters — not meaningful Thai.
+    3. Very short Thai-only text (≤4 chars) with no consonant is gibberish.
+    """
+    stripped = text.strip()
+    if not stripped:
+        return False
+
+    thai_chars = [c for c in stripped if ord(c) in _THAI_BLOCK_RANGE]
+    if not thai_chars:
+        return False  # not Thai text, skip
+
+    # Heuristic 1: starts with a combining mark
+    if stripped[0] in _THAI_COMBINING:
+        return True
+
+    consonants = sum(1 for c in thai_chars if ord(c) in _THAI_CONSONANT_RANGE)
+    combining = sum(1 for c in thai_chars if c in _THAI_COMBINING)
+
+    # Heuristic 2: far more combining marks than consonants (ratio > 1.5)
+    # Normal Thai has ≤1 mark per consonant; gibberish mashing produces
+    # ratios of 2-3+.  We use 1.5 so real words like ดี (ratio 1.0) pass.
+    if consonants > 0 and combining / consonants > 1.5:
+        return True
+
+    # Heuristic 3: very short Thai-only, no consonants at all
+    if len(stripped) <= 4 and consonants == 0:
+        return True
+
+    # Heuristic 4: short Thai text (≤4 chars) with only consonants
+    # and no vowels = random consonant mash like "พดไพ"
+    if len(thai_chars) <= 4 and len(thai_chars) == len(stripped):
+        vowels_and_marks = combining + sum(
+            1 for c in thai_chars
+            if c in "\u0e40\u0e41\u0e42\u0e43\u0e44"  # leading vowels (เแโใไ)
+            or c in "\u0e30\u0e32\u0e33"  # sara a, sara aa, sara am
+        )
+        if consonants >= 2 and vowels_and_marks == 0 and " " not in stripped:
+            return True
+
+    return False
+
 
 def is_gibberish(text: str, *, min_meaningful_chars: int = 2) -> bool:
     """Return True if ``text`` looks like gibberish / key-mashing.
@@ -68,12 +134,21 @@ def is_gibberish(text: str, *, min_meaningful_chars: int = 2) -> bool:
     # Very short + no spaces = likely random key hit (e.g. "שדג", "abc").
     # We allow up to 3 chars only if they form a single "word" with no
     # spaces — real questions are longer or contain spaces.
+    # Exception: Thai, CJK, and other scripts where 2-3 character words
+    # are common (ดี=good, ไป=go, ไม่=no, 是=yes, etc.).
     if len(stripped) <= 3 and " " not in stripped:
-        return True
+        has_thai = any(ord(c) in _THAI_BLOCK_RANGE for c in stripped)
+        has_cjk = any(0x4E00 <= ord(c) <= 0x9FFF for c in stripped)
+        if not (has_thai or has_cjk):
+            return True
 
     # Multi-line key mashing: lines of 1-3 chars each.
     lines = [ln.strip() for ln in stripped.splitlines() if ln.strip()]
     if len(lines) >= 2 and all(len(ln) <= 3 for ln in lines):
+        return True
+
+    # Thai-specific keyboard-mashing detection.
+    if _is_thai_gibberish(stripped):
         return True
 
     return False

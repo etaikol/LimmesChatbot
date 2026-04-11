@@ -52,33 +52,65 @@ from chatbot.settings import Settings, get_settings
 # ── Handoff keyword detection ───────────────────────────────────────────────
 # Phrases that indicate the user wants to talk to a human. Checked with
 # simple substring matching (case-insensitive) before any paid LLM call.
+#
+# The keyword list is intentionally broad — false positives are cheap (the
+# user just gets the handoff message) while false negatives cost a wasted
+# LLM call *and* the user never reaches a human.
+
+_HUMAN_WORDS = (
+    r"human|person|some?one|anybody|people|agent|staff|representative|support"
+    r"|manager|prof\w+al|expert|advisor|specialist|boss|owner"
+    r"|real person|real human|live agent|live person|live chat"
+)
+
 _HANDOFF_PATTERNS = re.compile(
     r"(?i)"
     r"(?:"
-    # English
-    r"talk to (?:a |an )?(?:human|person|someone|agent|staff|representative|support)"
-    r"|speak (?:to|with) (?:a |an )?(?:human|person|someone|agent|staff|representative|support)"
-    r"|connect me (?:to|with) (?:a |an )?(?:human|person|someone|agent|staff|representative)"
-    r"|transfer (?:me )?to (?:a |an )?(?:human|agent|staff|person|representative|support)"
-    r"|i (?:want|need) (?:a |to talk to (?:a )?)?(?:human|real person|agent|staff|representative)"
-    r"|(?:get|give) me (?:a )?(?:human|real person|agent|staff)"
-    r"|can i (?:talk|speak|chat) (?:to|with) (?:a )?(?:human|person|someone|agent)"
-    r"|let me (?:talk|speak|chat) (?:to|with) (?:a )?(?:human|person|someone|agent)"
-    # Hebrew
-    r"|לדבר עם (?:נציג|אדם|מישהו|תמיכה)"
-    r"|תעביר(?:ו)? (?:ל)?נציג"
-    r"|אני רוצה (?:לדבר עם )?(?:נציג|אדם|מישהו)"
-    r"|(?:אפשר|אני צריך) (?:לדבר עם )?(?:נציג|אדם|מישהו)"
-    # Thai
-    r"|(?:ขอ)?(?:คุย|พูด)กับ(?:คน|เจ้าหน้าที่|พนักงาน|แอดมิน)"
-    r"|ต้องการ(?:คุย|พูด)กับ(?:คน|เจ้าหน้าที่|พนักงาน)"
-    r"|ขอติดต่อ(?:เจ้าหน้าที่|พนักงาน|แอดมิน)"
-    # Arabic
-    r"|(?:أريد|اريد) (?:التحدث|الكلام) (?:مع|إلى) (?:شخص|موظف|ممثل)"
-    r"|(?:حوّلني|حولني) (?:إلى|الى) (?:شخص|موظف|ممثل)"
-    # Russian
-    r"|(?:хочу|могу) поговорить с (?:человеком|оператором|агентом)"
-    r"|(?:переведите|переключите) (?:на|к) (?:человеку|оператору|агенту)"
+    # ── English ──────────────────────────────────────────────────
+    # "talk/speak/chat to/with a human/agent/professional/..."
+    r"(?:talk|speak|chat|communicate)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "connect/transfer/put me to/with a ..."
+    r"|(?:connect|transfer|put|redirect|switch|escalate)\s+(?:me\s+)?(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "i want/need/would like to talk to ..."
+    r"|i\s+(?:want|need|would like|wanna|gotta)\s+(?:to\s+)?(?:talk|speak|chat|communicate)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "i want/need a human/agent/representative"
+    r"|i\s+(?:want|need|would like)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "can/could/may i talk/speak/chat to/with ..."
+    r"|(?:can|could|may)\s+i\s+(?:talk|speak|chat)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "let me talk/speak to ..."
+    r"|let\s+me\s+(?:talk|speak|chat)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "get/give me a human/agent"
+    r"|(?:get|give)\s+me\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "is there someone/anyone i can talk to"
+    r"|is\s+there\s+(?:someone|anyone|somebody|a\s+person|a\s+human)\s+(?:i\s+can\s+(?:talk|speak|chat)\s+(?:to|with))?"
+    # "can someone contact/reach/call me"
+    r"|(?:can|could)\s+(?:someone|anyone|somebody)\s+(?:contact|reach|call|message|get back to)\s+me"
+    # "i(?:'d| would) like to speak with ..."
+    r"|i(?:'d|\s+would)\s+like\s+to\s+(?:talk|speak|chat)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "no bot" / "not a bot" / "stop bot"
+    r"|(?:no|not|stop)\s+(?:a\s+)?bot"
+
+    # ── Hebrew ───────────────────────────────────────────────────
+    r"|לדבר\s+עם\s+(?:נציג|אדם|מישהו|תמיכה|מנהל|מומחה|איש מקצוע)"
+    r"|תעביר(?:ו)?\s+(?:ל)?נציג"
+    r"|אני\s+רוצה\s+(?:לדבר\s+עם\s+)?(?:נציג|אדם|מישהו|מנהל)"
+    r"|(?:אפשר|אני\s+צריך)\s+(?:לדבר\s+עם\s+)?(?:נציג|אדם|מישהו)"
+    r"|(?:יש|אפשר)\s+(?:פה\s+)?מישהו\s+(?:לדבר\s+)?(?:איתו|עם)?"
+
+    # ── Thai ─────────────────────────────────────────────────────
+    r"|(?:ขอ)?(?:คุย|พูด|ติดต่อ|สนทนา)(?:กับ)?(?:คน|เจ้าหน้าที่|พนักงาน|แอดมิน|ผู้จัดการ|ผู้เชี่ยวชาญ)"
+    r"|ต้องการ(?:คุย|พูด|ติดต่อ)(?:กับ)?(?:คน|เจ้าหน้าที่|พนักงาน)"
+    r"|ขอติดต่อ(?:เจ้าหน้าที่|พนักงาน|แอดมิน|ผู้จัดการ)"
+    r"|มีใคร(?:ให้|ที่)?(?:คุย|ปรึกษา|ติดต่อ)(?:ได้)?"
+    r"|ขอ(?:คุย|พูด)กับ(?:คน|ทีม)"
+
+    # ── Arabic ───────────────────────────────────────────────────
+    r"|(?:أريد|اريد)\s+(?:التحدث|الكلام)\s+(?:مع|إلى)\s+(?:شخص|موظف|ممثل)"
+    r"|(?:حوّلني|حولني)\s+(?:إلى|الى)\s+(?:شخص|موظف|ممثل)"
+
+    # ── Russian ──────────────────────────────────────────────────
+    r"|(?:хочу|могу)\s+поговорить\s+с\s+(?:человеком|оператором|агентом)"
+    r"|(?:переведите|переключите)\s+(?:на|к)\s+(?:человеку|оператору|агенту)"
     r")"
 )
 
