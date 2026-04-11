@@ -121,7 +121,10 @@ class LineChannel:
                 if resp.metadata.get("handoff_started"):
                     msgs = get_messages(language)
                     messages.append(
-                        text_message(msgs.get("handoff_connecting", resp.answer))
+                        text_message(msgs.get(
+                            "handoff_connecting",
+                            "💬 Your messages will now go directly to our team.",
+                        ))
                     )
             else:
                 messages = self._build_messages(resp)

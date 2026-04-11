@@ -611,7 +611,7 @@ _HTML_BODY = r"""
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-sm" onclick="sendHandoffReply()">Send Reply</button>
           <button class="btn btn-danger btn-sm" onclick="resolveCurrentHandoff()">Resolve &amp; Return to Bot</button>
-          <button class="btn btn-ghost btn-sm" onclick="_stopHandoffPoll();_handoffTarget='';document.getElementById('handoffReplyBox').style.display='none'">Cancel</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelHandoffReply()">Cancel</button>
         </div>
       </div>
     </div>
@@ -1493,6 +1493,8 @@ var _handoffTarget='';
 var _handoffPollTimer=null;
 var _handoffLastMsgCount=0;
 function _stopHandoffPoll(){if(_handoffPollTimer){clearInterval(_handoffPollTimer);_handoffPollTimer=null}}
+function cancelHandoffReply(){_stopHandoffPoll();_handoffTarget='';document.getElementById('handoffReplyBox').style.display='none'}
+window.cancelHandoffReply=cancelHandoffReply;
 async function loadHandoffs(){
   try{
     var d=await api('/handoff?active_only=true');
