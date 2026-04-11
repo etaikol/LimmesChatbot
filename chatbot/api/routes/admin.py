@@ -829,7 +829,14 @@ async def handoff_reply(session_id: str, request: Request) -> dict:
     if not mgr.add_message(session_id, "admin", text):
         raise HTTPException(404, "Active handoff session not found")
     logger.info("[admin] Handoff reply to {} ({} chars)", session_id, len(text))
-    return {"ok": True}
+
+    # Push delivery — send the reply to the user in real time
+    push = getattr(request.app.state, "push_service", None)
+    if push:
+        delivered = await push.deliver(session_id, text)
+        return {"ok": True, "pushed": delivered}
+
+    return {"ok": True, "pushed": False}
 
 
 @router.post("/handoff/{session_id}/resolve", dependencies=[Depends(_require_admin_role)])
@@ -839,6 +846,14 @@ def resolve_handoff(session_id: str, request: Request) -> dict:
     if not mgr or not mgr.resolve(session_id):
         raise HTTPException(404, "Active handoff session not found")
     logger.info("[admin] Handoff resolved for {}", session_id)
+
+    # Close the SSE stream if the user is a web client
+    push = getattr(request.app.state, "push_service", None)
+    if push:
+        q = push._web_queues.get(session_id)
+        if q is not None:
+            q.put_nowait(None)  # sentinel closes the stream
+
     return {"ok": True}
 
 

@@ -16,9 +16,11 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Security
 from fastapi.security.api_key import APIKeyHeader
+from starlette.responses import StreamingResponse
 
 from chatbot.api.schemas import ChatReply, ChatRequest, ClearReply, SourceModel
 from chatbot.exceptions import ChatbotError
@@ -113,6 +115,7 @@ async def chat_endpoint(req: ChatRequest, request: Request) -> ChatReply:
         session_id=resp.session_id,
         sources=[SourceModel(**s.model_dump()) for s in resp.sources],
         products=resp.metadata.get("products", []),
+        handoff=resp.metadata.get("handoff", False),
     )
 
 
@@ -127,3 +130,54 @@ def clear_session(session_id: str, request: Request) -> ClearReply:
 
     bot.reset(session_id)
     return ClearReply(cleared=sanitize_session_id(session_id))
+
+
+# ── SSE push stream (handoff replies) ───────────────────────────────────────
+
+
+@router.get("/chat/events")
+async def chat_events(request: Request, session_id: str):
+    """Server-Sent Events stream for real-time handoff replies.
+
+    The web widget opens this connection when the session enters handoff
+    mode.  Admin replies are pushed instantly instead of waiting for the
+    user's next message.
+    """
+    push = getattr(request.app.state, "push_service", None)
+    if push is None:
+        raise HTTPException(503, "Push service not available")
+
+    sid = sanitize_session_id(session_id)
+    queue = push.subscribe(sid)
+    logger.debug("[sse] Client connected: {}", sid)
+
+    async def event_stream():
+        try:
+            while True:
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    # Send keepalive comment to prevent proxy timeouts
+                    yield ": keepalive\n\n"
+                    continue
+                if msg is None:
+                    # Sentinel: close stream (e.g. handoff resolved)
+                    yield f"event: close\ndata: {{}}\n\n"
+                    break
+                payload = json.dumps({"text": msg}, ensure_ascii=False)
+                yield f"event: handoff_reply\ndata: {payload}\n\n"
+        finally:
+            push.unsubscribe(sid)
+            logger.debug("[sse] Client disconnected: {}", sid)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # nginx: don't buffer SSE
+        },
+    )

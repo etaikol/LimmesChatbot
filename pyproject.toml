@@ -57,3 +57,6 @@ chatbot-scrape = "scripts.scrape:main"
 [tool.setuptools.packages.find]
 include = ["chatbot*", "scripts*"]
 exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

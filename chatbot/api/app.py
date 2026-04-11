@@ -28,6 +28,7 @@ from chatbot.core.engine import Chatbot
 from chatbot.core.fallback_log import FallbackLog
 from chatbot.core.handoff import HandoffManager
 from chatbot.core.products import ProductCatalog
+from chatbot.core.push import PushService
 from chatbot.exceptions import (
     AbuseError,
     BudgetError,
@@ -83,6 +84,7 @@ async def lifespan(app: FastAPI):
     app.state.handoff_manager = bot.handoff
     app.state.fallback_log = bot.fallback_log
     app.state.product_catalog = bot.product_catalog
+    app.state.push_service = PushService(settings)
 
     # ── Rate limiters (per-IP and per-session) ─────────────────────────
     if settings.rate_limit_enabled:

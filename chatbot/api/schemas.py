@@ -50,6 +50,7 @@ class ChatReply(BaseModel):
     session_id: str
     sources: list[SourceModel] = Field(default_factory=list)
     products: list[dict[str, Any]] = Field(default_factory=list)
+    handoff: bool = False
 
 
 class HealthReply(BaseModel):

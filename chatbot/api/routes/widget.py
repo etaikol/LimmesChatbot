@@ -332,6 +332,8 @@ async function send(text){
     if (res.ok) {
       add(data.answer || '(empty reply)', 'b');
       if (data.products) { addProducts(data.products); }
+      // Start listening for real-time handoff replies via SSE
+      if (data.handoff && !_sseActive) { startSSE(); }
     } else if (res.status === 429) {
       add(data.detail || bundle().rate_limited || 'Too many requests.', 'b');
     } else if (res.status === 402) {
@@ -348,6 +350,32 @@ async function send(text){
     $send.disabled = false;
     $in.focus();
   }
+}
+
+// ── SSE for real-time handoff replies ────────────────────────────────────
+var _sseActive = false;
+var _sseSource = null;
+function startSSE(){
+  if (_sseActive) return;
+  _sseActive = true;
+  _sseSource = new EventSource(CONFIG.apiUrl + '/chat/events?session_id=' + encodeURIComponent(sid));
+  _sseSource.addEventListener('handoff_reply', function(e){
+    try {
+      var d = JSON.parse(e.data);
+      if (d.text) { add(d.text, 'b'); }
+    } catch(_) {}
+  });
+  _sseSource.addEventListener('close', function(){
+    stopSSE();
+    add(bundle().handoff_resolved || 'You are now back with the bot.', 'b');
+  });
+  _sseSource.onerror = function(){
+    // Auto-reconnect is built into EventSource; just log
+  };
+}
+function stopSSE(){
+  _sseActive = false;
+  if (_sseSource) { _sseSource.close(); _sseSource = null; }
 }
 
 // ── Wiring ───────────────────────────────────────────────────────────────
