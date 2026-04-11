@@ -39,7 +39,7 @@ def _hash_password(password: str, salt: str) -> str:
         "sha256",
         password.encode("utf-8"),
         salt.encode("utf-8"),
-        iterations=260_000,
+        iterations=600_000,
     ).hex()
 
 
@@ -207,7 +207,7 @@ class UserStore:
                 data = json.loads(self.path.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
                     return data
-        except Exception as exc:  # noqa: BLE001
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
             logger.warning("UserStore: could not read {}: {}", self.path, exc)
         return {"users": {}, "tokens": {}}
 
