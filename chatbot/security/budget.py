@@ -258,7 +258,18 @@ class BudgetGuard:
                     data["history"] = history
                     if history:
                         _trim_history_dict(history)
-                    return data
+
+                    history = data.get("history", {})
+                    if not isinstance(history, dict):
+                        history = {}
+                    if len(history) > 30:
+                        for old_day in sorted(history.keys())[:-30]:
+                            del history[old_day]
+
+                    return {
+                        "current_day": data.get("current_day", _today_utc()),
+                        "history": history,
+                    }
         except Exception as e:
             logger.warning("Could not load budget state ({}): {}", self.state_file, e)
         return {"current_day": _today_utc(), "history": {}}
