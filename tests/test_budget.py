@@ -85,3 +85,28 @@ def test_budget_snapshot(tmp_state):
     assert snap["tokens_used"] == 150
     assert snap["enabled"] is True
     assert snap["daily_token_cap"] == 1000
+
+
+def test_budget_reset_zeroes_today_and_persists(tmp_state):
+    """reset() must zero today's counters and persist to the state file."""
+    bg = BudgetGuard(state_file=tmp_state, daily_token_cap=1000, daily_usd_cap=1.0)
+    bg.record(input_tokens=200, output_tokens=100)
+
+    # Sanity-check that usage was recorded
+    snap_before = bg.snapshot()
+    assert snap_before["tokens_used"] == 300
+
+    bg.reset()
+
+    # snapshot() should show zeroed counters for today
+    snap_after = bg.snapshot()
+    assert snap_after["tokens_used"] == 0
+    assert snap_after["usd_used"] == 0.0
+
+    # The state file must also reflect zeroed values for today
+    assert tmp_state.exists()
+    data = json.loads(tmp_state.read_text())
+    today = snap_after["day"]
+    assert today in data["history"]
+    assert data["history"][today]["tokens"] == 0
+    assert data["history"][today]["usd"] == 0.0
