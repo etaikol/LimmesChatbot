@@ -40,6 +40,7 @@ router = APIRouter(tags=["widget"])
 def widget_js(request: Request) -> Response:
     bot: Chatbot = request.app.state.bot
     base_url = str(request.base_url).rstrip("/")
+    settings = bot.settings
 
     primary = bot.profile.client.language_primary or "en"
     offered_codes = bot.profile.client.languages_offered or [primary]
@@ -87,6 +88,8 @@ def widget_js(request: Request) -> Response:
         ],
         bundles=bundles,
         greetings=greetings,
+        proactive_delay=settings.proactive_delay_seconds,
+        proactive_message=settings.proactive_message,
     )
     return Response(content=js, media_type="application/javascript")
 
@@ -99,6 +102,8 @@ def build_widget_js(
     languages: list[dict],
     bundles: dict[str, dict[str, str]],
     greetings: dict[str, str],
+    proactive_delay: int = 60,
+    proactive_message: str = "",
 ) -> str:
     """Return the widget JS as a string. The data is JSON-encoded once
     so we can interpolate it into the JS body without escaping headaches."""
@@ -109,6 +114,8 @@ def build_widget_js(
         "languages": languages,
         "bundles": bundles,
         "greetings": greetings,
+        "proactiveDelay": proactive_delay,
+        "proactiveMessage": proactive_message,
     }
     return f"(function(){{var CONFIG={json.dumps(config, ensure_ascii=False)};\n{_WIDGET_BODY}\n}})();"
 
@@ -134,6 +141,9 @@ var css = '\
 .cb-launcher{position:fixed;bottom:24px;inset-inline-end:24px;z-index:2147483646;width:60px;height:60px;border-radius:50%;background:var(--cb-accent);color:var(--cb-accent-fg);border:none;cursor:pointer;box-shadow:0 12px 30px -8px rgba(14,165,233,.55);display:flex;align-items:center;justify-content:center;transition:transform .15s ease, box-shadow .2s ease;font:600 24px system-ui;}\
 .cb-launcher:hover{transform:translateY(-2px) scale(1.04);}\
 .cb-launcher:focus-visible{outline:3px solid #fff;outline-offset:3px;}\
+.cb-badge{position:absolute;top:-2px;inset-inline-end:-2px;min-width:20px;height:20px;border-radius:10px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 2px 6px rgba(239,68,68,.5);animation:cb-badge-pop .25s ease-out;}\
+.cb-badge.show{display:flex;}\
+@keyframes cb-badge-pop{from{transform:scale(0);}to{transform:scale(1);}}\
 .cb-panel{position:fixed;bottom:96px;inset-inline-end:24px;z-index:2147483647;width:380px;max-width:calc(100vw - 24px);height:600px;max-height:calc(100vh - 120px);background:var(--cb-bg);color:var(--cb-fg);border-radius:20px;box-shadow:var(--cb-shadow);display:none;flex-direction:column;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;border:1px solid var(--cb-border);transform-origin:bottom right;animation:cb-pop .18s ease-out;}\
 .cb-panel[data-open="1"]{display:flex;}\
 @keyframes cb-pop{from{opacity:0;transform:translateY(8px) scale(.97);}to{opacity:1;transform:none;}}\
@@ -154,6 +164,11 @@ var css = '\
 .cb-msg.u{background:var(--cb-bubble-u);color:#fff;align-self:flex-end;border-end-end-radius:6px;}\
 .cb-msg.b{background:var(--cb-bubble-b);color:var(--cb-fg);align-self:flex-start;border-end-start-radius:6px;}\
 .cb-msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;}\
+.cb-product{display:flex;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px;margin-top:6px;align-self:flex-start;max-width:82%;cursor:default;}\
+.cb-product img{width:64px;height:64px;object-fit:cover;border-radius:8px;flex-shrink:0;}\
+.cb-product-info{display:flex;flex-direction:column;gap:2px;min-width:0;}\
+.cb-product-name{font-size:13px;font-weight:600;color:var(--cb-fg);}\
+.cb-product-price{font-size:12px;color:var(--cb-accent);font-weight:500;}\
 .cb-typing{display:inline-flex;gap:4px;padding:4px 0;align-self:flex-start;}\
 .cb-typing span{width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:cb-bounce 1s infinite ease-in-out;}\
 .cb-typing span:nth-child(2){animation-delay:.15s;}.cb-typing span:nth-child(3){animation-delay:.3s;}\
@@ -179,7 +194,7 @@ var style = document.createElement('style'); style.textContent = css; document.h
 var launcher = document.createElement('button');
 launcher.className = 'cb-launcher';
 launcher.setAttribute('aria-label','Open chat');
-launcher.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+launcher.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="cb-badge" id="cb-badge"></span>';
 
 var panel = document.createElement('div');
 panel.className = 'cb-panel';
@@ -264,6 +279,34 @@ function add(text, who){
   return d;
 }
 
+function addProducts(products){
+  if (!products || !products.length) return;
+  products.forEach(function(p){
+    if (!p.image_url) return;
+    var card = document.createElement('div');
+    card.className = 'cb-product';
+    var img = document.createElement('img');
+    img.src = p.image_url;
+    img.alt = p.name || '';
+    card.appendChild(img);
+    var info = document.createElement('div');
+    info.className = 'cb-product-info';
+    var nm = document.createElement('div');
+    nm.className = 'cb-product-name';
+    nm.textContent = p.name + (p.name_en ? ' (' + p.name_en + ')' : '');
+    info.appendChild(nm);
+    if (p.price) {
+      var pr = document.createElement('div');
+      pr.className = 'cb-product-price';
+      pr.textContent = p.price;
+      info.appendChild(pr);
+    }
+    card.appendChild(info);
+    $msgs.appendChild(card);
+  });
+  $msgs.scrollTop = $msgs.scrollHeight;
+}
+
 function typing(){
   var d = document.createElement('div');
   d.className='cb-typing';
@@ -288,6 +331,7 @@ async function send(text){
     t.remove();
     if (res.ok) {
       add(data.answer || '(empty reply)', 'b');
+      if (data.products) { addProducts(data.products); }
     } else if (res.status === 429) {
       add(data.detail || bundle().rate_limited || 'Too many requests.', 'b');
     } else if (res.status === 402) {
@@ -310,7 +354,17 @@ async function send(text){
 launcher.addEventListener('click', function(){
   var open = panel.dataset.open === '1';
   panel.dataset.open = open ? '0' : '1';
-  if (!open) { setTimeout(function(){ $in.focus(); }, 50); }
+  if (!open) {
+    // Clear proactive badge on open
+    if ($badge) { $badge.classList.remove('show'); }
+    // Show proactive message if applicable
+    if (proactiveShown && !proactiveMsgAdded) {
+      proactiveMsgAdded = true;
+      var pmsg = CONFIG.proactiveMessage || bundle().proactive || '';
+      if (pmsg) { add(pmsg, 'b'); }
+    }
+    setTimeout(function(){ $in.focus(); }, 50);
+  }
 });
 $close.addEventListener('click', function(){
   panel.dataset.open = '0';
@@ -349,6 +403,20 @@ $form.addEventListener('submit', function(e){
   $in.value=''; $in.style.height='auto';
   send(text);
 });
+
+// ── Proactive notification ──────────────────────────────────────────────
+var $badge = document.getElementById('cb-badge');
+var proactiveShown = false;
+var proactiveMsgAdded = false;
+if (CONFIG.proactiveDelay > 0) {
+  setTimeout(function(){
+    if (panel.dataset.open !== '1' && !proactiveShown) {
+      proactiveShown = true;
+      $badge.textContent = '1';
+      $badge.classList.add('show');
+    }
+  }, CONFIG.proactiveDelay * 1000);
+}
 
 applyLang();
 """

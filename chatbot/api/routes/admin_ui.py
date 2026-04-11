@@ -4,22 +4,35 @@ Admin dashboard HTML/JS.
 Single-page application served inline — no build step, no CDN.
 Styled with system fonts and a dark sidebar layout.
 Communicates with the /admin/api/* endpoints.
+
+Layout: _CSS, _HTML_BODY, _JS are separate constants for navigability.
+Translations live in _TRANSLATIONS (Python dict) injected as JSON.
 """
 
 from __future__ import annotations
 
+import json
+
 
 def dashboard_html() -> str:
-    return _HTML
+    langs_json = json.dumps(_TRANSLATIONS, ensure_ascii=False, separators=(",", ":"))
+    return (
+        '<!DOCTYPE html>\n<html lang="en">\n<head>\n'
+        '<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        "<title>Chatbot Admin</title>\n"
+        "<style>\n" + _CSS + "\n</style>\n</head>\n<body>\n"
+        + _HTML_BODY
+        + "\n<script>\n"
+        + _JS.replace("__LANGS_JSON__", langs_json)
+        + "\n</script>\n</body>\n</html>"
+    )
 
 
-_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chatbot Admin</title>
-<style>
+# ══════════════════════════════════════════════════════════════════════
+# CSS
+# ══════════════════════════════════════════════════════════════════════
+_CSS = r"""
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0f172a;--bg2:#1e293b;--bg3:#334155;--fg:#f1f5f9;--muted:#94a3b8;--accent:#0ea5e9;--accent2:#38bdf8;--success:#22c55e;--warn:#f59e0b;--danger:#ef4444;--card:#1e293b;--border:#334155;--radius:12px;--shadow:0 4px 24px rgba(0,0,0,.3)}
 body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;display:flex}
@@ -164,29 +177,31 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 /* Onboarding */
 .onb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9998;pointer-events:none;transition:opacity .3s}
-.onb-card{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--card);border:1px solid var(--accent);border-radius:16px;width:420px;max-width:92vw;padding:22px 24px 18px;box-shadow:0 8px 40px rgba(14,165,233,.25);pointer-events:all;text-align:center}
+.onb-card{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--card);border:1px solid var(--accent);border-radius:16px;width:460px;max-width:92vw;min-height:280px;padding:22px 24px 18px;box-shadow:0 8px 40px rgba(14,165,233,.25);pointer-events:all;text-align:center;display:flex;flex-direction:column;direction:ltr}
 .onb-card .onb-icon{font-size:32px;margin-bottom:6px}
 .onb-card .onb-title{font-size:17px;font-weight:700;margin-bottom:3px}
-.onb-card .onb-body{font-size:13px;line-height:1.55;color:var(--muted);margin-bottom:14px;min-height:30px}
+.onb-card .onb-body{font-size:13px;line-height:1.55;color:var(--muted);margin-bottom:14px;min-height:56px}
 .onb-dots{display:flex;justify-content:center;gap:8px;margin-bottom:12px}
 .onb-dot{width:8px;height:8px;border-radius:50%;background:var(--bg3);transition:background .2s}
 .onb-dot.active{background:var(--accent)}
-.onb-btns{display:flex;justify-content:center;gap:10px}
+.onb-btns{display:flex;justify-content:space-between;align-items:center;margin-top:auto;min-height:36px}
 .onb-lang{display:flex;gap:4px;justify-content:center;margin-bottom:10px}
 .onb-lang button{padding:3px 9px;border:1px solid var(--border);border-radius:5px;background:none;color:var(--muted);font-size:10px;font-weight:700;cursor:pointer}
 .onb-lang button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.onb-highlight{position:relative;z-index:9999;box-shadow:0 0 0 4px var(--accent),0 0 20px rgba(14,165,233,.3);border-radius:var(--radius);transition:box-shadow .3s}
-</style>
-</head>
-<body>
+.onb-highlight{position:relative;z-index:9999;box-shadow:0 0 0 4px var(--accent),0 0 20px rgba(14,165,233,.3);border-radius:var(--radius);transition:box-shadow .3s}"""
 
+# ══════════════════════════════════════════════════════════════════════
+# HTML body (between <body> and <script>)
+# ══════════════════════════════════════════════════════════════════════
+_HTML_BODY = r"""
 <!-- Auth -->
 <div class="auth-overlay" id="auth">
   <div class="auth-box">
     <div style="font-size:36px;margin-bottom:12px">🔒</div>
     <h2>Admin Dashboard</h2>
-    <p>Enter your admin API key to continue</p>
-    <input type="password" class="form-input" id="keyInput" placeholder="ADMIN_API_KEY" autofocus>
+    <p>Sign in with your admin credentials</p>
+    <input type="text" class="form-input" id="loginUser" placeholder="Username" style="margin-bottom:10px" autofocus>
+    <input type="password" class="form-input" id="loginPass" placeholder="Password" style="margin-bottom:16px">
     <button class="btn btn-primary" style="width:100%" onclick="tryLogin()">Sign In</button>
     <p id="authErr" style="color:var(--danger);margin-top:12px;font-size:12px;display:none"></p>
   </div>
@@ -220,6 +235,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
       <span data-i18n="nav.line">LINE</span>
     </button>
+    <div class="nav-section" data-i18n="nav.section.business">Business</div>
+    <button class="nav-item" data-page="products" onclick="showPage('products',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <span data-i18n="nav.products">Products</span>
+    </button>
+    <button class="nav-item" data-page="contacts" onclick="showPage('contacts',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      <span data-i18n="nav.contacts">Messages</span>
+    </button>
+    <button class="nav-item" data-page="handoff" onclick="showPage('handoff',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span data-i18n="nav.handoff">Handoff</span>
+    </button>
+    <button class="nav-item" data-page="fallback" onclick="showPage('fallback',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span data-i18n="nav.fallback">Unanswered</span>
+    </button>
     <div class="nav-section" data-i18n="nav.section.content">Content</div>
     <button class="nav-item" data-page="data" onclick="showPage('data',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -229,11 +261,22 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
       <span data-i18n="nav.logs">Logs</span>
     </button>
+    <div class="nav-section" id="navSectionAdmin" style="display:none" data-i18n="nav.section.admin">Admin</div>
+    <button class="nav-item" id="navUsers" data-page="users" onclick="showPage('users',this)" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span data-i18n="nav.users">Users</span>
+    </button>
+  </div>
+  <div id="sidebarUser" style="padding:10px 12px;border-top:1px solid var(--border);font-size:12px;display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span><span id="sidebarUsername" style="font-weight:600"></span> <span class="tag tag-on" id="sidebarRole" style="font-size:10px"></span></span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="padding:3px 8px;font-size:11px">Logout</button>
+    </div>
   </div>
   <div class="lang-switcher">
     <button class="lang-btn active" data-lang="en" onclick="setLang('en')" title="English">EN</button>
-    <button class="lang-btn" data-lang="he" onclick="setLang('he')" title="עברית">HE</button>
     <button class="lang-btn" data-lang="th" onclick="setLang('th')" title="ภาษาไทย">TH</button>
+    <button class="lang-btn" data-lang="he" onclick="setLang('he')" title="עברית">HE</button>
   </div>
 </nav>
 
@@ -260,7 +303,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="page" id="page-sessions">
     <div class="page-title" style="justify-content:space-between">
       <span data-i18n="page.sessions">💬 Sessions</span>
-      <div><button class="btn btn-ghost btn-sm" onclick="loadSessions()" data-i18n="btn.refresh">↻ Refresh</button> <button class="btn btn-danger btn-sm" onclick="clearAllSessions()" data-i18n="btn.clearAll">Clear All</button></div>
+      <div><button class="btn btn-ghost btn-sm" onclick="loadSessions()" data-i18n="btn.refresh">↻ Refresh</button> <button class="btn btn-danger btn-sm" data-admin-only onclick="clearAllSessions()" data-i18n="btn.clearAll">Clear All</button></div>
     </div>
     <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.session_id">Session ID</th><th data-i18n="th.messages">Messages</th><th data-i18n="th.last_active">Last Activity</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="sessionRows"></tbody></table></div>
   </div>
@@ -269,7 +312,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="page" id="page-budget">
     <div class="page-title" style="justify-content:space-between">
       <span data-i18n="page.budget">💰 Budget</span>
-      <button class="btn btn-danger btn-sm" onclick="resetBudget()" data-i18n="btn.resetToday">Reset Today</button>
+      <button class="btn btn-danger btn-sm" data-admin-only onclick="resetBudget()" data-i18n="btn.resetToday">Reset Today</button>
     </div>
     <div class="cards" id="budgetCards"></div>
     <div id="budgetBars"></div>
@@ -289,7 +332,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="config-panel" id="cfg-env">
       <div id="envForm"></div>
       <div style="margin-top:16px;display:flex;align-items:center;gap:12px">
-        <button class="btn btn-primary" onclick="saveEnv()" data-i18n="btn.saveEnv">Save Environment Settings</button>
+        <button class="btn btn-primary" data-admin-only onclick="saveEnv()" data-i18n="btn.saveEnv">Save Environment Settings</button>
         <span style="font-size:11px;color:var(--muted)" data-i18n="restart.note">Restart required for changes to take effect</span>
       </div>
     </div>
@@ -297,7 +340,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <!-- Client -->
     <div class="config-panel" id="cfg-client" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <span style="font-size:13px;color:var(--muted)">Editing: <strong id="clientFile"></strong></span>
+        <span style="font-size:13px;color:var(--muted)"><span data-i18n="cf.editing">Editing</span>: <strong id="clientFile"></strong></span>
         <div class="view-toggle">
           <button class="tab-btn active" onclick="setClientView('form',this)" data-i18n="view.form">Form</button>
           <button class="tab-btn" onclick="setClientView('yaml',this)" data-i18n="view.yaml">YAML</button>
@@ -316,7 +359,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <!-- Personality -->
     <div class="config-panel" id="cfg-personality" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <span style="font-size:13px;color:var(--muted)">Editing: <strong id="personalityFile"></strong></span>
+        <span style="font-size:13px;color:var(--muted)"><span data-i18n="cf.editing">Editing</span>: <strong id="personalityFile"></strong></span>
         <div class="view-toggle">
           <button class="tab-btn active" onclick="setPersonalityView('form',this)" data-i18n="view.form">Form</button>
           <button class="tab-btn" onclick="setPersonalityView('yaml',this)" data-i18n="view.yaml">YAML</button>
@@ -336,16 +379,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <!-- ═══════ LINE ═══════ -->
   <div class="page" id="page-line">
     <div class="page-title" data-i18n="page.line">💬 LINE Channel</div>
-    <div id="lineNotConfigured" style="display:none">
-      <div class="card" style="padding:24px;text-align:center">
-        <div style="font-size:36px;margin-bottom:12px">📱</div>
-        <h3 style="margin-bottom:8px" data-i18n="line.nocfg.title">LINE Not Configured</h3>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:16px" data-i18n="line.nocfg.body">Set <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">LINE_CHANNEL_ACCESS_TOKEN</code> and <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">LINE_CHANNEL_SECRET</code> in your .env file to enable LINE integration.</p>
-        <p style="color:var(--muted);font-size:12px">Go to <a href="#" onclick="showPage('config',document.querySelector('[data-page=config]'));return false">Configuration</a> to set these.</p>
-      </div>
-    </div>
-    <div id="lineConfigured" style="display:none">
-      <div class="cards" id="lineStatusCards"></div>
+    <!-- Channel status (rendered by renderChannelStatus) -->
+    <div id="line-channel-root"></div>
+    <!-- LINE-specific tools (only visible when configured) -->
+    <div id="lineTools" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin:24px 0 12px">
         <h3 style="font-size:16px;font-weight:600">Rich Menus</h3>
         <div><button class="btn btn-ghost btn-sm" onclick="loadLineMenus()">↻ Refresh</button> <button class="btn btn-primary btn-sm" onclick="showRichMenuCreator()">+ Create Menu</button></div>
@@ -386,13 +423,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span data-i18n="page.data">📁 Data Files</span>
       <div>
         <button class="btn btn-ghost btn-sm" onclick="loadDataFiles()" data-i18n="btn.refresh">↻ Refresh</button>
-        <button class="btn btn-primary btn-sm" onclick="showNewFileForm()" data-i18n="btn.newFile">+ New File</button>
+        <button class="btn btn-primary btn-sm" data-admin-only onclick="showNewFileForm()" data-i18n="btn.newFile">+ New File</button>
       </div>
     </div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:16px" data-i18n="data.hint">Knowledge base files for the chatbot. Edit content, then re-ingest to update the vector store.</p>
 
     <!-- Upload -->
-    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileUploadInput').click()" style="margin-bottom:16px">
+    <div class="upload-zone" id="uploadZone" data-admin-only onclick="document.getElementById('fileUploadInput').click()" style="margin-bottom:16px">
       <input type="file" id="fileUploadInput" accept=".md,.txt,.csv" multiple onchange="handleFileUpload(this.files)">
       <div style="font-size:20px;margin-bottom:6px">📤</div>
       <div data-i18n="data.upload.cta"><strong>Click to upload</strong> or drag files here</div>
@@ -460,6 +497,83 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="log-viewer" id="logViewer" style="display:none">No logs loaded</div>
   </div>
 
+  <!-- ═══════ Users ═══════ -->
+  <div class="page" id="page-users">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.users">👥 Users</span>
+      <button class="btn btn-primary btn-sm" onclick="showNewUserForm()" data-i18n="btn.addUser">+ Add User</button>
+    </div>
+
+    <!-- New user form -->
+    <div id="newUserForm" style="display:none;margin-bottom:16px">
+      <div class="card" style="padding:16px">
+        <h4 style="margin-bottom:10px;font-size:14px" data-i18n="users.newuser">Create New User</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div class="form-group"><label class="form-label" data-i18n="users.username">Username</label><input class="form-input" id="newUserName" placeholder="username" pattern="[a-zA-Z0-9_-]+"></div>
+          <div class="form-group"><label class="form-label" data-i18n="users.password">Password</label><input class="form-input" id="newUserPass" type="password" placeholder="min 4 chars"></div>
+          <div class="form-group"><label class="form-label" data-i18n="users.role">Role</label><select class="form-input" id="newUserRole"><option value="admin">Admin</option><option value="viewer" selected>Viewer</option></select></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px" data-i18n="users.role_hint">Admin: full access, can manage users. Viewer: read-only access to dashboard.</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="createNewUser()" data-i18n="btn.create">Create</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('newUserForm').style.display='none'" data-i18n="btn.cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="users.username">Username</th><th data-i18n="users.role">Role</th><th data-i18n="users.created_by">Created By</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="userRows"></tbody></table></div>
+  </div>
+
+  <!-- ═══════ Products ═══════ -->
+  <div class="page" id="page-products">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.products">🛍️ Products</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadProducts()" data-i18n="btn.refresh">↻ Refresh</button>
+    </div>
+    <div class="cards" id="productStats"></div>
+    <div class="tbl-wrap"><table><thead><tr><th>ID</th><th data-i18n="th.name">Name</th><th data-i18n="th.category">Category</th><th data-i18n="th.price">Price</th><th data-i18n="th.image">Image</th><th data-i18n="th.status">Status</th></tr></thead><tbody id="productRows"></tbody></table></div>
+  </div>
+
+  <!-- ═══════ Contacts / Messages ═══════ -->
+  <div class="page" id="page-contacts">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.contacts">📧 Messages</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadContacts()" data-i18n="btn.refresh">↻ Refresh</button>
+    </div>
+    <div class="cards" id="contactStats"></div>
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.channel">Channel</th><th data-i18n="th.name">Name</th><th>Contact</th><th data-i18n="th.message">Message</th><th data-i18n="th.time">Time</th><th data-i18n="th.status">Status</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="contactRows"></tbody></table></div>
+  </div>
+
+  <!-- ═══════ Handoff ═══════ -->
+  <div class="page" id="page-handoff">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.handoff">🤝 Live Handoff</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadHandoffs()" data-i18n="btn.refresh">↻ Refresh</button>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.session_id">Session</th><th data-i18n="th.channel">Channel</th><th>Reason</th><th data-i18n="th.messages">Messages</th><th data-i18n="th.time">Since</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="handoffRows"></tbody></table></div>
+    <div id="handoffReplyBox" style="display:none;margin-top:16px">
+      <div class="card" style="padding:16px">
+        <h4 style="margin-bottom:10px;font-size:14px">Reply to session: <span id="handoffReplyTarget"></span></h4>
+        <div class="form-group"><textarea class="form-textarea" id="handoffReplyText" rows="3" placeholder="Type your reply..."></textarea></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="sendHandoffReply()">Send Reply</button>
+          <button class="btn btn-danger btn-sm" onclick="resolveCurrentHandoff()">Resolve &amp; Return to Bot</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('handoffReplyBox').style.display='none'">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ Fallback / Unanswered ═══════ -->
+  <div class="page" id="page-fallback">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.fallback">❓ Unanswered Questions</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadFallbacks()" data-i18n="btn.refresh">↻ Refresh</button>
+    </div>
+    <div class="cards" id="fallbackStats"></div>
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.question">Question</th><th>Answer Given</th><th data-i18n="th.session_id">Session</th><th data-i18n="th.time">Time</th><th data-i18n="th.status">Status</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="fallbackRows"></tbody></table></div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -475,143 +589,16 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="onb-btns" id="onbBtns"></div>
 </div>
 
-<script>
-(function(){
+<div class="toast" id="toast"></div>"""
+
+# ══════════════════════════════════════════════════════════════════════
+# JS  (the placeholder __LANGS_JSON__ is replaced at render time)
+# ══════════════════════════════════════════════════════════════════════
+_JS = r"""(function(){
 "use strict";
 
 // ── i18n ─────────────────────────────────────────────────────────────
-var LANGS={
-  en:{
-    'nav.overview':'Overview','nav.sessions':'Sessions','nav.budget':'Budget','nav.config':'Configuration',
-    'nav.line':'LINE','nav.data':'Data Files','nav.logs':'Logs',
-    'nav.section.channels':'Channels','nav.section.content':'Content',
-    'page.overview':'📊 Overview','page.sessions':'💬 Sessions','page.budget':'💰 Budget',
-    'page.config':'⚙️ Configuration','page.line':'💬 LINE Channel','page.data':'📁 Data Files','page.logs':'📋 Logs',
-    'cfg.tab.env':'Environment','cfg.tab.client':'Client','cfg.tab.personality':'Personality',
-    'btn.refresh':'↻ Refresh','btn.clearAll':'Clear All','btn.resetToday':'Reset Today',
-    'btn.saveEnv':'Save Environment Settings','btn.saveClient':'Save Client Config','btn.savePersonality':'Save Personality Config',
-    'btn.newFile':'+ New File','btn.create':'Create','btn.cancel':'Cancel','btn.closeEditor':'✕ Close',
-    'view.form':'Form','view.yaml':'YAML','view.visual':'Visual','view.markdown':'Markdown',
-    'restart.note':'Restart required for changes to take effect',
-    'data.hint':'Knowledge base files for the chatbot. Edit content, then re-ingest to update the vector store.',
-    'data.upload.cta':'<strong>Click to upload</strong> or drag files here',
-    'data.upload.hint':'.md, .txt files — UTF-8 only','data.newfile':'Create New Data File',
-    'line.nocfg.title':'LINE Not Configured',
-    'line.nocfg.body':'Set LINE_CHANNEL_ACCESS_TOKEN and LINE_CHANNEL_SECRET in your .env file to enable LINE integration.',
-    'logs.nocfg.title':'Log File Not Configured',
-    'logs.nocfg.body':'Log file is auto-configured. It will appear after the server starts logging.',
-    'logs.nocfg.go':'Go to','logs.nocfg.link':'Configuration → Environment','logs.nocfg.set':'to set this.',
-    // Overview cards
-    'ov.status':'Status','ov.uptime':'Uptime','ov.model':'Model','ov.sessions':'Sessions',
-    'ov.tokens':'Tokens','ov.usd':'USD Spent','ov.ip':'IP Buckets','ov.spam':'Spam Trackers',
-    'ov.running':'🟢 Running','ov.down':'🔴 Down',
-    // Overview tables
-    'ov.channels':'Channels','ov.security':'Security','th.channel':'Channel','th.status':'Status',
-    'th.feature':'Feature','sec.rate':'Rate Limiting','sec.spam':'Spam Detection',
-    'sec.budget':'Budget Guard','sec.hsts':'HSTS','sec.cors':'Strict CORS','sec.apikey':'API Key',
-    // Budget
-    'bud.today':'Today','bud.model':'Model','bud.tokens':'Tokens Used','bud.usd':'USD Spent',
-    'bud.status':'Status','bud.enabled':'🛡️ Enabled','bud.disabled':'⚠️ Disabled',
-    'bud.token_usage':'Token Usage','bud.usd_usage':'USD Usage',
-    // Config sections
-    'cfg.llm':'LLM','cfg.rag':'RAG','cfg.conversation':'Conversation','cfg.rate':'Rate Limiting',
-    'cfg.spam':'Spam Detection','cfg.budget_cap':'Budget','cfg.security':'Security','cfg.general':'General',
-    'cfg.secrets':'Secrets (read-only)','cfg.enabled':'Enabled','cfg.disabled':'Disabled',
-    // Sessions
-    'th.session_id':'Session ID','th.messages':'Messages','th.last_active':'Last Activity','th.actions':'Actions',
-    // Data files
-    'th.file':'File','th.folder':'Folder','th.size':'Size',
-    // Onboarding
-    'onb.welcome':'Welcome to Admin Dashboard','onb.welcome_sub':'Quick tour — takes 10 seconds',
-    'onb.step1_title':'📁 Data Files','onb.step1_body':'Add your business knowledge here — products, hours, policies. The chatbot learns from these files.',
-    'onb.step2_title':'⚙️ Configuration','onb.step2_body':'Set your AI model, language, business name, and personality. Everything the bot needs to know about you.',
-    'onb.step3_title':'📊 Overview','onb.step3_body':'Monitor sessions, budget, and channels. All live stats in one place.',
-    'onb.skip':'Skip','onb.next':'Next','onb.prev':'Back','onb.done':'Get Started',
-    'onb.go_data':'Go to Data Files','onb.go_config':'Go to Configuration',
-  },
-  he:{
-    'nav.overview':'סקירה','nav.sessions':'שיחות','nav.budget':'תקציב','nav.config':'הגדרות',
-    'nav.line':'LINE','nav.data':'קבצי מידע','nav.logs':'לוגים',
-    'nav.section.channels':'ערוצים','nav.section.content':'תוכן',
-    'page.overview':'📊 סקירה כללית','page.sessions':'💬 שיחות','page.budget':'💰 תקציב',
-    'page.config':'⚙️ הגדרות','page.line':'💬 ערוץ LINE','page.data':'📁 קבצי מידע','page.logs':'📋 לוגים',
-    'cfg.tab.env':'סביבה','cfg.tab.client':'לקוח','cfg.tab.personality':'אישיות',
-    'btn.refresh':'↻ רענן','btn.clearAll':'נקה הכל','btn.resetToday':'אפס להיום',
-    'btn.saveEnv':'שמור הגדרות סביבה','btn.saveClient':'שמור הגדרות לקוח','btn.savePersonality':'שמור הגדרות אישיות',
-    'btn.newFile':'+ קובץ חדש','btn.create':'צור','btn.cancel':'ביטול','btn.closeEditor':'✕ סגור',
-    'view.form':'טופס','view.yaml':'YAML','view.visual':'ויזואלי','view.markdown':'Markdown',
-    'restart.note':'נדרש הפעלה מחדש ליישום השינויים',
-    'data.hint':'קבצי בסיס ידע לצ\'אטבוט. ערוך תוכן ואז הכנס מחדש לעדכון מאגר הווקטורים.',
-    'data.upload.cta':'<strong>לחץ להעלאה</strong> או גרור קבצים לכאן',
-    'data.upload.hint':'קבצי .md, .txt — UTF-8 בלבד','data.newfile':'צור קובץ מידע חדש',
-    'line.nocfg.title':'LINE לא מוגדר',
-    'line.nocfg.body':'הגדר LINE_CHANNEL_ACCESS_TOKEN ו-LINE_CHANNEL_SECRET בקובץ ה-.env שלך.',
-    'logs.nocfg.title':'קובץ לוג טרם נוצר',
-    'logs.nocfg.body':'קובץ הלוג מוגדר אוטומטית. הוא יופיע לאחר שהשרת יתחיל לרשום לוגים.',
-    'logs.nocfg.go':'עבור ל','logs.nocfg.link':'הגדרות ← סביבה','logs.nocfg.set':'להגדרה.',
-    'ov.status':'סטטוס','ov.uptime':'זמן פעילות','ov.model':'מודל','ov.sessions':'שיחות',
-    'ov.tokens':'טוקנים','ov.usd':'הוצאה ($)','ov.ip':'IP פעילים','ov.spam':'מעקב ספאם',
-    'ov.running':'🟢 פעיל','ov.down':'🔴 מושבת',
-    'ov.channels':'ערוצים','ov.security':'אבטחה','th.channel':'ערוץ','th.status':'סטטוס',
-    'th.feature':'תכונה','sec.rate':'הגבלת קצב','sec.spam':'זיהוי ספאם',
-    'sec.budget':'מגן תקציב','sec.hsts':'HSTS','sec.cors':'CORS מחמיר','sec.apikey':'מפתח API',
-    'bud.today':'היום','bud.model':'מודל','bud.tokens':'טוקנים','bud.usd':'הוצאה ($)',
-    'bud.status':'סטטוס','bud.enabled':'🛡️ מופעל','bud.disabled':'⚠️ מושבת',
-    'bud.token_usage':'שימוש בטוקנים','bud.usd_usage':'שימוש בדולרים',
-    'cfg.llm':'מודל שפה','cfg.rag':'RAG','cfg.conversation':'שיחה','cfg.rate':'הגבלת קצב',
-    'cfg.spam':'זיהוי ספאם','cfg.budget_cap':'תקציב','cfg.security':'אבטחה','cfg.general':'כללי',
-    'cfg.secrets':'סודות (קריאה בלבד)','cfg.enabled':'מופעל','cfg.disabled':'מושבת',
-    'th.session_id':'מזהה שיחה','th.messages':'הודעות','th.last_active':'פעילות אחרונה','th.actions':'פעולות',
-    'th.file':'קובץ','th.folder':'תיקייה','th.size':'גודל',
-    'onb.welcome':'ברוכים הבאים לפאנל הניהול','onb.welcome_sub':'סיור מהיר — 10 שניות',
-    'onb.step1_title':'📁 קבצי מידע','onb.step1_body':'הוסיפו את המידע העסקי כאן — מוצרים, שעות, מדיניות. הצ\'אטבוט לומד מהקבצים האלה.',
-    'onb.step2_title':'⚙️ הגדרות','onb.step2_body':'הגדירו מודל AI, שפה, שם העסק ואישיות. כל מה שהבוט צריך לדעת.',
-    'onb.step3_title':'📊 סקירה','onb.step3_body':'עקבו אחרי שיחות, תקציב וערוצים. כל הנתונים במקום אחד.',
-    'onb.skip':'דלג','onb.next':'הבא','onb.prev':'הקודם','onb.done':'בואו נתחיל',
-    'onb.go_data':'לקבצי מידע','onb.go_config':'להגדרות',
-  },
-  th:{
-    'nav.overview':'ภาพรวม','nav.sessions':'เซสชัน','nav.budget':'งบประมาณ','nav.config':'การตั้งค่า',
-    'nav.line':'LINE','nav.data':'ไฟล์ข้อมูล','nav.logs':'บันทึก',
-    'nav.section.channels':'ช่องทาง','nav.section.content':'เนื้อหา',
-    'page.overview':'📊 ภาพรวม','page.sessions':'💬 เซสชัน','page.budget':'💰 งบประมาณ',
-    'page.config':'⚙️ การตั้งค่า','page.line':'💬 ช่อง LINE','page.data':'📁 ไฟล์ข้อมูล','page.logs':'📋 บันทึก',
-    'cfg.tab.env':'สภาพแวดล้อม','cfg.tab.client':'ลูกค้า','cfg.tab.personality':'บุคลิกภาพ',
-    'btn.refresh':'↻ รีเฟรช','btn.clearAll':'ล้างทั้งหมด','btn.resetToday':'รีเซ็ตวันนี้',
-    'btn.saveEnv':'บันทึกการตั้งค่าสภาพแวดล้อม','btn.saveClient':'บันทึกการตั้งค่าลูกค้า','btn.savePersonality':'บันทึกการตั้งค่าบุคลิกภาพ',
-    'btn.newFile':'+ ไฟล์ใหม่','btn.create':'สร้าง','btn.cancel':'ยกเลิก','btn.closeEditor':'✕ ปิด',
-    'view.form':'ฟอร์ม','view.yaml':'YAML','view.visual':'ภาพ','view.markdown':'Markdown',
-    'restart.note':'ต้องรีสตาร์ทเพื่อให้การเปลี่ยนแปลงมีผล',
-    'data.hint':'ไฟล์ฐานความรู้สำหรับแชทบอท แก้ไขเนื้อหา จากนั้นฝังข้อมูลใหม่เพื่ออัปเดต',
-    'data.upload.cta':'<strong>คลิกเพื่ออัปโหลด</strong> หรือลากไฟล์มาวาง',
-    'data.upload.hint':'ไฟล์ .md, .txt — UTF-8 เท่านั้น','data.newfile':'สร้างไฟล์ข้อมูลใหม่',
-    'line.nocfg.title':'ยังไม่ได้ตั้งค่า LINE',
-    'line.nocfg.body':'ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN และ LINE_CHANNEL_SECRET ใน .env ของคุณ',
-    'logs.nocfg.title':'ยังไม่ได้สร้างไฟล์บันทึก',
-    'logs.nocfg.body':'ไฟล์บันทึกถูกตั้งค่าอัตโนมัติ จะปรากฏหลังจากเซิร์ฟเวอร์เริ่มบันทึก',
-    'logs.nocfg.go':'ไปที่','logs.nocfg.link':'การตั้งค่า → สภาพแวดล้อม','logs.nocfg.set':'เพื่อตั้งค่า',
-    'ov.status':'สถานะ','ov.uptime':'เวลาทำงาน','ov.model':'โมเดล','ov.sessions':'เซสชัน',
-    'ov.tokens':'โทเคน','ov.usd':'ค่าใช้จ่าย ($)','ov.ip':'IP ที่ใช้งาน','ov.spam':'ตรวจจับสแปม',
-    'ov.running':'🟢 กำลังทำงาน','ov.down':'🔴 หยุด',
-    'ov.channels':'ช่องทาง','ov.security':'ความปลอดภัย','th.channel':'ช่องทาง','th.status':'สถานะ',
-    'th.feature':'ฟีเจอร์','sec.rate':'จำกัดอัตรา','sec.spam':'ตรวจจับสแปม',
-    'sec.budget':'ควบคุมงบ','sec.hsts':'HSTS','sec.cors':'CORS เข้มงวด','sec.apikey':'API Key',
-    'bud.today':'วันนี้','bud.model':'โมเดล','bud.tokens':'โทเคนที่ใช้','bud.usd':'ค่าใช้จ่าย ($)',
-    'bud.status':'สถานะ','bud.enabled':'🛡️ เปิดใช้งาน','bud.disabled':'⚠️ ปิดใช้งาน',
-    'bud.token_usage':'การใช้โทเคน','bud.usd_usage':'การใช้จ่าย',
-    'cfg.llm':'โมเดลภาษา','cfg.rag':'RAG','cfg.conversation':'การสนทนา','cfg.rate':'จำกัดอัตรา',
-    'cfg.spam':'ตรวจจับสแปม','cfg.budget_cap':'งบประมาณ','cfg.security':'ความปลอดภัย','cfg.general':'ทั่วไป',
-    'cfg.secrets':'ความลับ (อ่านอย่างเดียว)','cfg.enabled':'เปิดใช้งาน','cfg.disabled':'ปิดใช้งาน',
-    'th.session_id':'รหัสเซสชัน','th.messages':'ข้อความ','th.last_active':'ใช้งานล่าสุด','th.actions':'การดำเนินการ',
-    'th.file':'ไฟล์','th.folder':'โฟลเดอร์','th.size':'ขนาด',
-    'onb.welcome':'ยินดีต้อนรับสู่แดชบอร์ด','onb.welcome_sub':'ทัวร์สั้น — ใช้เวลา 10 วินาที',
-    'onb.step1_title':'📁 ไฟล์ข้อมูล','onb.step1_body':'เพิ่มข้อมูลธุรกิจที่นี่ — สินค้า, เวลาเปิด, นโยบาย แชทบอทจะเรียนรู้จากไฟล์เหล่านี้',
-    'onb.step2_title':'⚙️ การตั้งค่า','onb.step2_body':'ตั้งค่าโมเดล AI, ภาษา, ชื่อธุรกิจ, และบุคลิกภาพ ทุกอย่างที่บอทต้องรู้',
-    'onb.step3_title':'📊 ภาพรวม','onb.step3_body':'ดูเซสชัน, งบประมาณ, และช่องทาง ข้อมูลสดทั้งหมดในที่เดียว',
-    'onb.skip':'ข้าม','onb.next':'ถัดไป','onb.prev':'กลับ','onb.done':'เริ่มเลย',
-    'onb.go_data':'ไปไฟล์ข้อมูล','onb.go_config':'ไปการตั้งค่า',
-  }
-};
+var LANGS=__LANGS_JSON__;
 var _lang='en';
 function t(k){return(LANGS[_lang]&&LANGS[_lang][k])||LANGS.en[k]||k}
 window.setLang=function(code){
@@ -623,6 +610,15 @@ window.setLang=function(code){
   document.querySelectorAll('[data-i18n]').forEach(function(el){
     var v=t(el.dataset.i18n);if(v!==undefined)el.innerHTML=v;
   });
+  // Re-render cached dynamic content so translated strings apply immediately
+  if(_lastOverviewData)renderOverview(_lastOverviewData);
+  if(_lastBudgetData)renderBudget(_lastBudgetData);
+  // Re-render config forms if data is cached
+  if(cfgCache.client){buildClientForm(cfgCache.client);buildPersonalityForm(cfgCache.personality)}
+  // Re-render env form
+  if(cfgCache.env)buildEnvForm(cfgCache.env);
+  var onbCard=document.getElementById('onbCard');
+  if(onbCard&&onbCard.style.display!=='none')renderOnbStep();
 };
 function initLang(){setLang(localStorage.getItem('admin_lang')||'en')}
 
@@ -631,8 +627,9 @@ var _onbStep=0,_onbHighlight=null;
 var ONB_STEPS=[
   {icon:'🚀',titleK:'onb.welcome',bodyK:'onb.welcome_sub',page:null},
   {icon:'📁',titleK:'onb.step1_title',bodyK:'onb.step1_body',page:'data'},
-  {icon:'⚙️',titleK:'onb.step2_title',bodyK:'onb.step2_body',page:'config'},
-  {icon:'📊',titleK:'onb.step3_title',bodyK:'onb.step3_body',page:'overview'},
+  {icon:'🏢',titleK:'onb.step2_title',bodyK:'onb.step2_body',page:'config',configTab:'client'},
+  {icon:'🤖',titleK:'onb.step3_title',bodyK:'onb.step3_body',page:'config',configTab:'personality'},
+  {icon:'📊',titleK:'onb.step4_title',bodyK:'onb.step4_body',page:'overview'},
 ];
 function showOnboarding(){
   document.getElementById('onbOverlay').style.display='block';
@@ -643,6 +640,9 @@ function renderOnbStep(){
   var s=ONB_STEPS[_onbStep],total=ONB_STEPS.length;
   // navigate to the real page for this step
   if(s.page){var nb=document.querySelector('[data-page='+s.page+']');if(nb)showPage(s.page,nb)}
+  else if(_onbStep===0){var ob=document.querySelector('[data-page=overview]');if(ob)showPage('overview',ob)}
+  // switch config tab if specified
+  if(s.configTab){var tabBtn=document.querySelector('[data-i18n="cfg.tab.'+s.configTab+'"]');if(tabBtn)showConfigTab(s.configTab,tabBtn)}
   // highlight the relevant nav item
   if(_onbHighlight){_onbHighlight.classList.remove('onb-highlight');_onbHighlight=null}
   if(s.page){var ni=document.querySelector('[data-page='+s.page+']');if(ni){ni.classList.add('onb-highlight');_onbHighlight=ni}}
@@ -651,55 +651,85 @@ function renderOnbStep(){
   document.getElementById('onbTitle').textContent=s.titleK?t(s.titleK):'';
   document.getElementById('onbBody').textContent=s.bodyK?t(s.bodyK):'';
   // lang buttons
-  var lh='';['en','he','th'].forEach(function(c){lh+='<button class="'+(c===_lang?'active':'')+'" onclick="onbLangSwitch(\''+c+'\')">'+c.toUpperCase()+'</button>'});
+  var lh='';['en','th','he'].forEach(function(c){lh+='<button class="'+(c===_lang?'active':'')+'" onclick="onbLangSwitch(\''+c+'\')">'+c.toUpperCase()+'</button>'});
   document.getElementById('onbLang').innerHTML=lh;
   // dots
   var dh='';for(var i=0;i<total;i++)dh+='<div class="onb-dot'+(_onbStep===i?' active':'')+'" style="cursor:pointer" onclick="onbGo('+i+')"></div>';
   document.getElementById('onbDots').innerHTML=dh;
-  // buttons
+  // buttons — left (Skip/Back) always + right (Next/Done) always, positions never shift
   var bh='';
-  if(_onbStep>0)bh+='<button class="btn btn-ghost btn-sm" onclick="onbPrev()">← '+t('onb.prev')+'</button>';
-  if(_onbStep===0)bh+='<button class="btn btn-ghost btn-sm" onclick="closeOnboarding()">'+t('onb.skip')+'</button>';
-  if(_onbStep<total-1)bh+='<button class="btn btn-primary btn-sm" onclick="onbNext()">'+t('onb.next')+' →</button>';
-  if(_onbStep===total-1)bh+='<button class="btn btn-primary btn-sm" onclick="closeOnboarding()">'+t('onb.done')+' ✔</button>';
+  if(_onbStep===0)bh+='<button class="btn btn-ghost btn-sm" onclick="window.closeOnboarding()">'+t('onb.skip')+'</button>';
+  else bh+='<button class="btn btn-ghost btn-sm" onclick="window.onbPrev()">← '+t('onb.prev')+'</button>';
+  if(_onbStep<total-1)bh+='<button class="btn btn-primary btn-sm" onclick="window.onbNext()">'+t('onb.next')+' →</button>';
+  else bh+='<button class="btn btn-primary btn-sm" onclick="window.closeOnboarding()">'+t('onb.done')+' ✔</button>';
   document.getElementById('onbBtns').innerHTML=bh;
 }
 window.onbLangSwitch=function(code){setLang(code);renderOnbStep()};
 window.onbNext=function(){if(_onbStep<ONB_STEPS.length-1){_onbStep++;renderOnbStep()}};
 window.onbPrev=function(){if(_onbStep>0){_onbStep--;renderOnbStep()}};
 window.onbGo=function(i){_onbStep=i;renderOnbStep()};
-function closeOnboarding(){
+window.closeOnboarding=function(){
   document.getElementById('onbOverlay').style.display='none';
   document.getElementById('onbCard').style.display='none';
   if(_onbHighlight){_onbHighlight.classList.remove('onb-highlight');_onbHighlight=null}
   localStorage.setItem('admin_onboarded','1');
   showPage('overview',document.querySelector('[data-page=overview]'));
-}
+};
 
-var KEY='',BASE=window.location.origin+'/admin/api';
+var KEY='',TOKEN='',ROLE='',USERNAME='',BASE=window.location.origin+'/admin/api';
 
 // ── Auth ──────────────────────────────────────────────────────────────
 window.tryLogin=async function(){
-  var k=document.getElementById('keyInput').value.trim();
-  if(!k){document.getElementById('authErr').textContent='Key required';document.getElementById('authErr').style.display='block';return}
-  KEY=k;
+  var u=document.getElementById('loginUser').value.trim();
+  var p=document.getElementById('loginPass').value;
+  if(!u||!p){document.getElementById('authErr').textContent='Username and password required';document.getElementById('authErr').style.display='block';return}
   try{
-    var r=await api('/overview');
+    var r=await fetch(BASE+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    if(!r.ok){var e=await r.json().catch(function(){return{detail:'Login failed'}});throw new Error(e.detail||'Error '+r.status)}
+    var d=await r.json();
+    TOKEN=d.token;ROLE=d.role;USERNAME=d.username;KEY='';
     document.getElementById('auth').style.display='none';
     document.getElementById('sidebar').style.display='flex';
     document.getElementById('mainContent').style.display='block';
+    applyRole();
     initLang();
-    renderOverview(r);
-    loadConfig().catch(function(){});// pre-load so emoji picker knows active client
+    var ov=await api('/overview');renderOverview(ov);
+    loadConfig().catch(function(){});
     if(!localStorage.getItem('admin_onboarded'))showOnboarding();
-  }catch(e){document.getElementById('authErr').textContent=e.message||'Authentication failed';document.getElementById('authErr').style.display='block';KEY=''}
+  }catch(e){document.getElementById('authErr').textContent=e.message||'Authentication failed';document.getElementById('authErr').style.display='block';TOKEN='';ROLE='';USERNAME=''}
 };
-document.getElementById('keyInput').addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin()});
+document.getElementById('loginUser').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginPass').focus()});
+document.getElementById('loginPass').addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin()});
+
+window.doLogout=async function(){
+  try{await fetch(BASE+'/auth/logout',{method:'POST',headers:{'X-Auth-Token':TOKEN}})}catch(e){}
+  TOKEN='';ROLE='';USERNAME='';KEY='';
+  document.getElementById('auth').style.display='flex';
+  document.getElementById('sidebar').style.display='none';
+  document.getElementById('mainContent').style.display='none';
+  document.getElementById('loginUser').value='';document.getElementById('loginPass').value='';
+  document.getElementById('authErr').style.display='none';
+};
+
+function applyRole(){
+  // Show user info in sidebar
+  document.getElementById('sidebarUser').style.display='block';
+  document.getElementById('sidebarUsername').textContent=USERNAME;
+  document.getElementById('sidebarRole').textContent=ROLE;
+  // Show Users nav only for admin
+  var isAdmin=ROLE==='admin';
+  document.getElementById('navUsers').style.display=isAdmin?'flex':'none';
+  document.getElementById('navSectionAdmin').style.display=isAdmin?'block':'none';
+  // Hide write buttons for viewers
+  document.querySelectorAll('[data-admin-only]').forEach(function(el){el.style.display=isAdmin?'':'none'});
+}
 
 // ── API ───────────────────────────────────────────────────────────────
 async function api(path,opts){
   opts=opts||{};
-  var headers={'X-Admin-Key':KEY};
+  var headers={};
+  if(TOKEN)headers['X-Auth-Token']=TOKEN;
+  else if(KEY)headers['X-Admin-Key']=KEY;
   if(opts.body&&!opts.raw)headers['Content-Type']='application/json';
   var fo={method:opts.method||'GET',headers:headers};
   if(opts.body)fo.body=opts.raw?opts.body:JSON.stringify(opts.body);
@@ -708,7 +738,10 @@ async function api(path,opts){
   return r.json();
 }
 async function apiUpload(path,fd){
-  var r=await fetch(BASE+path,{method:'POST',headers:{'X-Admin-Key':KEY},body:fd});
+  var headers={};
+  if(TOKEN)headers['X-Auth-Token']=TOKEN;
+  else if(KEY)headers['X-Admin-Key']=KEY;
+  var r=await fetch(BASE+path,{method:'POST',headers:headers,body:fd});
   if(!r.ok){var e=await r.json().catch(function(){return{detail:'Upload failed'}});throw new Error(e.detail||'Error '+r.status)}
   return r.json();
 }
@@ -719,13 +752,15 @@ window.showPage=function(id,btn){
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
   document.getElementById('page-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
-  var loaders={overview:loadOverviewData,sessions:loadSessions,budget:loadBudget,config:loadConfig,line:loadLine,data:loadDataFiles,logs:loadLogs};
+  var loaders={overview:loadOverviewData,sessions:loadSessions,budget:loadBudget,config:loadConfig,line:loadLine,data:loadDataFiles,logs:loadLogs,users:loadUsers,products:loadProducts,contacts:loadContacts,handoff:loadHandoffs,fallback:loadFallbacks};
   if(loaders[id])loaders[id]();
 };
 
 // ── Overview ──────────────────────────────────────────────────────────
+var _lastOverviewData=null;
 async function loadOverviewData(){try{renderOverview(await api('/overview'))}catch(e){toast(e.message,'err')}}
 function renderOverview(d){
+  _lastOverviewData=d;
   var b=d.budget||{};
   var html=card(t('ov.status'),d.status==='running'?t('ov.running'):t('ov.down'),'')+card(t('ov.uptime'),d.uptime,'')+card(t('ov.model'),d.model,d.provider)+card(t('ov.sessions'),d.sessions.active,d.sessions.backend)+card(t('ov.tokens'),b.tokens_used?b.tokens_used.toLocaleString():'0','of '+(b.daily_token_cap||0).toLocaleString())+card(t('ov.usd'),'$'+(b.usd_used||0).toFixed(4),'of $'+(b.daily_usd_cap||0).toFixed(2))+card(t('ov.ip'),d.rate_limiting.active_ip_buckets,d.rate_limiting.ip_per_minute+'/min')+card(t('ov.spam'),d.spam_detection.active_trackers,d.spam_detection.max_strikes+' strikes');
   document.getElementById('overviewCards').innerHTML=html;
@@ -754,7 +789,15 @@ window.deleteSession=async function(id){if(!confirm('Delete session '+id+'?'))re
 window.clearAllSessions=async function(){if(!confirm('Clear ALL sessions?'))return;try{var d=await api('/sessions',{method:'DELETE'});toast('Cleared '+d.cleared+' sessions','ok');loadSessions()}catch(e){toast(e.message,'err')}};
 
 // ── Budget ────────────────────────────────────────────────────────────
-async function loadBudget(){try{var d=await api('/budget');var tc=d.daily_token_cap||1,uc=d.daily_usd_cap||1;var tp=Math.min(100,Math.round(d.tokens_used/tc*100)),up=Math.min(100,Math.round(d.usd_used/uc*100));document.getElementById('budgetCards').innerHTML=card(t('bud.today'),'📅 '+d.day,'')+card(t('bud.model'),d.model,'')+card(t('bud.tokens'),d.tokens_used.toLocaleString(),'/ '+tc.toLocaleString())+card(t('bud.usd'),'$'+d.usd_used.toFixed(4),'/ $'+d.daily_usd_cap.toFixed(2))+card(t('bud.status'),d.enabled?t('bud.enabled'):t('bud.disabled'),'');document.getElementById('budgetBars').innerHTML='<div class="card" style="margin-bottom:16px"><div class="card-label">'+t('bud.token_usage')+' ('+tp+'%)</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div><div class="card"><div class="card-label">'+t('bud.usd_usage')+' ('+up+'%)</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>'}catch(e){toast(e.message,'err')}}
+var _lastBudgetData=null;
+function renderBudget(d){
+  _lastBudgetData=d;
+  var tc=d.daily_token_cap||1,uc=d.daily_usd_cap||1;
+  var tp=Math.min(100,Math.round(d.tokens_used/tc*100)),up=Math.min(100,Math.round(d.usd_used/uc*100));
+  document.getElementById('budgetCards').innerHTML=card(t('bud.today'),'📅 '+d.day,'')+card(t('bud.model'),d.model,'')+card(t('bud.tokens'),d.tokens_used.toLocaleString(),'/ '+tc.toLocaleString())+card(t('bud.usd'),'$'+d.usd_used.toFixed(4),'/ $'+d.daily_usd_cap.toFixed(2))+card(t('bud.status'),d.enabled?t('bud.enabled'):t('bud.disabled'),'');
+  document.getElementById('budgetBars').innerHTML='<div class="card" style="margin-bottom:16px"><div class="card-label">'+t('bud.token_usage')+' ('+tp+'%)</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div><div class="card"><div class="card-label">'+t('bud.usd_usage')+' ('+up+'%)</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+}
+async function loadBudget(){try{var d=await api('/budget');renderBudget(d)}catch(e){toast(e.message,'err')}}
 window.resetBudget=async function(){if(!confirm('Reset budget?'))return;try{await api('/budget/reset',{method:'POST'});toast('Budget reset','ok');loadBudget()}catch(e){toast(e.message,'err')}};
 
 // ══════════════════════════════════════════════════════════════════════
@@ -830,18 +873,18 @@ window.showConfigTab=function(tab,btn){
 // ── Client Form ───────────────────────────────────────────────────────
 function buildClientForm(d){
   if(!d)return;var h='';
-  h+='<div class="cfg-card"><h4>Basic Info</h4><div class="cfg-grid">';
-  h+=ff('cl','id',d.id,'Client ID');h+=ff('cl','name',d.name,'Display Name');
-  h+=ff('cl','location',d.location,'Location');h+=ff('cl','timezone',d.timezone,'Timezone');
-  h+=ff('cl','personality',d.personality,'Personality');h+='</div></div>';
-  h+='<div class="cfg-card"><h4>Languages</h4><div class="cfg-grid">';
-  h+=ff('cl','language_primary',d.language_primary,'Primary Language');
-  h+=ff('cl','language_fallback',d.language_fallback,'Fallback Language');
-  h+='</div><div class="form-group" style="margin-top:8px"><label class="form-label">Languages Offered (comma-separated)</label><input class="form-input" data-cl="languages_offered" value="'+esc((d.languages_offered||[]).join(', '))+'"></div></div>';
-  h+='<div class="cfg-card"><h4>System Prompt Extra</h4><p style="font-size:11px;color:var(--muted);margin-bottom:8px">Additional business info and instructions for the AI. Line breaks work naturally — no special formatting needed.</p><div class="form-group"><textarea class="field-multiline" data-cl="system_prompt_extra" rows="8" style="min-height:150px;font-family:system-ui">'+esc(d.system_prompt_extra||'')+'</textarea></div></div>';
-  if(d.greeting_override!==undefined){h+='<div class="cfg-card"><h4>Greeting Override</h4><div class="form-group"><textarea class="field-multiline" data-cl="greeting_override" rows="3">'+esc(d.greeting_override||'')+'</textarea></div></div>'}
-  if(d.data_paths){h+='<div class="cfg-card"><h4>Data Paths</h4><div class="form-group"><label class="form-label">Comma-separated paths</label><input class="form-input" data-cl="data_paths" value="'+esc((d.data_paths||[]).join(', '))+'"></div></div>'}
-  if(d.channels){h+='<div class="cfg-card"><h4>Channels</h4><div class="cfg-grid">';Object.keys(d.channels).forEach(function(ch){var en=d.channels[ch]&&d.channels[ch].enabled;h+='<div class="form-group"><label class="form-label" style="text-transform:capitalize">'+ch+'</label><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" data-cl-ch="'+ch+'" '+(en?'checked':'')+' style="width:18px;height:18px;accent-color:var(--accent)"><span style="font-size:13px">'+(en?'Enabled':'Disabled')+'</span></label></div>'});h+='</div></div>'}
+  h+='<div class="cfg-card"><h4>'+t('cf.basic')+'</h4><div class="cfg-grid">';
+  h+=ff('cl','id',d.id,t('cf.client_id'));h+=ff('cl','name',d.name,t('cf.display_name'));
+  h+=ff('cl','location',d.location,t('cf.location'));h+=ff('cl','timezone',d.timezone,t('cf.timezone'));
+  h+=ff('cl','personality',d.personality,t('cf.personality'));h+='</div></div>';
+  h+='<div class="cfg-card"><h4>'+t('cf.languages')+'</h4><div class="cfg-grid">';
+  h+=ff('cl','language_primary',d.language_primary,t('cf.lang_primary'));
+  h+=ff('cl','language_fallback',d.language_fallback,t('cf.lang_fallback'));
+  h+='</div><div class="form-group" style="margin-top:8px"><label class="form-label">'+t('cf.langs_offered')+'</label><input class="form-input" data-cl="languages_offered" value="'+esc((d.languages_offered||[]).join(', '))+'"></div></div>';
+  h+='<div class="cfg-card"><h4>'+t('cf.prompt_extra')+'</h4><p style="font-size:11px;color:var(--muted);margin-bottom:8px">'+t('cf.prompt_extra_hint')+'</p><div class="form-group"><textarea class="field-multiline" data-cl="system_prompt_extra" rows="8" style="min-height:150px;font-family:system-ui">'+esc(d.system_prompt_extra||'')+'</textarea></div></div>';
+  if(d.greeting_override!==undefined){h+='<div class="cfg-card"><h4>'+t('cf.greeting_override')+'</h4><div class="form-group"><textarea class="field-multiline" data-cl="greeting_override" rows="3">'+esc(d.greeting_override||'')+'</textarea></div></div>'}
+  if(d.data_paths){h+='<div class="cfg-card"><h4>'+t('cf.data_paths')+'</h4><div class="form-group"><label class="form-label">'+t('cf.data_paths_hint')+'</label><input class="form-input" data-cl="data_paths" value="'+esc((d.data_paths||[]).join(', '))+'"></div></div>'}
+  if(d.channels){h+='<div class="cfg-card"><h4>'+t('cf.channels')+'</h4><div class="cfg-grid">';Object.keys(d.channels).forEach(function(ch){var en=d.channels[ch]&&d.channels[ch].enabled;h+='<div class="form-group"><label class="form-label" style="text-transform:capitalize">'+ch+'</label><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" data-cl-ch="'+ch+'" '+(en?'checked':'')+' style="width:18px;height:18px;accent-color:var(--accent)"><span style="font-size:13px">'+t(en?'cfg.enabled':'cfg.disabled')+'</span></label></div>'});h+='</div></div>'}
   document.getElementById('clientFormFields').innerHTML=h;
 }
 
@@ -856,16 +899,16 @@ window.setClientView=function(v,btn){document.getElementById('clientFormView').s
 // ── Personality Form ──────────────────────────────────────────────────
 function buildPersonalityForm(d){
   if(!d)return;var h='';
-  h+='<div class="cfg-card"><h4>Basic Info</h4><div class="cfg-grid">';
-  h+=ff('pers','name',d.name,'Name');h+=ff('pers','temperature',d.temperature||0.7,'Temperature (0-1)');
+  h+='<div class="cfg-card"><h4>'+t('pf.basic')+'</h4><div class="cfg-grid">';
+  h+=ff('pers','name',d.name,t('pf.name'));h+=ff('pers','temperature',d.temperature||0.7,t('pf.temperature'));
   h+='</div></div>';
-  h+='<div class="cfg-card"><h4>Description</h4><div class="form-group"><textarea class="field-multiline" data-pers="description" rows="3">'+esc(d.description||'')+'</textarea></div></div>';
-  h+='<div class="cfg-card"><h4>System Prompt</h4><p style="font-size:11px;color:var(--muted);margin-bottom:8px">The AI personality. Write naturally — line breaks are preserved. No \\n needed.</p><div class="form-group"><textarea class="field-multiline" data-pers="system_prompt" rows="12" style="min-height:200px;font-family:system-ui">'+esc(d.system_prompt||'')+'</textarea></div></div>';
-  h+='<div class="cfg-card"><h4>Messages</h4><div class="cfg-grid">';
-  h+='<div class="form-group"><label class="form-label">Greeting</label><textarea class="field-multiline" data-pers="greeting" rows="2" style="min-height:60px">'+esc(d.greeting||'')+'</textarea></div>';
-  h+='<div class="form-group"><label class="form-label">Fallback Message</label><textarea class="field-multiline" data-pers="fallback_message" rows="2" style="min-height:60px">'+esc(d.fallback_message||'')+'</textarea></div>';
+  h+='<div class="cfg-card"><h4>'+t('pf.description')+'</h4><div class="form-group"><textarea class="field-multiline" data-pers="description" rows="3">'+esc(d.description||'')+'</textarea></div></div>';
+  h+='<div class="cfg-card"><h4>'+t('pf.system_prompt')+'</h4><p style="font-size:11px;color:var(--muted);margin-bottom:8px">'+t('pf.system_prompt_hint')+'</p><div class="form-group"><textarea class="field-multiline" data-pers="system_prompt" rows="12" style="min-height:200px;font-family:system-ui">'+esc(d.system_prompt||'')+'</textarea></div></div>';
+  h+='<div class="cfg-card"><h4>'+t('pf.messages')+'</h4><div class="cfg-grid">';
+  h+='<div class="form-group"><label class="form-label">'+t('pf.greeting')+'</label><textarea class="field-multiline" data-pers="greeting" rows="2" style="min-height:60px">'+esc(d.greeting||'')+'</textarea></div>';
+  h+='<div class="form-group"><label class="form-label">'+t('pf.fallback')+'</label><textarea class="field-multiline" data-pers="fallback_message" rows="2" style="min-height:60px">'+esc(d.fallback_message||'')+'</textarea></div>';
   h+='</div></div>';
-  h+='<div class="cfg-card"><h4>Style Keywords</h4><div class="form-group"><label class="form-label">Comma-separated</label><input class="form-input" data-pers="style_keywords" value="'+esc((d.style_keywords||[]).join(', '))+'"></div></div>';
+  h+='<div class="cfg-card"><h4>'+t('pf.style_kw')+'</h4><div class="form-group"><label class="form-label">'+t('pf.style_kw_hint')+'</label><input class="form-input" data-pers="style_keywords" value="'+esc((d.style_keywords||[]).join(', '))+'"></div></div>';
   document.getElementById('personalityFormFields').innerHTML=h;
 }
 
@@ -998,7 +1041,7 @@ window.loadDataFiles=async function(){
 
 window.editDataFile=async function(path){
   try{var d=await api('/data/'+encodeURIComponent(path));_editFile=path;
-  document.getElementById('editingFileName').textContent='Editing: '+path;
+  document.getElementById('editingFileName').textContent=t('cf.editing')+': '+path;
   _mainEd=createRichEditor('richEditorWrap');document.getElementById(_mainEd).innerHTML=md2html(d.content);
   document.getElementById('rawEditorArea').value=d.content;_edMode='rich';
   document.getElementById('richEditorWrap').style.display='block';document.getElementById('rawEditorArea').style.display='none';
@@ -1043,14 +1086,51 @@ window.loadLogs=async function(){
 };
 
 // ══════════════════════════════════════════════════════════════════════
+// Channel status helper (reusable for LINE / Telegram / WhatsApp / …)
+// ══════════════════════════════════════════════════════════════════════
+// Renders the "not configured" / "configured + status cards" pattern.
+// cfg = {
+//   rootId       : 'line-channel-root',   — container element id
+//   toolsId      : 'lineTools',           — channel-specific tools div (shown when configured)
+//   name         : 'LINE',                — display name
+//   icon         : '📱',                  — icon for the not-configured card
+//   nocfgTitleK  : 'line.nocfg.title',    — i18n key for title
+//   nocfgBodyK   : 'line.nocfg.body',     — i18n key for body
+//   envVars      : ['LINE_CHANNEL_ACCESS_TOKEN','LINE_CHANNEL_SECRET'],
+//   statusCards  : function(data){ return card(...) + card(...); }  — returns card HTML
+// }
+function renderChannelStatus(cfg, data){
+  var root=document.getElementById(cfg.rootId);if(!root)return;
+  if(!data||!data.configured){
+    var envHtml=cfg.envVars.map(function(v){return'<code style="background:var(--bg3);padding:2px 6px;border-radius:4px">'+esc(v)+'</code>'}).join(' and ');
+    root.innerHTML='<div class="card" style="padding:24px;text-align:center">'
+      +'<div style="font-size:36px;margin-bottom:12px">'+cfg.icon+'</div>'
+      +'<h3 style="margin-bottom:8px">'+t(cfg.nocfgTitleK)+'</h3>'
+      +'<p style="color:var(--muted);font-size:13px;margin-bottom:16px">'+t(cfg.nocfgBodyK)+'</p>'
+      +'<p style="color:var(--muted);font-size:12px">Go to <a href="#" onclick="showPage(\'config\',document.querySelector(\'[data-page=config]\'));return false">Configuration</a> to set these.</p></div>';
+    if(cfg.toolsId)document.getElementById(cfg.toolsId).style.display='none';
+    return false;
+  }
+  root.innerHTML='<div class="cards">'+cfg.statusCards(data)+'</div>';
+  if(cfg.toolsId)document.getElementById(cfg.toolsId).style.display='block';
+  return true;
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // LINE
 // ══════════════════════════════════════════════════════════════════════
+var _lineCfg={
+  rootId:'line-channel-root', toolsId:'lineTools', name:'LINE', icon:'📱',
+  nocfgTitleK:'line.nocfg.title', nocfgBodyK:'line.nocfg.body',
+  envVars:['LINE_CHANNEL_ACCESS_TOKEN','LINE_CHANNEL_SECRET'],
+  statusCards:function(s){
+    return card('LINE','\u{1F7E2} Active','')+card('Secret',s.channel_secret_set?'✅ Set':'❌ Missing','')+card('Token','✅ Set','')+card('Webhook',esc(s.webhook_url),'');
+  }
+};
 async function loadLine(){
   try{var s=await api('/line/status');
-  if(!s.configured){document.getElementById('lineNotConfigured').style.display='block';document.getElementById('lineConfigured').style.display='none';return}
-  document.getElementById('lineNotConfigured').style.display='none';document.getElementById('lineConfigured').style.display='block';
-  document.getElementById('lineStatusCards').innerHTML=card('LINE','🟢 Active','')+card('Secret',s.channel_secret_set?'✅ Set':'❌ Missing','')+card('Token','✅ Set','')+card('Webhook',esc(s.webhook_url),'');
-  loadLineMenus()}catch(e){toast(e.message,'err')}
+  if(renderChannelStatus(_lineCfg,s))loadLineMenus();
+  }catch(e){toast(e.message,'err')}
   updateFlexForm();
 }
 window.loadLineMenus=async function(){try{var d=await api('/line/rich-menus');if(!d.menus||!d.menus.length){document.getElementById('richMenuList').innerHTML='<div class="card" style="padding:16px;text-align:center;color:var(--muted)">No rich menus</div>';return}var html='<div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Chat Bar</th><th>Areas</th><th>Default</th><th>Actions</th></tr></thead><tbody>';d.menus.forEach(function(m){var isd=m.richMenuId===d.default_id;html+='<tr><td>'+esc(m.name)+'</td><td>'+esc(m.chatBarText||'')+'</td><td>'+((m.areas||[]).length)+'</td><td>'+(isd?'<span class="tag tag-on">DEFAULT</span>':'<button class="btn btn-ghost btn-sm" onclick="setDefaultMenu(\''+m.richMenuId+'\')">Set Default</button>')+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteRichMenu(\''+m.richMenuId+'\')">Delete</button></td></tr>'});html+='</tbody></table></div>';document.getElementById('richMenuList').innerHTML=html}catch(e){document.getElementById('richMenuList').innerHTML='<div class="card" style="padding:16px;color:var(--danger)">'+esc(e.message)+'</div>'}};
@@ -1061,6 +1141,30 @@ window.setDefaultMenu=async function(id){try{await api('/line/rich-menus/'+id+'/
 window.deleteRichMenu=async function(id){if(!confirm('Delete this rich menu?'))return;try{await api('/line/rich-menus/'+id,{method:'DELETE'});toast('Deleted','ok');loadLineMenus()}catch(e){toast(e.message,'err')}};
 window.updateFlexForm=function(){var type=document.getElementById('flexType').value;var html='';if(type==='product'){html+='<div class="form-group"><label class="form-label">Title</label><input class="form-input" id="fxTitle" value="Roman Curtain"></div><div class="form-group"><label class="form-label">Description</label><input class="form-input" id="fxDesc" value="Custom made, premium fabric"></div><div class="form-group"><label class="form-label">Price</label><input class="form-input" id="fxPrice" value="₪440 – ₪550"></div><div class="form-group"><label class="form-label">Image URL</label><input class="form-input" id="fxImage" placeholder="https://..."></div><div class="form-group"><label class="form-label">Button Label</label><input class="form-input" id="fxBtnLabel" value="Learn more"></div><div class="form-group"><label class="form-label">Button URL</label><input class="form-input" id="fxBtnUri" placeholder="https://..."></div>'}else{html+='<div class="form-group"><label class="form-label">Business Name</label><input class="form-input" id="fxBizName" value="Limmes Studio"></div><div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="fxPhone" value="+972-54-123-4567"></div><div class="form-group"><label class="form-label">WhatsApp</label><input class="form-input" id="fxWhatsApp" value="+972-54-123-4567"></div><div class="form-group"><label class="form-label">Email</label><input class="form-input" id="fxEmail" value="info@limmes.co.il"></div><div class="form-group"><label class="form-label">Address</label><input class="form-input" id="fxAddress" value="Nes Ziona, Israel"></div>'}document.getElementById('flexForm').innerHTML=html};
 window.previewFlex=async function(){var type=document.getElementById('flexType').value;var body={type:type};if(type==='product'){body.title=document.getElementById('fxTitle').value;body.description=document.getElementById('fxDesc').value;body.price=document.getElementById('fxPrice').value;body.image_url=document.getElementById('fxImage').value||undefined;body.action_label=document.getElementById('fxBtnLabel').value;body.action_uri=document.getElementById('fxBtnUri').value||undefined}else{body.business_name=document.getElementById('fxBizName').value;body.phone=document.getElementById('fxPhone').value;body.whatsapp=document.getElementById('fxWhatsApp').value;body.email=document.getElementById('fxEmail').value;body.address=document.getElementById('fxAddress').value}try{var r=await api('/line/flex-preview',{method:'POST',body:body});document.getElementById('flexPreview').textContent=JSON.stringify(r.flex,null,2)}catch(e){toast(e.message,'err')}};
+
+// ══════════════════════════════════════════════════════════════════════
+// Users
+// ══════════════════════════════════════════════════════════════════════
+window.loadUsers=async function(){
+  if(ROLE!=='admin'){document.getElementById('userRows').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--muted)">Admin access required</td></tr>';return}
+  try{var d=await api('/users');var html='';
+  if(!d.users.length)html='<tr><td colspan="4" style="text-align:center;color:var(--muted)">No users</td></tr>';
+  d.users.forEach(function(u){html+='<tr><td style="font-weight:600">'+esc(u.username)+'</td><td><span class="tag '+(u.role==='admin'?'tag-on':'tag-off')+'">'+esc(u.role)+'</span></td><td>'+esc(u.created_by||'—')+'</td><td>'+(u.username!==USERNAME?'<button class="btn btn-danger btn-sm" onclick="removeUser(\''+esc(u.username)+'\')">Delete</button>':'<span style="font-size:11px;color:var(--muted)">You</span>')+'</td></tr>'});
+  document.getElementById('userRows').innerHTML=html}catch(e){toast(e.message,'err')}
+};
+
+window.showNewUserForm=function(){document.getElementById('newUserForm').style.display='block'};
+
+window.createNewUser=async function(){
+  var u=document.getElementById('newUserName').value.trim();
+  var p=document.getElementById('newUserPass').value;
+  var r=document.getElementById('newUserRole').value;
+  if(!u||!p){toast('Username and password required','err');return}
+  if(p.length<4){toast('Password must be at least 4 characters','err');return}
+  try{await api('/users',{method:'POST',body:{username:u,password:p,role:r}});toast('User created: '+u,'ok');document.getElementById('newUserForm').style.display='none';document.getElementById('newUserName').value='';document.getElementById('newUserPass').value='';loadUsers()}catch(e){toast(e.message,'err')}
+};
+
+window.removeUser=async function(u){if(!confirm('Delete user '+u+'?'))return;try{await api('/users/'+encodeURIComponent(u),{method:'DELETE'});toast('User deleted','ok');loadUsers()}catch(e){toast(e.message,'err')}};
 
 // ══════════════════════════════════════════════════════════════════════
 // Utils
@@ -1099,7 +1203,602 @@ function yamlParse(text){
   return result;
 }
 
-})();
-</script>
-</body>
-</html>"""
+// ── Products ──────────────────────────────────────────────────────────
+async function loadProducts(){
+  try{
+    var d=await api('/products');
+    var stats=document.getElementById('productStats');
+    stats.innerHTML='<div class="card"><div class="card-label">'+t('products.total')+'</div><div class="card-value">'+d.total+'</div></div>'
+      +'<div class="card"><div class="card-label">'+t('products.categories')+'</div><div class="card-value">'+d.categories.length+'</div></div>';
+    var rows=document.getElementById('productRows');
+    rows.innerHTML='';
+    (d.products||[]).forEach(function(p){
+      var imgCell=p.image_url?'<img src="'+p.image_url+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px">':'<span style="color:var(--muted)">—</span>';
+      var stockTag=p.in_stock?'<span class="tag tag-on">In Stock</span>':'<span class="tag tag-off">Out</span>';
+      rows.innerHTML+='<tr><td><code style="font-size:11px">'+p.id+'</code></td><td>'+p.name+(p.name_en?' <small style="color:var(--muted)">('+p.name_en+')</small>':'')+'</td><td>'+p.category+'</td><td>'+p.price+'</td><td>'+imgCell+'</td><td>'+stockTag+'</td></tr>';
+    });
+  }catch(e){toast(e.message,'err')}
+}
+window.loadProducts=loadProducts;
+
+// ── Contacts / Messages ───────────────────────────────────────────────
+async function loadContacts(){
+  try{
+    var d=await api('/contacts');
+    var stats=document.getElementById('contactStats');
+    stats.innerHTML='<div class="card"><div class="card-label">'+t('contacts.unread')+'</div><div class="card-value" style="color:var(--warn)">'+d.unread+'</div></div>'
+      +'<div class="card"><div class="card-label">'+t('contacts.total')+'</div><div class="card-value">'+d.messages.length+'</div></div>';
+    var rows=document.getElementById('contactRows');
+    rows.innerHTML='';
+    (d.messages||[]).forEach(function(m){
+      var statusTag=m.replied?'<span class="tag tag-on">Replied</span>':m.read?'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Read</span>':'<span class="tag tag-off">Unread</span>';
+      var actions='<button class="btn btn-ghost btn-sm" onclick="markContactRead(\''+m.id+'\')">✓ Read</button> <button class="btn btn-ghost btn-sm" onclick="markContactReplied(\''+m.id+'\')">↩ Replied</button> <button class="btn btn-danger btn-sm" onclick="deleteContact(\''+m.id+'\')">✕</button>';
+      rows.innerHTML+='<tr><td>'+m.channel+'</td><td>'+m.customer_name+'</td><td style="font-size:12px">'+m.customer_contact+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+m.message+'</td><td style="font-size:11px">'+new Date(m.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
+    });
+  }catch(e){toast(e.message,'err')}
+}
+window.loadContacts=loadContacts;
+window.markContactRead=async function(id){try{await api('/contacts/'+id+'/read','PATCH');loadContacts();toast('Marked read','ok')}catch(e){toast(e.message,'err')}};
+window.markContactReplied=async function(id){try{await api('/contacts/'+id+'/replied','PATCH');loadContacts();toast('Marked replied','ok')}catch(e){toast(e.message,'err')}};
+window.deleteContact=async function(id){if(!confirm('Delete this message?'))return;try{await api('/contacts/'+id,'DELETE');loadContacts();toast('Deleted','ok')}catch(e){toast(e.message,'err')}};
+
+// ── Handoff ───────────────────────────────────────────────────────────
+var _handoffTarget='';
+async function loadHandoffs(){
+  try{
+    var d=await api('/handoff?active_only=true');
+    var rows=document.getElementById('handoffRows');
+    rows.innerHTML='';
+    (d.sessions||[]).forEach(function(s){
+      var msgCount=(s.pending_messages||[]).length;
+      var actions='<button class="btn btn-primary btn-sm" onclick="openHandoffReply(\''+s.session_id+'\')">Reply</button> <button class="btn btn-danger btn-sm" onclick="resolveHandoff(\''+s.session_id+'\')">Resolve</button>';
+      rows.innerHTML+='<tr><td><code style="font-size:11px">'+s.session_id+'</code></td><td>'+s.channel+'</td><td>'+s.reason+'</td><td>'+msgCount+'</td><td style="font-size:11px">'+new Date(s.created_at).toLocaleString()+'</td><td>'+actions+'</td></tr>';
+    });
+    if(!d.sessions||!d.sessions.length)rows.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No active handoffs</td></tr>';
+  }catch(e){toast(e.message,'err')}
+}
+window.loadHandoffs=loadHandoffs;
+window.openHandoffReply=function(sid){
+  _handoffTarget=sid;
+  document.getElementById('handoffReplyTarget').textContent=sid;
+  document.getElementById('handoffReplyText').value='';
+  document.getElementById('handoffReplyBox').style.display='block';
+};
+window.sendHandoffReply=async function(){
+  var text=document.getElementById('handoffReplyText').value.trim();
+  if(!text)return;
+  try{await api('/handoff/'+_handoffTarget+'/reply','POST',{text:text});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+};
+window.resolveCurrentHandoff=async function(){
+  if(!confirm('Resolve this handoff and return session to bot?'))return;
+  try{await api('/handoff/'+_handoffTarget+'/resolve','POST');document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+};
+window.resolveHandoff=async function(sid){
+  if(!confirm('Resolve handoff for '+sid+'?'))return;
+  try{await api('/handoff/'+sid+'/resolve','POST');toast('Resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+};
+
+// ── Fallback / Unanswered ─────────────────────────────────────────────
+async function loadFallbacks(){
+  try{
+    var d=await api('/fallback-log?unresolved_only=true');
+    var stats=document.getElementById('fallbackStats');
+    stats.innerHTML='<div class="card"><div class="card-label">'+t('fallback.unresolved')+'</div><div class="card-value" style="color:var(--danger)">'+d.unresolved+'</div></div>';
+    var rows=document.getElementById('fallbackRows');
+    rows.innerHTML='';
+    (d.questions||[]).forEach(function(q){
+      var statusTag=q.added_to_kb?'<span class="tag tag-on">In KB</span>':q.resolved?'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Resolved</span>':'<span class="tag tag-off">Open</span>';
+      var actions='<button class="btn btn-ghost btn-sm" onclick="resolveFallback(\''+encodeURIComponent(q.question)+'\')">✓ Resolve</button> <button class="btn btn-primary btn-sm" onclick="addToKb(\''+encodeURIComponent(q.question)+'\')">+ KB</button> <button class="btn btn-danger btn-sm" onclick="deleteFallback(\''+encodeURIComponent(q.question)+'\')">✕</button>';
+      rows.innerHTML+='<tr><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+q.question+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:11px;color:var(--muted)">'+q.answer_given.substring(0,100)+'</td><td style="font-size:11px">'+q.session_id+'</td><td style="font-size:11px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
+    });
+    if(!d.questions||!d.questions.length)rows.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No unanswered questions — great!</td></tr>';
+  }catch(e){toast(e.message,'err')}
+}
+window.loadFallbacks=loadFallbacks;
+window.resolveFallback=async function(q){try{await api('/fallback-log/resolve','PATCH',{question:decodeURIComponent(q)});loadFallbacks();toast('Resolved','ok')}catch(e){toast(e.message,'err')}};
+window.addToKb=async function(q){try{await api('/fallback-log/add-to-kb','PATCH',{question:decodeURIComponent(q)});loadFallbacks();toast('Marked as added to KB','ok')}catch(e){toast(e.message,'err')}};
+window.deleteFallback=async function(q){if(!confirm('Delete this entry?'))return;try{await api('/fallback-log','DELETE',{question:decodeURIComponent(q)});loadFallbacks();toast('Deleted','ok')}catch(e){toast(e.message,'err')}};
+
+})();"""
+
+# ══════════════════════════════════════════════════════════════════════
+# Translations (injected as JSON into __LANGS_JSON__)
+# ══════════════════════════════════════════════════════════════════════
+_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "en": {
+        "nav.overview": "Overview",
+        "nav.sessions": "Sessions",
+        "nav.budget": "Budget",
+        "nav.config": "Configuration",
+        "nav.line": "LINE",
+        "nav.data": "Data Files",
+        "nav.logs": "Logs",
+        "nav.section.channels": "Channels",
+        "nav.section.content": "Content",
+        "page.overview": "\U0001f4ca Overview",
+        "page.sessions": "\U0001f4ac Sessions",
+        "page.budget": "\U0001f4b0 Budget",
+        "page.config": "\u2699\ufe0f Configuration",
+        "page.line": "\U0001f4ac LINE Channel",
+        "page.data": "\U0001f4c1 Data Files",
+        "page.logs": "\U0001f4cb Logs",
+        "cfg.tab.env": "Environment",
+        "cfg.tab.client": "Client",
+        "cfg.tab.personality": "Personality",
+        "btn.refresh": "\u21bb Refresh",
+        "btn.clearAll": "Clear All",
+        "btn.resetToday": "Reset Today",
+        "btn.saveEnv": "Save Environment Settings",
+        "btn.saveClient": "Save Client Config",
+        "btn.savePersonality": "Save Personality Config",
+        "btn.newFile": "+ New File",
+        "btn.create": "Create",
+        "btn.cancel": "Cancel",
+        "btn.closeEditor": "\u2715 Close",
+        "view.form": "Form",
+        "view.yaml": "YAML",
+        "view.visual": "Visual",
+        "view.markdown": "Markdown",
+        "restart.note": "Restart required for changes to take effect",
+        "data.hint": "Knowledge base files for the chatbot. Edit content, then re-ingest to update the vector store.",
+        "data.upload.cta": "<strong>Click to upload</strong> or drag files here",
+        "data.upload.hint": ".md, .txt files \u2014 UTF-8 only",
+        "data.newfile": "Create New Data File",
+        "line.nocfg.title": "LINE Not Configured",
+        "line.nocfg.body": "Set LINE_CHANNEL_ACCESS_TOKEN and LINE_CHANNEL_SECRET in your .env file to enable LINE integration.",
+        "logs.nocfg.title": "Log File Not Configured",
+        "logs.nocfg.body": "Log file is auto-configured. It will appear after the server starts logging.",
+        "logs.nocfg.go": "Go to",
+        "logs.nocfg.link": "Configuration \u2192 Environment",
+        "logs.nocfg.set": "to set this.",
+        "ov.status": "Status",
+        "ov.uptime": "Uptime",
+        "ov.model": "Model",
+        "ov.sessions": "Sessions",
+        "ov.tokens": "Tokens",
+        "ov.usd": "USD Spent",
+        "ov.ip": "IP Buckets",
+        "ov.spam": "Spam Trackers",
+        "ov.running": "\U0001f7e2 Running",
+        "ov.down": "\U0001f534 Down",
+        "ov.channels": "Channels",
+        "ov.security": "Security",
+        "th.channel": "Channel",
+        "th.status": "Status",
+        "th.feature": "Feature",
+        "sec.rate": "Rate Limiting",
+        "sec.spam": "Spam Detection",
+        "sec.budget": "Budget Guard",
+        "sec.hsts": "HSTS",
+        "sec.cors": "Strict CORS",
+        "sec.apikey": "API Key",
+        "bud.today": "Today",
+        "bud.model": "Model",
+        "bud.tokens": "Tokens Used",
+        "bud.usd": "USD Spent",
+        "bud.status": "Status",
+        "bud.enabled": "\U0001f6e1\ufe0f Enabled",
+        "bud.disabled": "\u26a0\ufe0f Disabled",
+        "bud.token_usage": "Token Usage",
+        "bud.usd_usage": "USD Usage",
+        "cfg.llm": "LLM",
+        "cfg.rag": "RAG",
+        "cfg.conversation": "Conversation",
+        "cfg.rate": "Rate Limiting",
+        "cfg.spam": "Spam Detection",
+        "cfg.budget_cap": "Budget",
+        "cfg.security": "Security",
+        "cfg.general": "General",
+        "cfg.secrets": "Secrets (read-only)",
+        "cfg.enabled": "Enabled",
+        "cfg.disabled": "Disabled",
+        "th.session_id": "Session ID",
+        "th.messages": "Messages",
+        "th.last_active": "Last Activity",
+        "th.actions": "Actions",
+        "th.file": "File",
+        "th.folder": "Folder",
+        "th.size": "Size",
+        "onb.welcome": "Welcome to Admin Dashboard",
+        "onb.welcome_sub": "Quick tour \u2014 takes 10 seconds",
+        "onb.step1_title": "\U0001f4c1 Data Files",
+        "onb.step1_body": "Add your business knowledge here \u2014 products, hours, policies. The chatbot learns from these files.",
+        "onb.step2_title": "\U0001f3e2 Business Info",
+        "onb.step2_body": "Set your business name, location, language, and which personality preset to use. This tells the bot who it's representing.",
+        "onb.step3_title": "\U0001f916 AI Personalization",
+        "onb.step3_body": "Customize the bot's tone, character, and response style. The personality shapes how the bot speaks to your customers.",
+        "onb.step4_title": "\U0001f4ca Overview",
+        "onb.step4_body": "Monitor sessions, budget, and channels. All live stats in one place.",
+        "onb.skip": "Skip",
+        "onb.next": "Next",
+        "onb.prev": "Back",
+        "onb.done": "Get Started",
+        "onb.go_data": "Go to Data Files",
+        "onb.go_config": "Go to Configuration",
+        "cf.basic": "Basic Info",
+        "cf.client_id": "Client ID",
+        "cf.display_name": "Display Name",
+        "cf.location": "Location",
+        "cf.timezone": "Timezone",
+        "cf.personality": "Personality",
+        "cf.languages": "Languages",
+        "cf.lang_primary": "Primary Language",
+        "cf.lang_fallback": "Fallback Language",
+        "cf.langs_offered": "Languages Offered (comma-separated)",
+        "cf.prompt_extra": "System Prompt Extra",
+        "cf.prompt_extra_hint": "Additional business info and instructions for the AI. Line breaks work naturally \u2014 no special formatting needed.",
+        "cf.greeting_override": "Greeting Override",
+        "cf.data_paths": "Data Paths",
+        "cf.data_paths_hint": "Comma-separated paths",
+        "cf.channels": "Channels",
+        "cf.editing": "Editing",
+        "pf.basic": "Basic Info",
+        "pf.name": "Name",
+        "pf.temperature": "Temperature (0-1)",
+        "pf.description": "Description",
+        "pf.system_prompt": "System Prompt",
+        "pf.system_prompt_hint": "The AI personality. Write naturally \u2014 line breaks are preserved. No \\n needed.",
+        "pf.messages": "Messages",
+        "pf.greeting": "Greeting",
+        "pf.fallback": "Fallback Message",
+        "pf.style_kw": "Style Keywords",
+        "pf.style_kw_hint": "Comma-separated",
+        "nav.section.admin": "Admin",
+        "nav.users": "Users",
+        "page.users": "\U0001f465 Users",
+        "btn.addUser": "+ Add User",
+        "users.newuser": "Create New User",
+        "users.username": "Username",
+        "users.password": "Password",
+        "users.role": "Role",
+        "users.created_by": "Created By",
+        "users.role_hint": "Admin: full access, can manage users. Viewer: read-only access to dashboard.",
+        "nav.section.business": "Business",
+        "nav.products": "Products",
+        "nav.contacts": "Messages",
+        "nav.handoff": "Handoff",
+        "nav.fallback": "Unanswered",
+        "page.products": "\U0001f6cd\ufe0f Products",
+        "page.contacts": "\U0001f4e7 Messages",
+        "page.handoff": "\U0001f91d Live Handoff",
+        "page.fallback": "\u2753 Unanswered Questions",
+        "products.total": "Total Products",
+        "products.categories": "Categories",
+        "contacts.unread": "Unread",
+        "contacts.total": "Total Messages",
+        "fallback.unresolved": "Unresolved",
+        "th.name": "Name",
+        "th.category": "Category",
+        "th.price": "Price",
+        "th.image": "Image",
+        "th.message": "Message",
+        "th.time": "Time",
+        "th.question": "Question",
+    },
+    "he": {
+        "nav.overview": "\u05e1\u05e7\u05d9\u05e8\u05d4",
+        "nav.sessions": "\u05e9\u05d9\u05d7\u05d5\u05ea",
+        "nav.budget": "\u05ea\u05e7\u05e6\u05d9\u05d1",
+        "nav.config": "\u05d4\u05d2\u05d3\u05e8\u05d5\u05ea",
+        "nav.line": "LINE",
+        "nav.data": "\u05e7\u05d1\u05e6\u05d9 \u05de\u05d9\u05d3\u05e2",
+        "nav.logs": "\u05dc\u05d5\u05d2\u05d9\u05dd",
+        "nav.section.channels": "\u05e2\u05e8\u05d5\u05e6\u05d9\u05dd",
+        "nav.section.content": "\u05ea\u05d5\u05db\u05df",
+        "page.overview": "\U0001f4ca \u05e1\u05e7\u05d9\u05e8\u05d4 \u05db\u05dc\u05dc\u05d9\u05ea",
+        "page.sessions": "\U0001f4ac \u05e9\u05d9\u05d7\u05d5\u05ea",
+        "page.budget": "\U0001f4b0 \u05ea\u05e7\u05e6\u05d9\u05d1",
+        "page.config": "\u2699\ufe0f \u05d4\u05d2\u05d3\u05e8\u05d5\u05ea",
+        "page.line": "\U0001f4ac \u05e2\u05e8\u05d5\u05e5 LINE",
+        "page.data": "\U0001f4c1 \u05e7\u05d1\u05e6\u05d9 \u05de\u05d9\u05d3\u05e2",
+        "page.logs": "\U0001f4cb \u05dc\u05d5\u05d2\u05d9\u05dd",
+        "cfg.tab.env": "\u05e1\u05d1\u05d9\u05d1\u05d4",
+        "cfg.tab.client": "\u05dc\u05e7\u05d5\u05d7",
+        "cfg.tab.personality": "\u05d0\u05d9\u05e9\u05d9\u05d5\u05ea",
+        "btn.refresh": "\u21bb \u05e8\u05e2\u05e0\u05df",
+        "btn.clearAll": "\u05e0\u05e7\u05d4 \u05d4\u05db\u05dc",
+        "btn.resetToday": "\u05d0\u05e4\u05e1 \u05dc\u05d4\u05d9\u05d5\u05dd",
+        "btn.saveEnv": "\u05e9\u05de\u05d5\u05e8 \u05d4\u05d2\u05d3\u05e8\u05d5\u05ea \u05e1\u05d1\u05d9\u05d1\u05d4",
+        "btn.saveClient": "\u05e9\u05de\u05d5\u05e8 \u05d4\u05d2\u05d3\u05e8\u05d5\u05ea \u05dc\u05e7\u05d5\u05d7",
+        "btn.savePersonality": "\u05e9\u05de\u05d5\u05e8 \u05d4\u05d2\u05d3\u05e8\u05d5\u05ea \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea",
+        "btn.newFile": "+ \u05e7\u05d5\u05d1\u05e5 \u05d7\u05d3\u05e9",
+        "btn.create": "\u05e6\u05d5\u05e8",
+        "btn.cancel": "\u05d1\u05d9\u05d8\u05d5\u05dc",
+        "btn.closeEditor": "\u2715 \u05e1\u05d2\u05d5\u05e8",
+        "view.form": "\u05d8\u05d5\u05e4\u05e1",
+        "view.yaml": "YAML",
+        "view.visual": "\u05d5\u05d9\u05d6\u05d5\u05d0\u05dc\u05d9",
+        "view.markdown": "Markdown",
+        "restart.note": "\u05e0\u05d3\u05e8\u05e9 \u05d4\u05e4\u05e2\u05dc\u05d4 \u05de\u05d7\u05d3\u05e9 \u05dc\u05d9\u05d9\u05e9\u05d5\u05dd \u05d4\u05e9\u05d9\u05e0\u05d5\u05d9\u05d9\u05dd",
+        "data.hint": "\u05e7\u05d1\u05e6\u05d9 \u05d1\u05e1\u05d9\u05e1 \u05d9\u05d3\u05e2 \u05dc\u05e6'\u05d0\u05d8\u05d1\u05d5\u05d8. \u05e2\u05e8\u05d5\u05da \u05ea\u05d5\u05db\u05df \u05d5\u05d0\u05d6 \u05d4\u05db\u05e0\u05e1 \u05de\u05d7\u05d3\u05e9 \u05dc\u05e2\u05d3\u05db\u05d5\u05df \u05de\u05d0\u05d2\u05e8 \u05d4\u05d5\u05d5\u05e7\u05d8\u05d5\u05e8\u05d9\u05dd.",
+        "data.upload.cta": "<strong>\u05dc\u05d7\u05e5 \u05dc\u05d4\u05e2\u05dc\u05d0\u05d4</strong> \u05d0\u05d5 \u05d2\u05e8\u05d5\u05e8 \u05e7\u05d1\u05e6\u05d9\u05dd \u05dc\u05db\u05d0\u05df",
+        "data.upload.hint": "\u05e7\u05d1\u05e6\u05d9 .md, .txt \u2014 UTF-8 \u05d1\u05dc\u05d1\u05d3",
+        "data.newfile": "\u05e6\u05d5\u05e8 \u05e7\u05d5\u05d1\u05e5 \u05de\u05d9\u05d3\u05e2 \u05d7\u05d3\u05e9",
+        "line.nocfg.title": "LINE \u05dc\u05d0 \u05de\u05d5\u05d2\u05d3\u05e8",
+        "line.nocfg.body": "\u05d4\u05d2\u05d3\u05e8 LINE_CHANNEL_ACCESS_TOKEN \u05d5-LINE_CHANNEL_SECRET \u05d1\u05e7\u05d5\u05d1\u05e5 \u05d4-.env \u05e9\u05dc\u05da.",
+        "logs.nocfg.title": "\u05e7\u05d5\u05d1\u05e5 \u05dc\u05d5\u05d2 \u05d8\u05e8\u05dd \u05e0\u05d5\u05e6\u05e8",
+        "logs.nocfg.body": "\u05e7\u05d5\u05d1\u05e5 \u05d4\u05dc\u05d5\u05d2 \u05de\u05d5\u05d2\u05d3\u05e8 \u05d0\u05d5\u05d8\u05d5\u05de\u05d8\u05d9\u05ea. \u05d4\u05d5\u05d0 \u05d9\u05d5\u05e4\u05d9\u05e2 \u05dc\u05d0\u05d7\u05e8 \u05e9\u05d4\u05e9\u05e8\u05ea \u05d9\u05ea\u05d7\u05d9\u05dc \u05dc\u05e8\u05e9\u05d5\u05dd \u05dc\u05d5\u05d2\u05d9\u05dd.",
+        "logs.nocfg.go": "\u05e2\u05d1\u05d5\u05e8 \u05dc",
+        "logs.nocfg.link": "\u05d4\u05d2\u05d3\u05e8\u05d5\u05ea \u2190 \u05e1\u05d1\u05d9\u05d1\u05d4",
+        "logs.nocfg.set": "\u05dc\u05d4\u05d2\u05d3\u05e8\u05d4.",
+        "ov.status": "\u05e1\u05d8\u05d8\u05d5\u05e1",
+        "ov.uptime": "\u05d6\u05de\u05df \u05e4\u05e2\u05d9\u05dc\u05d5\u05ea",
+        "ov.model": "\u05de\u05d5\u05d3\u05dc",
+        "ov.sessions": "\u05e9\u05d9\u05d7\u05d5\u05ea",
+        "ov.tokens": "\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
+        "ov.usd": "\u05d4\u05d5\u05e6\u05d0\u05d4 ($)",
+        "ov.ip": "IP \u05e4\u05e2\u05d9\u05dc\u05d9\u05dd",
+        "ov.spam": "\u05de\u05e2\u05e7\u05d1 \u05e1\u05e4\u05d0\u05dd",
+        "ov.running": "\U0001f7e2 \u05e4\u05e2\u05d9\u05dc",
+        "ov.down": "\U0001f534 \u05de\u05d5\u05e9\u05d1\u05ea",
+        "ov.channels": "\u05e2\u05e8\u05d5\u05e6\u05d9\u05dd",
+        "ov.security": "\u05d0\u05d1\u05d8\u05d7\u05d4",
+        "th.channel": "\u05e2\u05e8\u05d5\u05e5",
+        "th.status": "\u05e1\u05d8\u05d8\u05d5\u05e1",
+        "th.feature": "\u05ea\u05db\u05d5\u05e0\u05d4",
+        "sec.rate": "\u05d4\u05d2\u05d1\u05dc\u05ea \u05e7\u05e6\u05d1",
+        "sec.spam": "\u05d6\u05d9\u05d4\u05d5\u05d9 \u05e1\u05e4\u05d0\u05dd",
+        "sec.budget": "\u05de\u05d2\u05df \u05ea\u05e7\u05e6\u05d9\u05d1",
+        "sec.hsts": "HSTS",
+        "sec.cors": "CORS \u05de\u05d7\u05de\u05d9\u05e8",
+        "sec.apikey": "\u05de\u05e4\u05ea\u05d7 API",
+        "bud.today": "\u05d4\u05d9\u05d5\u05dd",
+        "bud.model": "\u05de\u05d5\u05d3\u05dc",
+        "bud.tokens": "\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
+        "bud.usd": "\u05d4\u05d5\u05e6\u05d0\u05d4 ($)",
+        "bud.status": "\u05e1\u05d8\u05d8\u05d5\u05e1",
+        "bud.enabled": "\U0001f6e1\ufe0f \u05de\u05d5\u05e4\u05e2\u05dc",
+        "bud.disabled": "\u26a0\ufe0f \u05de\u05d5\u05e9\u05d1\u05ea",
+        "bud.token_usage": "\u05e9\u05d9\u05de\u05d5\u05e9 \u05d1\u05d8\u05d5\u05e7\u05e0\u05d9\u05dd",
+        "bud.usd_usage": "\u05e9\u05d9\u05de\u05d5\u05e9 \u05d1\u05d3\u05d5\u05dc\u05e8\u05d9\u05dd",
+        "cfg.llm": "\u05de\u05d5\u05d3\u05dc \u05e9\u05e4\u05d4",
+        "cfg.rag": "RAG",
+        "cfg.conversation": "\u05e9\u05d9\u05d7\u05d4",
+        "cfg.rate": "\u05d4\u05d2\u05d1\u05dc\u05ea \u05e7\u05e6\u05d1",
+        "cfg.spam": "\u05d6\u05d9\u05d4\u05d5\u05d9 \u05e1\u05e4\u05d0\u05dd",
+        "cfg.budget_cap": "\u05ea\u05e7\u05e6\u05d9\u05d1",
+        "cfg.security": "\u05d0\u05d1\u05d8\u05d7\u05d4",
+        "cfg.general": "\u05db\u05dc\u05dc\u05d9",
+        "cfg.secrets": "\u05e1\u05d5\u05d3\u05d5\u05ea (\u05e7\u05e8\u05d9\u05d0\u05d4 \u05d1\u05dc\u05d1\u05d3)",
+        "cfg.enabled": "\u05de\u05d5\u05e4\u05e2\u05dc",
+        "cfg.disabled": "\u05de\u05d5\u05e9\u05d1\u05ea",
+        "th.session_id": "\u05de\u05d6\u05d4\u05d4 \u05e9\u05d9\u05d7\u05d4",
+        "th.messages": "\u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
+        "th.last_active": "\u05e4\u05e2\u05d9\u05dc\u05d5\u05ea \u05d0\u05d7\u05e8\u05d5\u05e0\u05d4",
+        "th.actions": "\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea",
+        "th.file": "\u05e7\u05d5\u05d1\u05e5",
+        "th.folder": "\u05ea\u05d9\u05e7\u05d9\u05d9\u05d4",
+        "th.size": "\u05d2\u05d5\u05d3\u05dc",
+        "onb.welcome": "\u05d1\u05e8\u05d5\u05db\u05d9\u05dd \u05d4\u05d1\u05d0\u05d9\u05dd \u05dc\u05e4\u05d0\u05e0\u05dc \u05d4\u05e0\u05d9\u05d4\u05d5\u05dc",
+        "onb.welcome_sub": "\u05e1\u05d9\u05d5\u05e8 \u05de\u05d4\u05d9\u05e8 \u2014 10 \u05e9\u05e0\u05d9\u05d5\u05ea",
+        "onb.step1_title": "\U0001f4c1 \u05e7\u05d1\u05e6\u05d9 \u05de\u05d9\u05d3\u05e2",
+        "onb.step1_body": "\u05d4\u05d5\u05e1\u05d9\u05e4\u05d5 \u05d0\u05ea \u05d4\u05de\u05d9\u05d3\u05e2 \u05d4\u05e2\u05e1\u05e7\u05d9 \u05db\u05d0\u05df \u2014 \u05de\u05d5\u05e6\u05e8\u05d9\u05dd, \u05e9\u05e2\u05d5\u05ea, \u05de\u05d3\u05d9\u05e0\u05d9\u05d5\u05ea. \u05d4\u05e6'\u05d0\u05d8\u05d1\u05d5\u05d8 \u05dc\u05d5\u05de\u05d3 \u05de\u05d4\u05e7\u05d1\u05e6\u05d9\u05dd \u05d4\u05d0\u05dc\u05d4.",
+        "onb.step2_title": "\U0001f3e2 \u05e4\u05e8\u05d8\u05d9 \u05d4\u05e2\u05e1\u05e7",
+        "onb.step2_body": "\u05d4\u05d2\u05d3\u05d9\u05e8\u05d5 \u05e9\u05dd \u05e2\u05e1\u05e7, \u05de\u05d9\u05e7\u05d5\u05dd, \u05e9\u05e4\u05d4 \u05d5\u05d0\u05d9\u05d6\u05d5 \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05dc\u05d4\u05e9\u05ea\u05de\u05e9. \u05d4\u05d1\u05d5\u05d8 \u05d9\u05d3\u05e2 \u05de\u05d9 \u05d4\u05d5\u05d0 \u05de\u05d9\u05d9\u05e6\u05d2.",
+        "onb.step3_title": "\U0001f916 \u05d4\u05ea\u05d0\u05de\u05ea AI",
+        "onb.step3_body": "\u05d4\u05ea\u05d0\u05d9\u05de\u05d5 \u05d0\u05ea \u05d4\u05d8\u05d5\u05df, \u05d4\u05d0\u05d5\u05e4\u05d9 \u05d5\u05e1\u05d2\u05e0\u05d5\u05df \u05d4\u05ea\u05d2\u05d5\u05d1\u05d4. \u05d4\u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05e7\u05d5\u05d1\u05e2\u05ea \u05d0\u05d9\u05da \u05d4\u05d1\u05d5\u05d8 \u05de\u05d3\u05d1\u05e8 \u05e2\u05dd \u05d4\u05dc\u05e7\u05d5\u05d7\u05d5\u05ea \u05e9\u05dc\u05db\u05dd.",
+        "onb.step4_title": "\U0001f4ca \u05e1\u05e7\u05d9\u05e8\u05d4",
+        "onb.step4_body": "\u05e2\u05e7\u05d1\u05d5 \u05d0\u05d7\u05e8\u05d9 \u05e9\u05d9\u05d7\u05d5\u05ea, \u05ea\u05e7\u05e6\u05d9\u05d1 \u05d5\u05e2\u05e8\u05d5\u05e6\u05d9\u05dd. \u05db\u05dc \u05d4\u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05d1\u05de\u05e7\u05d5\u05dd \u05d0\u05d7\u05d3.",
+        "onb.skip": "\u05d3\u05dc\u05d2",
+        "onb.next": "\u05d4\u05d1\u05d0",
+        "onb.prev": "\u05d4\u05e7\u05d5\u05d3\u05dd",
+        "onb.done": "\u05d1\u05d5\u05d0\u05d5 \u05e0\u05ea\u05d7\u05d9\u05dc",
+        "onb.go_data": "\u05dc\u05e7\u05d1\u05e6\u05d9 \u05de\u05d9\u05d3\u05e2",
+        "onb.go_config": "\u05dc\u05d4\u05d2\u05d3\u05e8\u05d5\u05ea",
+        "cf.basic": "\u05de\u05d9\u05d3\u05e2 \u05d1\u05e1\u05d9\u05e1\u05d9",
+        "cf.client_id": "\u05de\u05d6\u05d4\u05d4 \u05dc\u05e7\u05d5\u05d7",
+        "cf.display_name": "\u05e9\u05dd \u05ea\u05e6\u05d5\u05d2\u05d4",
+        "cf.location": "\u05de\u05d9\u05e7\u05d5\u05dd",
+        "cf.timezone": "\u05d0\u05d6\u05d5\u05e8 \u05d6\u05de\u05df",
+        "cf.personality": "\u05d0\u05d9\u05e9\u05d9\u05d5\u05ea",
+        "cf.languages": "\u05e9\u05e4\u05d5\u05ea",
+        "cf.lang_primary": "\u05e9\u05e4\u05d4 \u05e8\u05d0\u05e9\u05d9\u05ea",
+        "cf.lang_fallback": "\u05e9\u05e4\u05ea \u05d2\u05d9\u05d1\u05d5\u05d9",
+        "cf.langs_offered": "\u05e9\u05e4\u05d5\u05ea \u05de\u05d5\u05e6\u05e2\u05d5\u05ea (\u05de\u05d5\u05e4\u05e8\u05d3\u05d5\u05ea \u05d1\u05e4\u05e1\u05d9\u05e7)",
+        "cf.prompt_extra": "\u05e4\u05e8\u05d5\u05de\u05e4\u05d8 \u05de\u05e2\u05e8\u05db\u05ea \u05e0\u05d5\u05e1\u05e3",
+        "cf.prompt_extra_hint": "\u05de\u05d9\u05d3\u05e2 \u05e2\u05e1\u05e7\u05d9 \u05e0\u05d5\u05e1\u05e3 \u05d5\u05d4\u05e0\u05d7\u05d9\u05d5\u05ea \u05dc-AI. \u05e9\u05d5\u05e8\u05d5\u05ea \u05d7\u05d3\u05e9\u05d5\u05ea \u05e2\u05d5\u05d1\u05d3\u05d5\u05ea \u05db\u05e8\u05d2\u05d9\u05dc \u2014 \u05dc\u05d0 \u05e6\u05e8\u05d9\u05da \u05e2\u05d9\u05e6\u05d5\u05d1 \u05de\u05d9\u05d5\u05d7\u05d3.",
+        "cf.greeting_override": "\u05d1\u05e8\u05db\u05d4 \u05de\u05d5\u05ea\u05d0\u05de\u05ea",
+        "cf.data_paths": "\u05e0\u05ea\u05d9\u05d1\u05d9 \u05e0\u05ea\u05d5\u05e0\u05d9\u05dd",
+        "cf.data_paths_hint": "\u05e0\u05ea\u05d9\u05d1\u05d9\u05dd \u05de\u05d5\u05e4\u05e8\u05d3\u05d9\u05dd \u05d1\u05e4\u05e1\u05d9\u05e7",
+        "cf.channels": "\u05e2\u05e8\u05d5\u05e6\u05d9\u05dd",
+        "cf.editing": "\u05e2\u05e8\u05d9\u05db\u05d4",
+        "pf.basic": "\u05de\u05d9\u05d3\u05e2 \u05d1\u05e1\u05d9\u05e1\u05d9",
+        "pf.name": "\u05e9\u05dd",
+        "pf.temperature": "\u05d8\u05de\u05e4\u05e8\u05d8\u05d5\u05e8\u05d4 (0-1)",
+        "pf.description": "\u05ea\u05d9\u05d0\u05d5\u05e8",
+        "pf.system_prompt": "\u05e4\u05e8\u05d5\u05de\u05e4\u05d8 \u05de\u05e2\u05e8\u05db\u05ea",
+        "pf.system_prompt_hint": "\u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05d4-AI. \u05db\u05ea\u05d1\u05d5 \u05d1\u05d8\u05d1\u05e2\u05d9\u05d5\u05ea \u2014 \u05e9\u05d5\u05e8\u05d5\u05ea \u05d7\u05d3\u05e9\u05d5\u05ea \u05e0\u05e9\u05de\u05e8\u05d5\u05ea.",
+        "pf.messages": "\u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
+        "pf.greeting": "\u05d1\u05e8\u05db\u05d4",
+        "pf.fallback": "\u05d4\u05d5\u05d3\u05e2\u05ea \u05d2\u05d9\u05d1\u05d5\u05d9",
+        "pf.style_kw": "\u05de\u05d9\u05dc\u05d5\u05ea \u05e1\u05d2\u05e0\u05d5\u05df",
+        "pf.style_kw_hint": "\u05de\u05d5\u05e4\u05e8\u05d3\u05d5\u05ea \u05d1\u05e4\u05e1\u05d9\u05e7",
+        "nav.section.admin": "\u05e0\u05d9\u05d4\u05d5\u05dc",
+        "nav.users": "\u05de\u05e9\u05ea\u05de\u05e9\u05d9\u05dd",
+        "page.users": "\U0001f465 \u05de\u05e9\u05ea\u05de\u05e9\u05d9\u05dd",
+        "btn.addUser": "+ \u05d4\u05d5\u05e1\u05e3 \u05de\u05e9\u05ea\u05de\u05e9",
+        "users.newuser": "\u05e6\u05d5\u05e8 \u05de\u05e9\u05ea\u05de\u05e9 \u05d7\u05d3\u05e9",
+        "users.username": "\u05e9\u05dd \u05de\u05e9\u05ea\u05de\u05e9",
+        "users.password": "\u05e1\u05d9\u05e1\u05de\u05d4",
+        "users.role": "\u05ea\u05e4\u05e7\u05d9\u05d3",
+        "users.created_by": "\u05e0\u05d5\u05e6\u05e8 \u05e2\u05dc \u05d9\u05d3\u05d9",
+        "users.role_hint": "\u05de\u05e0\u05d4\u05dc: \u05d2\u05d9\u05e9\u05d4 \u05de\u05dc\u05d0\u05d4, \u05d9\u05db\u05d5\u05dc \u05dc\u05e0\u05d4\u05dc \u05de\u05e9\u05ea\u05de\u05e9\u05d9\u05dd. \u05e6\u05d5\u05e4\u05d4: \u05d2\u05d9\u05e9\u05ea \u05e7\u05e8\u05d9\u05d0\u05d4 \u05d1\u05dc\u05d1\u05d3.",
+        "nav.section.business": "\u05e2\u05e1\u05e7",
+        "nav.products": "\u05de\u05d5\u05e6\u05e8\u05d9\u05dd",
+        "nav.contacts": "\u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
+        "nav.handoff": "\u05d4\u05e2\u05d1\u05e8\u05d4",
+        "nav.fallback": "\u05dc\u05dc\u05d0 \u05de\u05e2\u05e0\u05d4",
+        "page.products": "\U0001f6cd\ufe0f \u05de\u05d5\u05e6\u05e8\u05d9\u05dd",
+        "page.contacts": "\U0001f4e7 \u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
+        "page.handoff": "\U0001f91d \u05d4\u05e2\u05d1\u05e8\u05d4 \u05dc\u05e0\u05e6\u05d9\u05d2",
+        "page.fallback": "\u2753 \u05e9\u05d0\u05dc\u05d5\u05ea \u05dc\u05dc\u05d0 \u05de\u05e2\u05e0\u05d4",
+        "products.total": "\u05e1\u05d4\u05f4\u05db \u05de\u05d5\u05e6\u05e8\u05d9\u05dd",
+        "products.categories": "\u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d5\u05ea",
+        "contacts.unread": "\u05dc\u05d0 \u05e0\u05e7\u05e8\u05d0\u05d5",
+        "contacts.total": "\u05e1\u05d4\u05f4\u05db \u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
+        "fallback.unresolved": "\u05dc\u05d0 \u05e0\u05e4\u05ea\u05e8\u05d5",
+    },
+    "th": {
+        "nav.overview": "\u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
+        "nav.sessions": "\u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19",
+        "nav.budget": "\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13",
+        "nav.config": "\u0e01\u0e32\u0e23\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32",
+        "nav.line": "LINE",
+        "nav.data": "\u0e44\u0e1f\u0e25\u0e4c\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25",
+        "nav.logs": "\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01",
+        "nav.section.channels": "\u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07",
+        "nav.section.content": "\u0e40\u0e19\u0e37\u0e49\u0e2d\u0e2b\u0e32",
+        "page.overview": "\U0001f4ca \u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
+        "page.sessions": "\U0001f4ac \u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19",
+        "page.budget": "\U0001f4b0 \u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13",
+        "page.config": "\u2699\ufe0f \u0e01\u0e32\u0e23\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32",
+        "page.line": "\U0001f4ac \u0e0a\u0e48\u0e2d\u0e07 LINE",
+        "page.data": "\U0001f4c1 \u0e44\u0e1f\u0e25\u0e4c\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25",
+        "page.logs": "\U0001f4cb \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01",
+        "cfg.tab.env": "\u0e2a\u0e20\u0e32\u0e1e\u0e41\u0e27\u0e14\u0e25\u0e49\u0e2d\u0e21",
+        "cfg.tab.client": "\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32",
+        "cfg.tab.personality": "\u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e",
+        "btn.refresh": "\u21bb \u0e23\u0e35\u0e40\u0e1f\u0e23\u0e0a",
+        "btn.clearAll": "\u0e25\u0e49\u0e32\u0e07\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "btn.resetToday": "\u0e23\u0e35\u0e40\u0e0b\u0e47\u0e15\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49",
+        "btn.saveEnv": "\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e01\u0e32\u0e23\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32\u0e2a\u0e20\u0e32\u0e1e\u0e41\u0e27\u0e14\u0e25\u0e49\u0e2d\u0e21",
+        "btn.saveClient": "\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e01\u0e32\u0e23\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32",
+        "btn.savePersonality": "\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e01\u0e32\u0e23\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32\u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e",
+        "btn.newFile": "+ \u0e44\u0e1f\u0e25\u0e4c\u0e43\u0e2b\u0e21\u0e48",
+        "btn.create": "\u0e2a\u0e23\u0e49\u0e32\u0e07",
+        "btn.cancel": "\u0e22\u0e01\u0e40\u0e25\u0e34\u0e01",
+        "btn.closeEditor": "\u2715 \u0e1b\u0e34\u0e14",
+        "view.form": "\u0e1f\u0e2d\u0e23\u0e4c\u0e21",
+        "view.yaml": "YAML",
+        "view.visual": "\u0e20\u0e32\u0e1e",
+        "view.markdown": "Markdown",
+        "restart.note": "\u0e15\u0e49\u0e2d\u0e07\u0e23\u0e35\u0e2a\u0e15\u0e32\u0e23\u0e4c\u0e17\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e01\u0e32\u0e23\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19\u0e41\u0e1b\u0e25\u0e07\u0e21\u0e35\u0e1c\u0e25",
+        "data.hint": "\u0e44\u0e1f\u0e25\u0e4c\u0e10\u0e32\u0e19\u0e04\u0e27\u0e32\u0e21\u0e23\u0e39\u0e49\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e41\u0e0a\u0e17\u0e1a\u0e2d\u0e17 \u0e41\u0e01\u0e49\u0e44\u0e02\u0e40\u0e19\u0e37\u0e49\u0e2d\u0e2b\u0e32 \u0e08\u0e32\u0e01\u0e19\u0e31\u0e49\u0e19\u0e1d\u0e31\u0e07\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e43\u0e2b\u0e21\u0e48\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e2d\u0e31\u0e1b\u0e40\u0e14\u0e15",
+        "data.upload.cta": "<strong>\u0e04\u0e25\u0e34\u0e01\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14</strong> \u0e2b\u0e23\u0e37\u0e2d\u0e25\u0e32\u0e01\u0e44\u0e1f\u0e25\u0e4c\u0e21\u0e32\u0e27\u0e32\u0e07",
+        "data.upload.hint": "\u0e44\u0e1f\u0e25\u0e4c .md, .txt \u2014 UTF-8 \u0e40\u0e17\u0e48\u0e32\u0e19\u0e31\u0e49\u0e19",
+        "data.newfile": "\u0e2a\u0e23\u0e49\u0e32\u0e07\u0e44\u0e1f\u0e25\u0e4c\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e43\u0e2b\u0e21\u0e48",
+        "line.nocfg.title": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32 LINE",
+        "line.nocfg.body": "\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32 LINE_CHANNEL_ACCESS_TOKEN \u0e41\u0e25\u0e30 LINE_CHANNEL_SECRET \u0e43\u0e19 .env \u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13",
+        "logs.nocfg.title": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e2a\u0e23\u0e49\u0e32\u0e07\u0e44\u0e1f\u0e25\u0e4c\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01",
+        "logs.nocfg.body": "\u0e44\u0e1f\u0e25\u0e4c\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e16\u0e39\u0e01\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32\u0e2d\u0e31\u0e15\u0e42\u0e19\u0e21\u0e31\u0e15\u0e34 \u0e08\u0e30\u0e1b\u0e23\u0e32\u0e01\u0e0f\u0e2b\u0e25\u0e31\u0e07\u0e08\u0e32\u0e01\u0e40\u0e0b\u0e34\u0e23\u0e4c\u0e1f\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e40\u0e23\u0e34\u0e48\u0e21\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01",
+        "logs.nocfg.go": "\u0e44\u0e1b\u0e17\u0e35\u0e48",
+        "logs.nocfg.link": "\u0e01\u0e32\u0e23\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32 \u2192 \u0e2a\u0e20\u0e32\u0e1e\u0e41\u0e27\u0e14\u0e25\u0e49\u0e2d\u0e21",
+        "logs.nocfg.set": "\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32",
+        "ov.status": "\u0e2a\u0e16\u0e32\u0e19\u0e30",
+        "ov.uptime": "\u0e40\u0e27\u0e25\u0e32\u0e17\u0e33\u0e07\u0e32\u0e19",
+        "ov.model": "\u0e42\u0e21\u0e40\u0e14\u0e25",
+        "ov.sessions": "\u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19",
+        "ov.tokens": "\u0e42\u0e17\u0e40\u0e04\u0e19",
+        "ov.usd": "\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22 ($)",
+        "ov.ip": "IP \u0e17\u0e35\u0e48\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19",
+        "ov.spam": "\u0e15\u0e23\u0e27\u0e08\u0e08\u0e31\u0e1a\u0e2a\u0e41\u0e1b\u0e21",
+        "ov.running": "\U0001f7e2 \u0e01\u0e33\u0e25\u0e31\u0e07\u0e17\u0e33\u0e07\u0e32\u0e19",
+        "ov.down": "\U0001f534 \u0e2b\u0e22\u0e38\u0e14",
+        "ov.channels": "\u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07",
+        "ov.security": "\u0e04\u0e27\u0e32\u0e21\u0e1b\u0e25\u0e2d\u0e14\u0e20\u0e31\u0e22",
+        "th.channel": "\u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07",
+        "th.status": "\u0e2a\u0e16\u0e32\u0e19\u0e30",
+        "th.feature": "\u0e1f\u0e35\u0e40\u0e08\u0e2d\u0e23\u0e4c",
+        "sec.rate": "\u0e08\u0e33\u0e01\u0e31\u0e14\u0e2d\u0e31\u0e15\u0e23\u0e32",
+        "sec.spam": "\u0e15\u0e23\u0e27\u0e08\u0e08\u0e31\u0e1a\u0e2a\u0e41\u0e1b\u0e21",
+        "sec.budget": "\u0e04\u0e27\u0e1a\u0e04\u0e38\u0e21\u0e07\u0e1a",
+        "sec.hsts": "HSTS",
+        "sec.cors": "CORS \u0e40\u0e02\u0e49\u0e21\u0e07\u0e27\u0e14",
+        "sec.apikey": "API Key",
+        "bud.today": "\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49",
+        "bud.model": "\u0e42\u0e21\u0e40\u0e14\u0e25",
+        "bud.tokens": "\u0e42\u0e17\u0e40\u0e04\u0e19\u0e17\u0e35\u0e48\u0e43\u0e0a\u0e49",
+        "bud.usd": "\u0e04\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22 ($)",
+        "bud.status": "\u0e2a\u0e16\u0e32\u0e19\u0e30",
+        "bud.enabled": "\U0001f6e1\ufe0f \u0e40\u0e1b\u0e34\u0e14\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19",
+        "bud.disabled": "\u26a0\ufe0f \u0e1b\u0e34\u0e14\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19",
+        "bud.token_usage": "\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e42\u0e17\u0e40\u0e04\u0e19",
+        "bud.usd_usage": "\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22",
+        "cfg.llm": "\u0e42\u0e21\u0e40\u0e14\u0e25\u0e20\u0e32\u0e29\u0e32",
+        "cfg.rag": "RAG",
+        "cfg.conversation": "\u0e01\u0e32\u0e23\u0e2a\u0e19\u0e17\u0e19\u0e32",
+        "cfg.rate": "\u0e08\u0e33\u0e01\u0e31\u0e14\u0e2d\u0e31\u0e15\u0e23\u0e32",
+        "cfg.spam": "\u0e15\u0e23\u0e27\u0e08\u0e08\u0e31\u0e1a\u0e2a\u0e41\u0e1b\u0e21",
+        "cfg.budget_cap": "\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13",
+        "cfg.security": "\u0e04\u0e27\u0e32\u0e21\u0e1b\u0e25\u0e2d\u0e14\u0e20\u0e31\u0e22",
+        "cfg.general": "\u0e17\u0e31\u0e48\u0e27\u0e44\u0e1b",
+        "cfg.secrets": "\u0e04\u0e27\u0e32\u0e21\u0e25\u0e31\u0e1a (\u0e2d\u0e48\u0e32\u0e19\u0e2d\u0e22\u0e48\u0e32\u0e07\u0e40\u0e14\u0e35\u0e22\u0e27)",
+        "cfg.enabled": "\u0e40\u0e1b\u0e34\u0e14\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19",
+        "cfg.disabled": "\u0e1b\u0e34\u0e14\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19",
+        "th.session_id": "\u0e23\u0e2b\u0e31\u0e2a\u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19",
+        "th.messages": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21",
+        "th.last_active": "\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14",
+        "th.actions": "\u0e01\u0e32\u0e23\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23",
+        "th.file": "\u0e44\u0e1f\u0e25\u0e4c",
+        "th.folder": "\u0e42\u0e1f\u0e25\u0e40\u0e14\u0e2d\u0e23\u0e4c",
+        "th.size": "\u0e02\u0e19\u0e32\u0e14",
+        "onb.welcome": "\u0e22\u0e34\u0e19\u0e14\u0e35\u0e15\u0e49\u0e2d\u0e19\u0e23\u0e31\u0e1a\u0e2a\u0e39\u0e48\u0e41\u0e14\u0e0a\u0e1a\u0e2d\u0e23\u0e4c\u0e14",
+        "onb.welcome_sub": "\u0e17\u0e31\u0e27\u0e23\u0e4c\u0e2a\u0e31\u0e49\u0e19 \u2014 \u0e43\u0e0a\u0e49\u0e40\u0e27\u0e25\u0e32 10 \u0e27\u0e34\u0e19\u0e32\u0e17\u0e35",
+        "onb.step1_title": "\U0001f4c1 \u0e44\u0e1f\u0e25\u0e4c\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25",
+        "onb.step1_body": "\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e18\u0e38\u0e23\u0e01\u0e34\u0e08\u0e17\u0e35\u0e48\u0e19\u0e35\u0e48 \u2014 \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32, \u0e40\u0e27\u0e25\u0e32\u0e40\u0e1b\u0e34\u0e14, \u0e19\u0e42\u0e22\u0e1a\u0e32\u0e22 \u0e41\u0e0a\u0e17\u0e1a\u0e2d\u0e17\u0e08\u0e30\u0e40\u0e23\u0e35\u0e22\u0e19\u0e23\u0e39\u0e49\u0e08\u0e32\u0e01\u0e44\u0e1f\u0e25\u0e4c\u0e40\u0e2b\u0e25\u0e48\u0e32\u0e19\u0e35\u0e49",
+        "onb.step2_title": "\U0001f3e2 \u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e18\u0e38\u0e23\u0e01\u0e34\u0e08",
+        "onb.step2_body": "\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32\u0e0a\u0e37\u0e48\u0e2d\u0e18\u0e38\u0e23\u0e01\u0e34\u0e08, \u0e2a\u0e16\u0e32\u0e19\u0e17\u0e35\u0e48, \u0e20\u0e32\u0e29\u0e32, \u0e41\u0e25\u0e30\u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e \u0e1a\u0e2d\u0e17\u0e08\u0e30\u0e23\u0e39\u0e49\u0e27\u0e48\u0e32\u0e15\u0e31\u0e27\u0e40\u0e2d\u0e07\u0e01\u0e33\u0e25\u0e31\u0e07\u0e40\u0e1b\u0e47\u0e19\u0e15\u0e31\u0e27\u0e41\u0e17\u0e19\u0e02\u0e2d\u0e07\u0e43\u0e04\u0e23",
+        "onb.step3_title": "\U0001f916 \u0e1b\u0e23\u0e31\u0e1a\u0e41\u0e15\u0e48\u0e07 AI",
+        "onb.step3_body": "\u0e1b\u0e23\u0e31\u0e1a\u0e41\u0e15\u0e48\u0e07\u0e42\u0e17\u0e19, \u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01, \u0e41\u0e25\u0e30\u0e23\u0e39\u0e1b\u0e41\u0e1a\u0e1a\u0e01\u0e32\u0e23\u0e15\u0e2d\u0e1a\u0e02\u0e2d\u0e07\u0e1a\u0e2d\u0e17 \u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e27\u0e34\u0e18\u0e35\u0e17\u0e35\u0e48\u0e1a\u0e2d\u0e17\u0e1e\u0e39\u0e14\u0e01\u0e31\u0e1a\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13",
+        "onb.step4_title": "\U0001f4ca \u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
+        "onb.step4_body": "\u0e14\u0e39\u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19, \u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13, \u0e41\u0e25\u0e30\u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07 \u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e2a\u0e14\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14\u0e43\u0e19\u0e17\u0e35\u0e48\u0e40\u0e14\u0e35\u0e22\u0e27",
+        "onb.skip": "\u0e02\u0e49\u0e32\u0e21",
+        "onb.next": "\u0e16\u0e31\u0e14\u0e44\u0e1b",
+        "onb.prev": "\u0e01\u0e25\u0e31\u0e1a",
+        "onb.done": "\u0e40\u0e23\u0e34\u0e48\u0e21\u0e40\u0e25\u0e22",
+        "onb.go_data": "\u0e44\u0e1b\u0e44\u0e1f\u0e25\u0e4c\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25",
+        "onb.go_config": "\u0e44\u0e1b\u0e01\u0e32\u0e23\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32",
+        "cf.basic": "\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e1e\u0e37\u0e49\u0e19\u0e10\u0e32\u0e19",
+        "cf.client_id": "\u0e23\u0e2b\u0e31\u0e2a\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32",
+        "cf.display_name": "\u0e0a\u0e37\u0e48\u0e2d\u0e17\u0e35\u0e48\u0e41\u0e2a\u0e14\u0e07",
+        "cf.location": "\u0e17\u0e35\u0e48\u0e15\u0e31\u0e49\u0e07",
+        "cf.timezone": "\u0e40\u0e02\u0e15\u0e40\u0e27\u0e25\u0e32",
+        "cf.personality": "\u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e",
+        "cf.languages": "\u0e20\u0e32\u0e29\u0e32",
+        "cf.lang_primary": "\u0e20\u0e32\u0e29\u0e32\u0e2b\u0e25\u0e31\u0e01",
+        "cf.lang_fallback": "\u0e20\u0e32\u0e29\u0e32\u0e2a\u0e33\u0e23\u0e2d\u0e07",
+        "cf.langs_offered": "\u0e20\u0e32\u0e29\u0e32\u0e17\u0e35\u0e48\u0e43\u0e2b\u0e49\u0e1a\u0e23\u0e34\u0e01\u0e32\u0e23 (\u0e04\u0e31\u0e48\u0e19\u0e14\u0e49\u0e27\u0e22\u0e40\u0e04\u0e23\u0e37\u0e48\u0e2d\u0e07\u0e2b\u0e21\u0e32\u0e22\u0e08\u0e38\u0e25\u0e20\u0e32\u0e04)",
+        "cf.prompt_extra": "\u0e1e\u0e23\u0e2d\u0e21\u0e15\u0e4c\u0e23\u0e30\u0e1a\u0e1a\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e40\u0e15\u0e34\u0e21",
+        "cf.prompt_extra_hint": "\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e18\u0e38\u0e23\u0e01\u0e34\u0e08\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e40\u0e15\u0e34\u0e21\u0e41\u0e25\u0e30\u0e04\u0e33\u0e41\u0e19\u0e30\u0e19\u0e33\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a AI \u0e02\u0e36\u0e49\u0e19\u0e1a\u0e23\u0e23\u0e17\u0e31\u0e14\u0e43\u0e2b\u0e21\u0e48\u0e44\u0e14\u0e49\u0e15\u0e32\u0e21\u0e1b\u0e01\u0e15\u0e34 \u0e44\u0e21\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e08\u0e31\u0e14\u0e23\u0e39\u0e1b\u0e41\u0e1a\u0e1a\u0e1e\u0e34\u0e40\u0e28\u0e29",
+        "cf.greeting_override": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e17\u0e31\u0e01\u0e17\u0e32\u0e22\u0e17\u0e35\u0e48\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e40\u0e2d\u0e07",
+        "cf.data_paths": "\u0e40\u0e2a\u0e49\u0e19\u0e17\u0e32\u0e07\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25",
+        "cf.data_paths_hint": "\u0e40\u0e2a\u0e49\u0e19\u0e17\u0e32\u0e07\u0e04\u0e31\u0e48\u0e19\u0e14\u0e49\u0e27\u0e22\u0e08\u0e38\u0e25\u0e20\u0e32\u0e04",
+        "cf.channels": "\u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07",
+        "cf.editing": "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e41\u0e01\u0e49\u0e44\u0e02",
+        "pf.basic": "\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e1e\u0e37\u0e49\u0e19\u0e10\u0e32\u0e19",
+        "pf.name": "\u0e0a\u0e37\u0e48\u0e2d",
+        "pf.temperature": "\u0e2d\u0e38\u0e13\u0e2b\u0e20\u0e39\u0e21\u0e34 (0-1)",
+        "pf.description": "\u0e04\u0e33\u0e2d\u0e18\u0e34\u0e1a\u0e32\u0e22",
+        "pf.system_prompt": "\u0e1e\u0e23\u0e2d\u0e21\u0e15\u0e4c\u0e23\u0e30\u0e1a\u0e1a",
+        "pf.system_prompt_hint": "\u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e\u0e02\u0e2d\u0e07 AI \u0e40\u0e02\u0e35\u0e22\u0e19\u0e15\u0e32\u0e21\u0e18\u0e23\u0e23\u0e21\u0e0a\u0e32\u0e15\u0e34 \u2014 \u0e23\u0e30\u0e1a\u0e1a\u0e08\u0e30\u0e40\u0e01\u0e47\u0e1a\u0e1a\u0e23\u0e23\u0e17\u0e31\u0e14\u0e43\u0e2b\u0e21\u0e48\u0e44\u0e27\u0e49 \u0e44\u0e21\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e43\u0e2a\u0e48 \\n",
+        "pf.messages": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21",
+        "pf.greeting": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e17\u0e31\u0e01\u0e17\u0e32\u0e22",
+        "pf.fallback": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e2a\u0e33\u0e23\u0e2d\u0e07",
+        "pf.style_kw": "\u0e04\u0e33\u0e2a\u0e44\u0e15\u0e25\u0e4c",
+        "pf.style_kw_hint": "\u0e04\u0e31\u0e48\u0e19\u0e14\u0e49\u0e27\u0e22\u0e08\u0e38\u0e25\u0e20\u0e32\u0e04",
+        "nav.section.admin": "\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19",
+        "nav.users": "\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49",
+        "page.users": "\U0001f465 \u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49",
+        "btn.addUser": "+ \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49",
+        "users.newuser": "\u0e2a\u0e23\u0e49\u0e32\u0e07\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49\u0e43\u0e2b\u0e21\u0e48",
+        "users.username": "\u0e0a\u0e37\u0e48\u0e2d\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49",
+        "users.password": "\u0e23\u0e2b\u0e31\u0e2a\u0e1c\u0e48\u0e32\u0e19",
+        "users.role": "\u0e1a\u0e17\u0e1a\u0e32\u0e17",
+        "users.created_by": "\u0e2a\u0e23\u0e49\u0e32\u0e07\u0e42\u0e14\u0e22",
+        "users.role_hint": "\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19: \u0e40\u0e02\u0e49\u0e32\u0e16\u0e36\u0e07\u0e40\u0e15\u0e47\u0e21\u0e23\u0e39\u0e1b\u0e41\u0e1a\u0e1a \u0e08\u0e31\u0e14\u0e01\u0e32\u0e23\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49\u0e44\u0e14\u0e49 \u0e1c\u0e39\u0e49\u0e0a\u0e21: \u0e14\u0e39\u0e44\u0e14\u0e49\u0e2d\u0e22\u0e48\u0e32\u0e07\u0e40\u0e14\u0e35\u0e22\u0e27",
+        "nav.section.business": "\u0e18\u0e38\u0e23\u0e01\u0e34\u0e08",
+        "nav.products": "\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32",
+        "nav.contacts": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21",
+        "nav.handoff": "\u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d",
+        "nav.fallback": "\u0e44\u0e21\u0e48\u0e21\u0e35\u0e04\u0e33\u0e15\u0e2d\u0e1a",
+        "page.products": "\U0001f6cd\ufe0f \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32",
+        "page.contacts": "\U0001f4e7 \u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21",
+        "page.handoff": "\U0001f91d \u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d\u0e40\u0e08\u0e49\u0e32\u0e2b\u0e19\u0e49\u0e32\u0e17\u0e35\u0e48",
+        "page.fallback": "\u2753 \u0e04\u0e33\u0e16\u0e32\u0e21\u0e17\u0e35\u0e48\u0e44\u0e21\u0e48\u0e21\u0e35\u0e04\u0e33\u0e15\u0e2d\u0e1a",
+        "products.total": "\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "products.categories": "\u0e2b\u0e21\u0e27\u0e14\u0e2b\u0e21\u0e39\u0e48",
+        "contacts.unread": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e2d\u0e48\u0e32\u0e19",
+        "contacts.total": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "fallback.unresolved": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e41\u0e01\u0e49\u0e44\u0e02",
+    },
+}

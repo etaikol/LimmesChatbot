@@ -1,0 +1,223 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Limmes — Product Catalog (structured)
+#
+# Each product has a unique id, display name(s), category, price, and
+# optional image URL.  The chatbot uses these exact names in answers.
+# Admin can edit via the dashboard or directly in this file.
+# ─────────────────────────────────────────────────────────────────────────────
+
+products:
+  # ── Curtains ──────────────────────────────────────────────────────────────
+
+  - id: curtain-fabric-sheer
+    name: "וילון בד שקוף אוורירי"
+    name_en: "Sheer Fabric Curtain"
+    category: "וילונות (Curtains)"
+    price: "החל מ-340 ₪"
+    description: "בד קל ואוורירי, מעניק גובה ואצילות לחלל"
+    image_url: ""
+    tags: [curtain, sheer, fabric, living-room]
+
+  - id: curtain-fabric-blackout
+    name: "וילון בד האפלה"
+    name_en: "Blackout Fabric Curtain"
+    category: "וילונות (Curtains)"
+    price: "החל מ-460 ₪"
+    description: "האפלה מלאה, מושלם לחדרי שינה"
+    image_url: ""
+    tags: [curtain, blackout, fabric, bedroom]
+
+  - id: curtain-fabric-classic
+    name: "וילון בד קלאסי"
+    name_en: "Classic Fabric Curtain"
+    category: "וילונות (Curtains)"
+    price: "החל מ-520 ₪"
+    description: "בד איכותי בסגנון קלאסי"
+    image_url: ""
+    tags: [curtain, classic, fabric]
+
+  - id: curtain-roman
+    name: "וילון רומאי"
+    name_en: "Roman Blind"
+    category: "וילונות (Curtains)"
+    price: "החל מ-440 ₪"
+    description: "קלאסי עם חפים, מראה גיאומטרי מדויק"
+    image_url: ""
+    tags: [curtain, roman, blind, kitchen]
+
+  - id: curtain-roman-soft
+    name: "וילון רומאי רך"
+    name_en: "Soft Roman Blind"
+    category: "וילונות (Curtains)"
+    price: "החל מ-550 ₪"
+    description: "קפלים עגולים ורכים, ללא חפים"
+    image_url: ""
+    tags: [curtain, roman, soft]
+
+  - id: curtain-roller-zebra
+    name: "וילון גלילה זברה"
+    name_en: "Zebra Roller Blind"
+    category: "וילונות (Curtains)"
+    price: "החל מ-250 ₪"
+    description: "שתי שכבות בד, שליטה דינמית באור"
+    image_url: ""
+    tags: [curtain, roller, zebra]
+
+  - id: curtain-roller-blackout
+    name: "וילון גלילה האפלה"
+    name_en: "Blackout Roller Blind"
+    category: "וילונות (Curtains)"
+    price: "החל מ-330 ₪"
+    description: "חסימת אור כמעט מלאה, לחדרי שינה והקרנה"
+    image_url: ""
+    tags: [curtain, roller, blackout, bedroom]
+
+  - id: curtain-roller-screen
+    name: "וילון גלילה רשת"
+    name_en: "Screen Roller Blind"
+    category: "וילונות (Curtains)"
+    price: "החל מ-350 ₪"
+    description: "מסנן קרינה, מאפשר לראות החוצה, למשרדים"
+    image_url: ""
+    tags: [curtain, roller, screen, office]
+
+  - id: curtain-venetian-wood
+    name: "וילון ונציאני עץ"
+    name_en: "Wood Venetian Blind"
+    category: "וילונות (Curtains)"
+    price: "החל מ-600 ₪"
+    description: "שלבים אופקיים מעץ, ידני או חשמלי"
+    image_url: ""
+    tags: [curtain, venetian, wood]
+
+  - id: curtain-pleated
+    name: "וילון פליסה הצללה"
+    name_en: "Pleated Shade"
+    category: "וילונות (Curtains)"
+    price: "החל מ-370 ₪"
+    description: "הצללה עדינה, מנגנון שרשרת או מנוע"
+    image_url: ""
+    tags: [curtain, pleated, shade]
+
+  - id: curtain-duette-shade
+    name: "וילון דואט הצללה"
+    name_en: "Duette Shade"
+    category: "וילונות (Curtains)"
+    price: "החל מ-500 ₪"
+    description: "בידוד תרמי ואקוסטי, חיסכון באנרגיה"
+    image_url: ""
+    tags: [curtain, duette, shade]
+
+  - id: curtain-duette-blackout
+    name: "וילון דואט האפלה"
+    name_en: "Blackout Duette"
+    category: "וילונות (Curtains)"
+    price: "החל מ-550 ₪"
+    description: "דואט עם האפלה מלאה"
+    image_url: ""
+    tags: [curtain, duette, blackout]
+
+  # ── Wallpapers ────────────────────────────────────────────────────────────
+
+  - id: wallpaper-geometric
+    name: "טפט גיאומטרי"
+    name_en: "Geometric Wallpaper"
+    category: "טפטים (Wallpapers)"
+    price: "110–600 ₪ לגליל"
+    description: "דוגמאות גיאומטריות מודרניות"
+    image_url: ""
+    tags: [wallpaper, geometric, modern]
+
+  - id: wallpaper-botanical
+    name: "טפט בוטני"
+    name_en: "Botanical Wallpaper"
+    category: "טפטים (Wallpapers)"
+    price: "110–600 ₪ לגליל"
+    description: "עלים, פרחים ומוטיבים טבעיים"
+    image_url: ""
+    tags: [wallpaper, botanical, nature]
+
+  - id: wallpaper-texture
+    name: "טפט טקסטורלי"
+    name_en: "Textured Wallpaper"
+    category: "טפטים (Wallpapers)"
+    price: "110–600 ₪ לגליל"
+    description: "דמוי בד, עץ, לבנים או סיבים טבעיים"
+    image_url: ""
+    tags: [wallpaper, texture, industrial]
+
+  - id: wallpaper-kids
+    name: "טפט לחדרי ילדים"
+    name_en: "Kids Wallpaper"
+    category: "טפטים (Wallpapers)"
+    price: "110–600 ₪ לגליל"
+    description: "דוגמאות שמחות וצבעוניות, ויניל רחיץ"
+    image_url: ""
+    tags: [wallpaper, kids, washable]
+
+  # ── Seating ───────────────────────────────────────────────────────────────
+
+  - id: seating-modular
+    name: "פינת ישיבה מודולרית"
+    name_en: "Modular Seating Corner"
+    category: "פינות ישיבה (Seating)"
+    price: "בהתאמה אישית"
+    description: "גודל, בד וצורה לבחירתכם — Custom Made"
+    image_url: ""
+    tags: [seating, modular, custom, living-room]
+
+  - id: seating-family
+    name: "פינת משפחה גדולה"
+    name_en: "Large Family Corner"
+    category: "פינות ישיבה (Seating)"
+    price: "בהתאמה אישית"
+    description: "פינת ישיבה מרווחת לחדר משפחה"
+    image_url: ""
+    tags: [seating, family, large, custom]
+
+  - id: seating-office
+    name: "פינת ישיבה למשרד"
+    name_en: "Office Seating"
+    category: "פינות ישיבה (Seating)"
+    price: "בהתאמה אישית"
+    description: "עיצוב מקצועי למשרדים ולאזורי המתנה"
+    image_url: ""
+    tags: [seating, office, professional]
+
+  # ── Poufs ─────────────────────────────────────────────────────────────────
+
+  - id: pouf-kids-round
+    name: "פוף גמיש עגול לילדים"
+    name_en: "Kids Round Pouf"
+    category: "פופים (Poufs)"
+    price: "מחירים בהתאם לגודל"
+    description: "נוח לרביצה, קריאה ומשחק. בדים להסרה לכביסה"
+    image_url: ""
+    tags: [pouf, kids, round, washable]
+
+  - id: pouf-kids-long
+    name: "פוף גמיש ארוך לילדים"
+    name_en: "Kids Long Pouf"
+    category: "פופים (Poufs)"
+    price: "מחירים בהתאם לגודל"
+    description: "צורה ארוכה ונוחה, מתאים לבני נוער"
+    image_url: ""
+    tags: [pouf, kids, long]
+
+  - id: pouf-garden-chair
+    name: "פוף לגינה דגם כורסא"
+    name_en: "Garden Chair Pouf"
+    category: "פופים (Poufs)"
+    price: "החל מ-470 ₪"
+    description: "עמיד למים, קרינת שמש ולכלוך. תפירה כפולה"
+    image_url: ""
+    tags: [pouf, outdoor, garden, waterproof]
+
+  - id: pouf-special-edition
+    name: "פוף מהדורה מוגבלת"
+    name_en: "Limited Edition Pouf"
+    category: "פופים (Poufs)"
+    price: "בהתאם לדגם"
+    description: "עיצובים ייחודיים בסדרה מוגבלת"
+    image_url: ""
+    tags: [pouf, special, limited]

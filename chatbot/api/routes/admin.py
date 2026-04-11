@@ -29,11 +29,13 @@ from fastapi.responses import HTMLResponse
 from fastapi.security.api_key import APIKeyHeader
 
 from chatbot.logging_setup import logger
+from chatbot.security.users import UserStore
 from chatbot.settings import PROJECT_ROOT
 
 router = APIRouter(prefix="/admin/api", tags=["admin"])
 
 _admin_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
+_auth_token_header = APIKeyHeader(name="X-Auth-Token", auto_error=False)
 
 # Track when the server started (set in lifespan).
 _start_time: float = time.time()
@@ -44,15 +46,146 @@ def set_start_time() -> None:
     _start_time = time.time()
 
 
+def _get_user_store(request: Request) -> UserStore:
+    store = getattr(request.app.state, "user_store", None)
+    if store is None:
+        raise HTTPException(status_code=503, detail="User store not initialised.")
+    return store
+
+
+def _resolve_auth(
+    request: Request,
+    api_key: str | None = Security(_admin_key_header),
+    token: str | None = Security(_auth_token_header),
+) -> dict[str, str]:
+    """Authenticate via session token *or* legacy API key.
+
+    Returns ``{"username": ..., "role": ...}``.
+    """
+    expected_key = getattr(request.app.state, "admin_api_key", "")
+    if not expected_key:
+        raise HTTPException(status_code=403, detail="Admin dashboard is disabled.")
+
+    # 1. Try session token first
+    if token:
+        store = _get_user_store(request)
+        info = store.validate_token(token)
+        if info:
+            return info
+
+    # 2. Fall back to legacy API key → treat as admin
+    if api_key and hmac.compare_digest(expected_key, api_key):
+        return {"username": "_api_key_", "role": "admin"}
+
+    raise HTTPException(status_code=401, detail="Invalid credentials.")
+
+
+def _require_auth(
+    auth: dict[str, str] = Depends(_resolve_auth),
+) -> dict[str, str]:
+    """Any authenticated user (admin or viewer)."""
+    return auth
+
+
+def _require_admin_role(
+    auth: dict[str, str] = Depends(_resolve_auth),
+) -> dict[str, str]:
+    """Only admin role."""
+    if auth["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    return auth
+
+
+# Keep the old name so existing ``dependencies=[Depends(_require_admin_key)]``
+# still compiles. It now resolves via the unified auth path.
 def _require_admin_key(
     request: Request,
     key: str | None = Security(_admin_key_header),
+    token: str | None = Security(_auth_token_header),
 ) -> None:
     expected = getattr(request.app.state, "admin_api_key", "")
     if not expected:
         raise HTTPException(status_code=403, detail="Admin dashboard is disabled.")
+
+    # session-token path
+    if token:
+        store = _get_user_store(request)
+        info = store.validate_token(token)
+        if info:
+            return
+
     if not key or not hmac.compare_digest(expected, key):
         raise HTTPException(status_code=401, detail="Invalid admin key.")
+
+
+# ── Auth & User Management ───────────────────────────────────────────────────
+
+from pydantic import BaseModel, Field
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class CreateUserRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$")
+    password: str = Field(..., min_length=4, max_length=128)
+    role: str = Field(..., pattern=r"^(admin|viewer)$")
+
+
+@router.post("/auth/login")
+def login(body: LoginRequest, request: Request) -> dict:
+    expected_key = getattr(request.app.state, "admin_api_key", "")
+    if not expected_key:
+        raise HTTPException(status_code=403, detail="Admin dashboard is disabled.")
+    store = _get_user_store(request)
+    result = store.authenticate(body.username, body.password)
+    if not result:
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
+    logger.info("Admin login: {} (role={})", body.username, result["role"])
+    return result
+
+
+@router.post("/auth/logout")
+def logout(
+    request: Request,
+    token: str | None = Security(_auth_token_header),
+) -> dict:
+    if token:
+        store = _get_user_store(request)
+        store.revoke_token(token)
+    return {"ok": True}
+
+
+@router.get("/auth/me")
+def auth_me(auth: dict = Depends(_require_auth)) -> dict:
+    return auth
+
+
+@router.get("/users", dependencies=[Depends(_require_admin_role)])
+def list_users(request: Request) -> dict:
+    store = _get_user_store(request)
+    return {"users": store.list_users()}
+
+
+@router.post("/users", dependencies=[Depends(_require_admin_role)])
+def create_user(body: CreateUserRequest, request: Request, auth: dict = Depends(_require_admin_role)) -> dict:
+    store = _get_user_store(request)
+    ok = store.create_user(body.username, body.password, body.role, created_by=auth["username"])
+    if not ok:
+        raise HTTPException(status_code=409, detail="User already exists or invalid input.")
+    return {"ok": True, "username": body.username, "role": body.role}
+
+
+@router.delete("/users/{username}", dependencies=[Depends(_require_admin_role)])
+def delete_user(username: str, request: Request, auth: dict = Depends(_require_admin_role)) -> dict:
+    if username == auth["username"]:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself.")
+    store = _get_user_store(request)
+    if not store.delete_user(username):
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {"ok": True}
 
 
 # ── Overview ─────────────────────────────────────────────────────────────────
@@ -153,7 +286,7 @@ def get_session(session_id: str, request: Request) -> dict:
     }
 
 
-@router.delete("/sessions/{session_id}", dependencies=[Depends(_require_admin_key)])
+@router.delete("/sessions/{session_id}", dependencies=[Depends(_require_admin_role)])
 def delete_session(session_id: str, request: Request) -> dict:
     bot = request.app.state.bot
     bot.memory.clear(session_id)
@@ -161,7 +294,7 @@ def delete_session(session_id: str, request: Request) -> dict:
     return {"cleared": session_id}
 
 
-@router.delete("/sessions", dependencies=[Depends(_require_admin_key)])
+@router.delete("/sessions", dependencies=[Depends(_require_admin_role)])
 def clear_all_sessions(request: Request) -> dict:
     bot = request.app.state.bot
     sessions = list(bot.memory.list_sessions())
@@ -179,7 +312,7 @@ def budget_status(request: Request) -> dict:
     return bot.budget.snapshot()
 
 
-@router.post("/budget/reset", dependencies=[Depends(_require_admin_key)])
+@router.post("/budget/reset", dependencies=[Depends(_require_admin_role)])
 def reset_budget(request: Request) -> dict:
     bot = request.app.state.bot
     reset = getattr(bot.budget, "reset", None)
@@ -259,7 +392,7 @@ def get_config(request: Request) -> dict:
     }
 
 
-@router.put("/config/env", dependencies=[Depends(_require_admin_key)])
+@router.put("/config/env", dependencies=[Depends(_require_admin_role)])
 async def update_env(request: Request) -> dict:
     """Update .env file settings. Body: {"KEY": "value", ...}."""
     body = await request.json()
@@ -300,7 +433,7 @@ async def update_env(request: Request) -> dict:
     }
 
 
-@router.put("/config/client", dependencies=[Depends(_require_admin_key)])
+@router.put("/config/client", dependencies=[Depends(_require_admin_role)])
 async def update_client_yaml(request: Request) -> dict:
     """Update the active client YAML. Body: full YAML content as JSON object."""
     bot = request.app.state.bot
@@ -314,7 +447,7 @@ async def update_client_yaml(request: Request) -> dict:
     return {"saved": str(path.relative_to(PROJECT_ROOT)), "note": "Restart to apply."}
 
 
-@router.put("/config/personality", dependencies=[Depends(_require_admin_key)])
+@router.put("/config/personality", dependencies=[Depends(_require_admin_role)])
 async def update_personality_yaml(request: Request) -> dict:
     """Update the active personality YAML. Body: full YAML content as JSON object."""
     bot = request.app.state.bot
@@ -478,7 +611,7 @@ async def line_list_rich_menus(request: Request) -> dict:
         raise HTTPException(502, f"LINE API error: {e}")
 
 
-@router.post("/line/rich-menus", dependencies=[Depends(_require_admin_key)])
+@router.post("/line/rich-menus", dependencies=[Depends(_require_admin_role)])
 async def line_create_rich_menu(request: Request) -> dict:
     """Create a Rich Menu. Body: {layout, labels, texts, name, chat_bar_text}."""
     s = request.app.state.bot.settings
@@ -520,7 +653,7 @@ async def line_create_rich_menu(request: Request) -> dict:
         raise HTTPException(502, f"LINE API error: {e}")
 
 
-@router.post("/line/rich-menus/{menu_id}/default", dependencies=[Depends(_require_admin_key)])
+@router.post("/line/rich-menus/{menu_id}/default", dependencies=[Depends(_require_admin_role)])
 async def line_set_default_menu(menu_id: str, request: Request) -> dict:
     """Set a Rich Menu as default."""
     s = request.app.state.bot.settings
@@ -535,7 +668,7 @@ async def line_set_default_menu(menu_id: str, request: Request) -> dict:
         raise HTTPException(502, f"LINE API error: {e}")
 
 
-@router.delete("/line/rich-menus/default", dependencies=[Depends(_require_admin_key)])
+@router.delete("/line/rich-menus/default", dependencies=[Depends(_require_admin_role)])
 async def line_clear_default_menu(request: Request) -> dict:
     """Clear the default Rich Menu."""
     s = request.app.state.bot.settings
@@ -550,7 +683,7 @@ async def line_clear_default_menu(request: Request) -> dict:
         raise HTTPException(502, f"LINE API error: {e}")
 
 
-@router.delete("/line/rich-menus/{menu_id}", dependencies=[Depends(_require_admin_key)])
+@router.delete("/line/rich-menus/{menu_id}", dependencies=[Depends(_require_admin_role)])
 async def line_delete_rich_menu(menu_id: str, request: Request) -> dict:
     """Delete a Rich Menu."""
     s = request.app.state.bot.settings
@@ -566,7 +699,211 @@ async def line_delete_rich_menu(menu_id: str, request: Request) -> dict:
         raise HTTPException(502, f"LINE API error: {e}")
 
 
-@router.post("/line/flex-preview", dependencies=[Depends(_require_admin_key)])
+# ═══════════════════════════════════════════════════════════════════════════════
+# Product Catalog Management
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/products", dependencies=[Depends(_require_admin_key)])
+def list_products(request: Request) -> dict:
+    """Return the full product catalog."""
+    catalog = getattr(request.app.state, "product_catalog", None)
+    if catalog is None:
+        return {"products": [], "categories": []}
+    return {
+        "products": catalog.to_dicts(),
+        "categories": catalog.categories,
+        "total": len(catalog.products),
+    }
+
+
+@router.put("/products", dependencies=[Depends(_require_admin_role)])
+async def update_products(request: Request) -> dict:
+    """Replace the product catalog. Body: {"products": [...]}."""
+    body = await request.json()
+    if not isinstance(body, dict) or "products" not in body:
+        raise HTTPException(400, 'Expected {"products": [...]}')
+
+    bot = request.app.state.bot
+    from chatbot.core.products import ProductCatalog
+
+    path = ProductCatalog.save(bot.settings.active_client, body["products"])
+    # Reload into the running instance
+    new_catalog = ProductCatalog.load(bot.settings.active_client)
+    request.app.state.product_catalog = new_catalog
+    bot.product_catalog = new_catalog
+    logger.info("[admin] Product catalog updated ({} products)", len(new_catalog.products))
+    return {"saved": str(path), "total": len(new_catalog.products)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Contact Messages
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/contacts", dependencies=[Depends(_require_admin_key)])
+def list_contacts(request: Request) -> dict:
+    store = getattr(request.app.state, "contact_store", None)
+    if store is None:
+        return {"messages": [], "unread": 0}
+    return {
+        "messages": store.list_all(),
+        "unread": store.count_unread(),
+    }
+
+
+@router.patch("/contacts/{message_id}/read", dependencies=[Depends(_require_admin_key)])
+def mark_contact_read(message_id: str, request: Request) -> dict:
+    store = getattr(request.app.state, "contact_store", None)
+    if not store or not store.mark_read(message_id):
+        raise HTTPException(404, "Message not found")
+    return {"ok": True}
+
+
+@router.patch("/contacts/{message_id}/replied", dependencies=[Depends(_require_admin_role)])
+def mark_contact_replied(message_id: str, request: Request) -> dict:
+    store = getattr(request.app.state, "contact_store", None)
+    if not store or not store.mark_replied(message_id):
+        raise HTTPException(404, "Message not found")
+    return {"ok": True}
+
+
+@router.delete("/contacts/{message_id}", dependencies=[Depends(_require_admin_role)])
+def delete_contact(message_id: str, request: Request) -> dict:
+    store = getattr(request.app.state, "contact_store", None)
+    if not store or not store.delete(message_id):
+        raise HTTPException(404, "Message not found")
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Human Handoff
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/handoff", dependencies=[Depends(_require_admin_key)])
+def list_handoffs(request: Request, active_only: bool = True) -> dict:
+    mgr = getattr(request.app.state, "handoff_manager", None)
+    if mgr is None:
+        return {"sessions": []}
+    if active_only:
+        return {"sessions": mgr.list_active()}
+    return {"sessions": mgr.list_all()}
+
+
+@router.get("/handoff/{session_id}", dependencies=[Depends(_require_admin_key)])
+def get_handoff(session_id: str, request: Request) -> dict:
+    mgr = getattr(request.app.state, "handoff_manager", None)
+    if not mgr:
+        raise HTTPException(404, "Handoff not found")
+    session = mgr.get_session(session_id)
+    if not session:
+        raise HTTPException(404, "Handoff session not found")
+    return session
+
+
+@router.post("/handoff/{session_id}/start", dependencies=[Depends(_require_admin_role)])
+async def start_handoff(session_id: str, request: Request) -> dict:
+    """Admin takes over a session."""
+    mgr = getattr(request.app.state, "handoff_manager", None)
+    if not mgr:
+        raise HTTPException(503, "Handoff not available")
+    body = {}
+    ct = request.headers.get("content-type", "")
+    if ct.startswith("application/json"):
+        body = await request.json()
+    channel = body.get("channel", "web")
+    reason = body.get("reason", "admin_takeover")
+    mgr.start_handoff(session_id, channel=channel, reason=reason)
+    logger.info("[admin] Handoff started for {}", session_id)
+    return {"ok": True, "session_id": session_id}
+
+
+@router.post("/handoff/{session_id}/reply", dependencies=[Depends(_require_admin_role)])
+async def handoff_reply(session_id: str, request: Request) -> dict:
+    """Admin sends a reply to a handed-off session."""
+    mgr = getattr(request.app.state, "handoff_manager", None)
+    if not mgr:
+        raise HTTPException(503, "Handoff not available")
+    body = await request.json()
+    text = body.get("text", "").strip()
+    if not text:
+        raise HTTPException(400, "text is required")
+    if not mgr.add_message(session_id, "admin", text):
+        raise HTTPException(404, "Active handoff session not found")
+    logger.info("[admin] Handoff reply to {} ({} chars)", session_id, len(text))
+    return {"ok": True}
+
+
+@router.post("/handoff/{session_id}/resolve", dependencies=[Depends(_require_admin_role)])
+def resolve_handoff(session_id: str, request: Request) -> dict:
+    """Return session to bot mode."""
+    mgr = getattr(request.app.state, "handoff_manager", None)
+    if not mgr or not mgr.resolve(session_id):
+        raise HTTPException(404, "Active handoff session not found")
+    logger.info("[admin] Handoff resolved for {}", session_id)
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Fallback / Unanswered Questions Log
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/fallback-log", dependencies=[Depends(_require_admin_key)])
+def get_fallback_log(request: Request, unresolved_only: bool = True) -> dict:
+    flog = getattr(request.app.state, "fallback_log", None)
+    if flog is None:
+        return {"questions": [], "unresolved": 0}
+    return {
+        "questions": flog.list_all(unresolved_only=unresolved_only),
+        "unresolved": flog.count_unresolved(),
+    }
+
+
+@router.patch("/fallback-log/resolve", dependencies=[Depends(_require_admin_role)])
+async def resolve_fallback(request: Request) -> dict:
+    """Mark a fallback question as resolved. Body: {"question": "...", "note": "..."}."""
+    flog = getattr(request.app.state, "fallback_log", None)
+    if not flog:
+        raise HTTPException(503, "Fallback log not available")
+    body = await request.json()
+    question = body.get("question", "").strip()
+    if not question:
+        raise HTTPException(400, "question is required")
+    note = body.get("note", "")
+    if not flog.resolve(question, admin_note=note):
+        raise HTTPException(404, "Question not found")
+    return {"ok": True}
+
+
+@router.patch("/fallback-log/add-to-kb", dependencies=[Depends(_require_admin_role)])
+async def fallback_add_to_kb(request: Request) -> dict:
+    """Mark a question as added to the knowledge base."""
+    flog = getattr(request.app.state, "fallback_log", None)
+    if not flog:
+        raise HTTPException(503, "Fallback log not available")
+    body = await request.json()
+    question = body.get("question", "").strip()
+    if not question:
+        raise HTTPException(400, "question is required")
+    if not flog.mark_added_to_kb(question):
+        raise HTTPException(404, "Question not found")
+    return {"ok": True}
+
+
+@router.delete("/fallback-log", dependencies=[Depends(_require_admin_role)])
+async def delete_fallback(request: Request) -> dict:
+    """Delete a question from the fallback log. Body: {"question": "..."}."""
+    flog = getattr(request.app.state, "fallback_log", None)
+    if not flog:
+        raise HTTPException(503, "Fallback log not available")
+    body = await request.json()
+    question = body.get("question", "").strip()
+    if not question:
+        raise HTTPException(400, "question is required")
+    if not flog.delete(question):
+        raise HTTPException(404, "Question not found")
+    return {"ok": True}
+
+
+@router.post("/line/flex-preview", dependencies=[Depends(_require_admin_role)])
 async def line_flex_preview(request: Request) -> dict:
     """Generate a Flex Message JSON preview.
 
@@ -691,7 +1028,7 @@ def read_data_file(file_path: str, request: Request) -> dict:
     return {"path": file_path, "content": content, "size": len(raw_content)}
 
 
-@router.put("/data/{file_path:path}", dependencies=[Depends(_require_admin_key)])
+@router.put("/data/{file_path:path}", dependencies=[Depends(_require_admin_role)])
 async def update_data_file(file_path: str, request: Request) -> dict:
     """Update a data file. Body: {"content": "..."}."""
     s = request.app.state.bot.settings
@@ -717,7 +1054,7 @@ async def update_data_file(file_path: str, request: Request) -> dict:
     }
 
 
-@router.post("/data", dependencies=[Depends(_require_admin_key)])
+@router.post("/data", dependencies=[Depends(_require_admin_role)])
 async def create_data_file(request: Request) -> dict:
     """Create a new data file. Body: {"path": "folder/name.md", "content": "..."}."""
     s = request.app.state.bot.settings
@@ -742,7 +1079,7 @@ async def create_data_file(request: Request) -> dict:
     return {"created": file_path, "size": len(content)}
 
 
-@router.delete("/data/{file_path:path}", dependencies=[Depends(_require_admin_key)])
+@router.delete("/data/{file_path:path}", dependencies=[Depends(_require_admin_role)])
 def delete_data_file(file_path: str, request: Request) -> dict:
     """Delete a data file."""
     s = request.app.state.bot.settings
@@ -760,7 +1097,7 @@ def delete_data_file(file_path: str, request: Request) -> dict:
     return {"deleted": file_path}
 
 
-@router.post("/data/upload", dependencies=[Depends(_require_admin_key)])
+@router.post("/data/upload", dependencies=[Depends(_require_admin_role)])
 async def upload_data_file(request: Request) -> dict:
     """Upload a data file via multipart form. Fields: folder, file."""
     from fastapi import UploadFile, File, Form

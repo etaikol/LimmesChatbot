@@ -9,7 +9,7 @@ rejected. Defense in depth.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -49,6 +49,7 @@ class ChatReply(BaseModel):
     answer: str
     session_id: str
     sources: list[SourceModel] = Field(default_factory=list)
+    products: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class HealthReply(BaseModel):

@@ -23,7 +23,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from chatbot.api.routes import admin, chat, health, webhooks, widget
+from chatbot.core.contact import ContactStore
 from chatbot.core.engine import Chatbot
+from chatbot.core.fallback_log import FallbackLog
+from chatbot.core.handoff import HandoffManager
+from chatbot.core.products import ProductCatalog
 from chatbot.exceptions import (
     AbuseError,
     BudgetError,
@@ -33,7 +37,8 @@ from chatbot.exceptions import (
 from chatbot.logging_setup import logger, setup_logging
 from chatbot.security import RateLimiter, SecurityHeadersMiddleware
 from chatbot.security.rate_limit import RateLimitExceeded
-from chatbot.settings import get_settings
+from chatbot.security.users import UserStore
+from chatbot.settings import get_settings, PROJECT_ROOT
 
 
 # Map exception classes to HTTP status codes. Keep this in one place so
@@ -73,6 +78,12 @@ async def lifespan(app: FastAPI):
     bot = Chatbot.from_env()
     app.state.bot = bot
 
+    # ── New subsystems (shared across routes) ──────────────────────────
+    app.state.contact_store = ContactStore()
+    app.state.handoff_manager = bot.handoff
+    app.state.fallback_log = bot.fallback_log
+    app.state.product_catalog = bot.product_catalog
+
     # ── Rate limiters (per-IP and per-session) ─────────────────────────
     if settings.rate_limit_enabled:
         app.state.ip_limiter = RateLimiter(
@@ -101,8 +112,13 @@ async def lifespan(app: FastAPI):
     app.state.admin_api_key = settings.admin_api_key
     if settings.admin_api_key:
         admin.set_start_time()
+        # ── User store ────────────────────────────────────────────────
+        user_store = UserStore(PROJECT_ROOT / "config" / "users.json")
+        user_store.seed_default_admin(settings.admin_api_key)
+        app.state.user_store = user_store
         logger.info("Admin dashboard enabled at /admin")
     else:
+        app.state.user_store = None
         logger.info("Admin dashboard disabled (ADMIN_API_KEY not set)")
 
     logger.info("API ready: {}", bot.profile.client.name)
@@ -135,7 +151,7 @@ def create_app() -> FastAPI:
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Session-Id", "X-Api-Key", "X-Admin-Key"],
+        allow_headers=["Content-Type", "Authorization", "X-Session-Id", "X-Api-Key", "X-Admin-Key", "X-Auth-Token"],
         max_age=600,
     )
 

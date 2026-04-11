@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from chatbot.core.engine import Chatbot
+from chatbot.core.engine import Chatbot, ChatResponse
 from chatbot.exceptions import ChatbotError, ChannelError
 from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
 from chatbot.i18n.detect import detect_language
@@ -42,7 +42,7 @@ class WhatsAppChannel:
 
         try:
             resp = self.bot.ask(body, session_id=session_id, language=language)
-            return self._twiml(resp.answer)
+            return self._twiml_with_products(resp)
         except ChatbotError as e:
             logger.warning("[whatsapp:{}] {}", from_number, e)
             return self._twiml(e.user_message)
@@ -99,4 +99,20 @@ class WhatsAppChannel:
         return (
             '<?xml version="1.0" encoding="UTF-8"?>'
             "<Response><Message>" + message + "</Message></Response>"
+        )
+
+    @staticmethod
+    def _twiml_with_products(resp: ChatResponse) -> str:
+        """Build TwiML with optional media URLs for product images."""
+        text = resp.answer.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        products = resp.metadata.get("products", [])
+        media_tags = ""
+        for p in products[:1]:  # WhatsApp TwiML: one media per message
+            img = p.get("image_url", "")
+            if img:
+                safe_url = img.replace("&", "&amp;")
+                media_tags += f"<Media>{safe_url}</Media>"
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            f"<Response><Message><Body>{text}</Body>{media_tags}</Message></Response>"
         )

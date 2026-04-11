@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from chatbot.core.engine import Chatbot
+from chatbot.core.engine import Chatbot, ChatResponse
 from chatbot.exceptions import ChannelError, ChatbotError
 from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
 from chatbot.i18n.detect import detect_language
@@ -47,19 +47,21 @@ class TelegramChannel:
         # Handle slash commands
         if text.startswith("/"):
             reply = self._handle_command(text, chat_id)
+            await self._send_message(chat_id, reply)
         else:
             session_id = f"telegram:{chat_id}"
             language = detect_language(text, supported=SUPPORTED_LANGUAGE_CODES)
             try:
                 resp = self.bot.ask(text, session_id=session_id, language=language)
-                reply = resp.answer
+                await self._send_message(chat_id, resp.answer)
+                # Send product images if mentioned
+                await self._send_product_images(chat_id, resp)
             except ChatbotError as e:
-                reply = e.user_message
+                await self._send_message(chat_id, e.user_message)
             except Exception as e:  # pragma: no cover
                 logger.exception("[telegram:{}] {}", chat_id, e)
-                reply = self.bot.profile.fallback
+                await self._send_message(chat_id, self.bot.profile.fallback)
 
-        await self._send_message(chat_id, reply)
         return {"ok": True}
 
     # ── Slash commands ──────────────────────────────────────────────────────
@@ -97,3 +99,30 @@ class TelegramChannel:
                     )
             except httpx.HTTPError as e:
                 logger.warning("Telegram sendMessage error: {}", e)
+
+    async def _send_photo(self, chat_id: int, photo_url: str, caption: str = "") -> None:
+        """Send a photo via the Telegram Bot API."""
+        if not self.settings.telegram_bot_token:
+            return
+        url = f"https://api.telegram.org/bot{self.settings.telegram_bot_token}/sendPhoto"
+        payload: dict[str, Any] = {"chat_id": chat_id, "photo": photo_url}
+        if caption:
+            payload["caption"] = caption[:1024]
+        async with httpx.AsyncClient(timeout=15) as client:
+            try:
+                resp = await client.post(url, json=payload)
+                if resp.status_code >= 400:
+                    logger.warning("Telegram sendPhoto failed [{}]: {}", resp.status_code, resp.text)
+            except httpx.HTTPError as e:
+                logger.warning("Telegram sendPhoto error: {}", e)
+
+    async def _send_product_images(self, chat_id: int, resp: ChatResponse) -> None:
+        """Send product images from the response metadata."""
+        products = resp.metadata.get("products", [])
+        for p in products[:3]:  # Limit to 3 images per reply
+            img = p.get("image_url", "")
+            if img:
+                caption = p.get("name", "")
+                if p.get("price"):
+                    caption += f" — {p['price']}"
+                await self._send_photo(chat_id, img, caption=caption)

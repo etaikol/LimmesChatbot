@@ -135,7 +135,7 @@ class ChatbotProfile(BaseModel):
         """Personality + client extras + default language hint."""
         return self.build_system_prompt(language=None)
 
-    def build_system_prompt(self, language: str | None) -> str:
+    def build_system_prompt(self, language: str | None, product_catalog_text: str = "") -> str:
         """Like ``effective_system_prompt`` but with a per-request language.
 
         ``language`` is an ISO-639-1 code coming from the user (widget
@@ -161,6 +161,9 @@ class ChatbotProfile(BaseModel):
 
         if self.client.system_prompt_extra.strip():
             sections.append(self.client.system_prompt_extra.strip())
+
+        if product_catalog_text:
+            sections.append(product_catalog_text)
 
         target = (language or self.client.language_primary or "en").strip().lower()
         label = _language_label(target)

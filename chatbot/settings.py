@@ -153,6 +153,21 @@ class Settings(BaseSettings):
     line_channel_secret: str = ""
     line_channel_access_token: str = ""
 
+    # ── Contact / Email ──────────────────────────────────────────────────────
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    contact_to_email: str = ""      # admin inbox
+    contact_from_email: str = ""    # defaults to smtp_user when empty
+
+    # ── Human handoff ────────────────────────────────────────────────────────
+    handoff_enabled: bool = True
+
+    # ── Proactive widget message ─────────────────────────────────────────────
+    proactive_delay_seconds: int = 60
+    proactive_message: str = ""     # empty = use i18n default
+
     # ── Validators ───────────────────────────────────────────────────────────
     @model_validator(mode="after")
     def _default_log_file(self) -> "Settings":

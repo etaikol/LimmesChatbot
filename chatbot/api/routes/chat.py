@@ -112,6 +112,7 @@ async def chat_endpoint(req: ChatRequest, request: Request) -> ChatReply:
         answer=resp.answer,
         session_id=resp.session_id,
         sources=[SourceModel(**s.model_dump()) for s in resp.sources],
+        products=resp.metadata.get("products", []),
     )
 
 

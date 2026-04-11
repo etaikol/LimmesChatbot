@@ -28,11 +28,13 @@ import httpx
 
 from chatbot.channels.line_flex import (
     contact_bubble,
+    carousel,
     flex_message,
+    product_bubble,
     quick_reply_message,
     text_message,
 )
-from chatbot.core.engine import Chatbot
+from chatbot.core.engine import Chatbot, ChatResponse
 from chatbot.exceptions import ChannelError, ChatbotError
 from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
 from chatbot.i18n.detect import detect_language
@@ -111,7 +113,7 @@ class LineChannel:
         language = detect_language(text, supported=SUPPORTED_LANGUAGE_CODES)
         try:
             resp = self.bot.ask(text, session_id=session_id, language=language)
-            messages = self._build_messages(resp.answer)
+            messages = self._build_messages(resp)
         except ChatbotError as e:
             messages = [text_message(e.user_message)]
         except Exception as e:  # pragma: no cover
@@ -120,14 +122,30 @@ class LineChannel:
 
         await self._reply(reply_token, messages)
 
-    def _build_messages(self, answer: str) -> list[dict]:
-        """Convert a text answer into LINE message objects.
+    def _build_messages(self, resp: ChatResponse) -> list[dict]:
+        """Convert a ChatResponse into LINE message objects.
 
-        Currently sends plain text.  Override or extend this method to
-        detect keywords and build Flex Messages (product cards, contact
-        cards, etc.) based on answer content.
+        Detects mentioned products and attaches Flex Message cards with
+        images when available.
         """
-        return [text_message(answer)]
+        messages: list[dict] = [text_message(resp.answer)]
+
+        # Attach product cards if products were mentioned and have images
+        products = resp.metadata.get("products", [])
+        bubbles = []
+        for p in products:
+            if p.get("image_url"):
+                bubbles.append(product_bubble(
+                    title=p["name"],
+                    description=p.get("name_en", ""),
+                    price=p.get("price", ""),
+                    image_url=p["image_url"],
+                    action_text=f"Tell me about {p['name']}",
+                ))
+        if bubbles:
+            messages.append(carousel(bubbles[:10]))  # LINE carousel max 12
+
+        return messages[:5]  # LINE reply limit: 5 messages
 
     # ── Outbound ────────────────────────────────────────────────────────────
 

@@ -17,7 +17,10 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
+from chatbot.core.fallback_log import FallbackLog, looks_like_fallback
+from chatbot.core.handoff import HandoffManager
 from chatbot.core.memory import SessionStore
+from chatbot.core.products import ProductCatalog
 from chatbot.core.profile import ChatbotProfile
 from chatbot.exceptions import (
     AbuseError,
@@ -71,6 +74,9 @@ class Chatbot:
         memory: Optional[SessionStore] = None,
         budget: Optional[BudgetGuard] = None,
         spam_tracker: Optional[SpamTracker] = None,
+        product_catalog: Optional[ProductCatalog] = None,
+        handoff_manager: Optional[HandoffManager] = None,
+        fallback_log: Optional[FallbackLog] = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.profile = profile
@@ -114,6 +120,17 @@ class Chatbot:
             )
         else:
             self.spam_tracker = None
+
+        # ── Product catalog ────────────────────────────────────────────
+        self.product_catalog = product_catalog or ProductCatalog.load(
+            profile.client.id
+        )
+
+        # ── Human handoff ──────────────────────────────────────────────
+        self.handoff = handoff_manager or HandoffManager()
+
+        # ── Fallback logger ────────────────────────────────────────────
+        self.fallback_log = fallback_log or FallbackLog()
 
         # Build the LangChain RAG chain once
         self.chain = build_rag_chain(
@@ -190,7 +207,27 @@ class Chatbot:
 
         logger.debug("[{}] User message received ({} chars)", session_id, len(question))
 
-        # 3. Spam / gibberish check (all channels).
+        # 3a. Handoff check: if session is in human-handoff mode, queue
+        #     the message for the admin and return a waiting response.
+        if self.settings.handoff_enabled and self.handoff.is_handed_off(session_id):
+            self.handoff.add_message(session_id, "user", question)
+            # Check for a pending admin reply to deliver back.
+            admin_reply = self.handoff.get_pending_admin_reply(session_id)
+            if admin_reply:
+                return ChatResponse(
+                    answer=admin_reply,
+                    session_id=session_id,
+                    sources=[],
+                    metadata={"handoff": True, "from_admin": True},
+                )
+            return ChatResponse(
+                answer="A human agent is reviewing your conversation. Please wait for a reply.",
+                session_id=session_id,
+                sources=[],
+                metadata={"handoff": True},
+            )
+
+        # 3b. Spam / gibberish check (all channels).
         if self.spam_tracker is not None:
             rejection = self.spam_tracker.check(session_id, question)
             if rejection:
@@ -208,7 +245,10 @@ class Chatbot:
             raise BudgetError(exc.reason) from exc
 
         # 5. The actual paid LLM call with retry for transient failures.
-        system_prompt = self.profile.build_system_prompt(language=language)
+        catalog_text = self.product_catalog.for_system_prompt()
+        system_prompt = self.profile.build_system_prompt(
+            language=language, product_catalog_text=catalog_text,
+        )
         invoke_input = {
             "question": question,
             "history": history or "(no prior conversation)",
@@ -219,6 +259,16 @@ class Chatbot:
         # 6. Persist memory
         self.memory.add_message(session_id, "user", question)
         self.memory.add_message(session_id, "assistant", answer)
+
+        # 6b. Log fallback if the bot couldn't answer
+        if looks_like_fallback(answer):
+            from chatbot.core.fallback_log import FallbackEntry
+            self.fallback_log.log(FallbackEntry(
+                question=question,
+                answer_given=answer,
+                session_id=session_id,
+                language=language or "",
+            ))
 
         # Do not trigger a second retrieval here. The RAG chain already
         # performs retrieval internally, and a second lookup can both add
@@ -242,10 +292,21 @@ class Chatbot:
             len(answer),
         )
 
+        # Detect products mentioned in the answer for image delivery
+        mentioned = self.product_catalog.find_mentioned(answer)
+        metadata: dict[str, Any] = {}
+        if mentioned:
+            metadata["products"] = [
+                {"id": p.id, "name": p.name, "name_en": p.name_en,
+                 "image_url": p.image_url, "price": p.price}
+                for p in mentioned
+            ]
+
         return ChatResponse(
             answer=answer,
             session_id=session_id,
             sources=sources,
+            metadata=metadata,
         )
 
     def greet(self) -> str:
