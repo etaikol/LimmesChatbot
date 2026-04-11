@@ -73,6 +73,7 @@ _EN: dict[str, str] = {
     "welcome":           "Hello! 👋 Welcome — I'm here to help with products, pricing, design tips, or booking a consultation. What can I do for you? 😊",
     "budget_reached":    "Sorry, today's usage limit has been reached. Please try again tomorrow.",
     "handoff_resolved":  "You are now back with the bot. How can I help?",
+    "handoff_active":    "Connected to a human agent",
 }
 
 MESSAGES: dict[str, dict[str, str]] = {
@@ -92,6 +93,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "welcome":          "שלום! 👋 אני כאן לעזור — שאלות על מוצרים, מחירים, עיצוב, או לתיאום פגישה. במה אוכל לעזור? 😊",
         "budget_reached":   "מצטערים, מכסת השימוש להיום הסתיימה. נסו שוב מחר.",
         "handoff_resolved": "חזרת לשיחה עם הבוט. במה אוכל לעזור?",
+        "handoff_active":   "מחובר/ת לנציג אנושי",
     },
 
     "ar": {
@@ -138,6 +140,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "welcome":          "สวัสดีครับ/ค่ะ! 👋 ยินดีต้อนรับ — สอบถามเรื่องสินค้า ราคา ไอเดียตกแต่ง หรือนัดปรึกษาได้เลย 😊",
         "budget_reached":   "ขออภัย ถึงขีดจำกัดการใช้งานวันนี้แล้ว โปรดลองใหม่พรุ่งนี้",
         "handoff_resolved": "กลับมาคุยกับบอทแล้วครับ/ค่ะ สอบถามได้เลย",
+        "handoff_active":   "เชื่อมต่อกับเจ้าหน้าที่แล้ว",
     },
 
     "fr": {

@@ -173,6 +173,7 @@ var css = '\
 .cb-typing span{width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:cb-bounce 1s infinite ease-in-out;}\
 .cb-typing span:nth-child(2){animation-delay:.15s;}.cb-typing span:nth-child(3){animation-delay:.3s;}\
 @keyframes cb-bounce{0%,80%,100%{transform:scale(.6);opacity:.5;}40%{transform:scale(1);opacity:1;}}\
+.cb-handoff-banner{background:linear-gradient(90deg,#fef3c7,#fde68a);color:#92400e;font-size:12px;padding:8px 14px;text-align:center;border-bottom:1px solid #f59e0b;flex-shrink:0;}\
 .cb-row{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--cb-border);background:#fff;align-items:flex-end;}\
 .cb-input{flex:1;min-height:42px;max-height:120px;padding:11px 14px;border:1px solid #e2e8f0;border-radius:14px;font:14px system-ui;outline:none;resize:none;background:#f8fafc;transition:border-color .15s, background .15s;}\
 .cb-input:focus{border-color:var(--cb-accent);background:#fff;}\
@@ -333,7 +334,10 @@ async function send(text){
       add(data.answer || '(empty reply)', 'b');
       if (data.products) { addProducts(data.products); }
       // Start listening for real-time handoff replies via SSE
-      if (data.handoff && !_sseActive) { startSSE(); }
+      if (data.handoff && !_sseActive) {
+        startSSE();
+        showHandoffBanner(true);
+      }
     } else if (res.status === 429) {
       add(data.detail || bundle().rate_limited || 'Too many requests.', 'b');
     } else if (res.status === 402) {
@@ -352,6 +356,22 @@ async function send(text){
   }
 }
 
+// ── Handoff mode banner ─────────────────────────────────────────────────
+var _handoffBanner = null;
+function showHandoffBanner(show){
+  if (show && !_handoffBanner) {
+    _handoffBanner = document.createElement('div');
+    _handoffBanner.className = 'cb-handoff-banner';
+    _handoffBanner.innerHTML = '🤝 <strong>' + (bundle().handoff_active || 'Connected to a human agent') + '</strong>';
+    var bodyEl = panel.querySelector('.cb-body');
+    if (bodyEl) bodyEl.insertBefore(_handoffBanner, bodyEl.firstChild);
+  }
+  if (!show && _handoffBanner) {
+    _handoffBanner.remove();
+    _handoffBanner = null;
+  }
+}
+
 // ── SSE for real-time handoff replies ────────────────────────────────────
 var _sseActive = false;
 var _sseSource = null;
@@ -367,6 +387,7 @@ function startSSE(){
   });
   _sseSource.addEventListener('close', function(){
     stopSSE();
+    showHandoffBanner(false);
     add(bundle().handoff_resolved || 'You are now back with the bot.', 'b');
   });
   _sseSource.onerror = function(){

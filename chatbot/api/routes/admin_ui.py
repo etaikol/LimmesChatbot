@@ -79,6 +79,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent2)}
 .btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{opacity:.85}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--fg);border-color:var(--muted)}
+.btn-ghost.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn-sm{padding:5px 12px;font-size:12px}
 
 /* Forms */
@@ -561,20 +562,19 @@ _HTML_BODY = r"""
       <div class="card" style="padding:20px">
         <h4 style="margin-bottom:14px;font-size:14px" id="productFormTitle">Add Product</h4>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="form-group"><label class="form-label">ID (slug, no spaces)</label><input class="form-input" id="pf_id" placeholder="e.g. roman-blind-blackout"></div>
-          <div class="form-group"><label class="form-label">Name (local language)</label><input class="form-input" id="pf_name" placeholder="e.g. נייר רומי"></div>
-          <div class="form-group"><label class="form-label">Name (English)</label><input class="form-input" id="pf_name_en" placeholder="e.g. Roman Blind"></div>
+          <div class="form-group"><label class="form-label">Product Name</label><input class="form-input" id="pf_name" placeholder="e.g. Roman Blind Blackout" oninput="autoSlugId()"></div>
+          <div class="form-group"><label class="form-label">English Name (optional)</label><input class="form-input" id="pf_name_en" placeholder="e.g. Roman Blind"></div>
           <div class="form-group"><label class="form-label">Category</label><input class="form-input" id="pf_category" list="pf_catlist" placeholder="e.g. Curtains"><datalist id="pf_catlist"></datalist></div>
-          <div class="form-group"><label class="form-label">Price</label><input class="form-input" id="pf_price" placeholder="e.g. ₪600–₪1,200"></div>
+          <div class="form-group"><label class="form-label">Price</label><input class="form-input" id="pf_price" placeholder="e.g. $50 or $50–$100"></div>
           <div class="form-group"><label class="form-label">Image URL (optional)</label><input class="form-input" id="pf_image_url" placeholder="https://..."></div>
-          <div class="form-group" style="grid-column:1/-1"><label class="form-label">Description (shown to bot &amp; customers)</label><textarea class="form-textarea" id="pf_description" rows="3" style="min-height:70px"></textarea></div>
-          <div class="form-group"><label class="form-label">Tags (comma-separated)</label><input class="form-input" id="pf_tags" placeholder="e.g. blackout, bedroom"></div>
           <div class="form-group" style="display:flex;align-items:center;gap:10px;padding-top:20px">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
               <input type="checkbox" id="pf_in_stock" checked style="width:18px;height:18px;accent-color:var(--accent)">
               In Stock
             </label>
           </div>
+          <div class="form-group" style="grid-column:1/-1"><label class="form-label">Description (shown to bot &amp; customers)</label><textarea class="form-textarea" id="pf_description" rows="3" style="min-height:70px"></textarea></div>
+          <div class="form-group" style="grid-column:1/-1"><label class="form-label">ID (auto-generated)</label><input class="form-input" id="pf_id" placeholder="auto-generated-from-name" style="opacity:0.6;font-family:monospace;font-size:12px"></div>
         </div>
         <div style="margin-top:16px;display:flex;gap:8px">
           <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
@@ -606,6 +606,7 @@ _HTML_BODY = r"""
     <div id="handoffReplyBox" style="display:none;margin-top:16px">
       <div class="card" style="padding:16px">
         <h4 style="margin-bottom:10px;font-size:14px">Reply to session: <span id="handoffReplyTarget"></span></h4>
+        <div id="handoffMsgHistory" style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;background:var(--bg)"></div>
         <div class="form-group"><textarea class="form-textarea" id="handoffReplyText" rows="3" placeholder="Type your reply..."></textarea></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-sm" onclick="sendHandoffReply()">Send Reply</button>
@@ -831,8 +832,16 @@ function card(l,v,s){return'<div class="card"><div class="card-label">'+l+'</div
 window.loadSessions=async function(){
   try{var d=await api('/sessions');var html='';
   if(!d.sessions.length)html='<tr><td colspan="4" style="text-align:center;color:var(--muted)">No sessions</td></tr>';
-  d.sessions.forEach(function(s){var ts=s.last_activity?new Date(s.last_activity).toLocaleString():'—';html+='<tr><td style="font-family:monospace;font-size:12px">'+esc(s.session_id)+'</td><td>'+s.message_count+'</td><td>'+ts+'</td><td><button class="btn btn-ghost btn-sm" onclick="viewSession(\''+esc(s.session_id)+'\')">View</button> <button class="btn btn-danger btn-sm" onclick="deleteSession(\''+esc(s.session_id)+'\')">Delete</button></td></tr>'});
+  d.sessions.forEach(function(s){var ts=s.last_activity?new Date(s.last_activity).toLocaleString():'—';html+='<tr><td style="font-family:monospace;font-size:12px">'+esc(s.session_id)+'</td><td>'+s.message_count+'</td><td>'+ts+'</td><td><button class="btn btn-ghost btn-sm" onclick="viewSession(\''+esc(s.session_id)+'\')">View</button> <button class="btn btn-primary btn-sm" data-admin-only onclick="startHandoffFromSession(\''+esc(s.session_id)+'\')">🤝 Take Over</button> <button class="btn btn-danger btn-sm" onclick="deleteSession(\''+esc(s.session_id)+'\')">Delete</button></td></tr>'});
   document.getElementById('sessionRows').innerHTML=html}catch(e){toast(e.message,'err')}
+};
+window.startHandoffFromSession=async function(sid){
+  if(!confirm('Take over session '+sid+'? The bot will be silenced and you can reply directly.'))return;
+  var channel='web';
+  if(sid.startsWith('line:'))channel='line';
+  else if(sid.startsWith('telegram:'))channel='telegram';
+  else if(sid.startsWith('whatsapp:'))channel='whatsapp';
+  try{await api('/handoff/'+encodeURIComponent(sid)+'/start',{method:'POST',body:{channel:channel,reason:'admin_takeover'}});toast('Handoff started — go to Handoff page to reply','ok');loadSessions()}catch(e){toast(e.message,'err')}
 };
 window.viewSession=async function(id){try{var d=await api('/sessions/'+encodeURIComponent(id));var html='<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal"><div class="modal-head"><h3>Session: '+esc(id.slice(0,20))+(id.length>20?'…':'')+'</h3><button class="btn btn-ghost btn-sm" onclick="this.closest(\'.modal-bg\').remove()">&times;</button></div><div class="modal-body">';if(!d.messages.length)html+='<p style="color:var(--muted)">No messages</p>';d.messages.forEach(function(m){var role=m.role||m.type||'unknown';html+='<div class="msg-row '+(role==='human'?'human':'ai')+'"><div class="msg-role">'+role+'</div><div class="msg-text">'+esc(m.content||m.text||'')+'</div></div>'});html+='</div></div></div>';document.body.insertAdjacentHTML('beforeend',html)}catch(e){toast(e.message,'err')}};
 window.deleteSession=async function(id){if(!confirm('Delete session '+id+'?'))return;try{await api('/sessions/'+encodeURIComponent(id),{method:'DELETE'});toast('Session deleted','ok');loadSessions()}catch(e){toast(e.message,'err')}};
@@ -1378,28 +1387,30 @@ function _renderProductRows(){
   if(!_productCache.length)rows.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted)">No products yet — click "+ Add Product" to start.</td></tr>';
 }
 var _editingIdx=null;
+function slugify(s){return s.toLowerCase().replace(/[^a-z0-9\u0590-\u05ff\u0e00-\u0e7f]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);}
+window.autoSlugId=function(){if(_editingIdx!==null&&_editingIdx>=0)return;var n=document.getElementById('pf_name').value;document.getElementById('pf_id').value=slugify(n);};
 window.showProductForm=function(idx){
   _editingIdx=idx;
   var p=(idx!==null&&idx>=0)?_productCache[idx]:null;
   document.getElementById('productFormTitle').textContent=p?'Edit: '+p.name:'Add Product';
   document.getElementById('pf_id').value=p?p.id:'';
   document.getElementById('pf_id').readOnly=!!p;
-  document.getElementById('pf_id').style.opacity=p?'0.6':'';
+  document.getElementById('pf_id').style.opacity=p?'0.6':'0.6';
   document.getElementById('pf_name').value=p?p.name:'';
   document.getElementById('pf_name_en').value=p?(p.name_en||''):'';
   document.getElementById('pf_category').value=p?(p.category||''):'';
   document.getElementById('pf_price').value=p?(p.price||''):'';
   document.getElementById('pf_image_url').value=p?(p.image_url||''):'';
   document.getElementById('pf_description').value=p?(p.description||''):'';
-  document.getElementById('pf_tags').value=p?(p.tags||[]).join(', '):'';
   document.getElementById('pf_in_stock').checked=p?p.in_stock:true;
   document.getElementById('productForm').style.display='block';
   document.getElementById('productForm').scrollIntoView({behavior:'smooth',block:'center'});
 };
 window.saveProduct=async function(){
-  var id=document.getElementById('pf_id').value.trim();
   var name=document.getElementById('pf_name').value.trim();
-  if(!id||!name){toast('ID and Name are required','err');return;}
+  if(!name){toast('Product name is required','err');return;}
+  var id=document.getElementById('pf_id').value.trim()||slugify(name);
+  if(!id){toast('Could not generate ID — enter a name','err');return;}
   var updated=JSON.parse(JSON.stringify(_productCache));
   var product={id:id,name:name,
     name_en:document.getElementById('pf_name_en').value.trim(),
@@ -1407,7 +1418,7 @@ window.saveProduct=async function(){
     price:document.getElementById('pf_price').value.trim(),
     image_url:document.getElementById('pf_image_url').value.trim(),
     description:document.getElementById('pf_description').value.trim(),
-    tags:document.getElementById('pf_tags').value.split(',').map(function(s){return s.trim();}).filter(Boolean),
+    tags:[],
     in_stock:document.getElementById('pf_in_stock').checked
   };
   if(_editingIdx!==null&&_editingIdx>=0){updated[_editingIdx]=product;}
@@ -1473,30 +1484,49 @@ async function loadHandoffs(){
     rows.innerHTML='';
     (d.sessions||[]).forEach(function(s){
       var msgCount=(s.pending_messages||[]).length;
-      var actions='<button class="btn btn-primary btn-sm" onclick="openHandoffReply(\''+s.session_id+'\')">Reply</button> <button class="btn btn-danger btn-sm" onclick="resolveHandoff(\''+s.session_id+'\')">Resolve</button>';
-      rows.innerHTML+='<tr><td><code style="font-size:11px">'+s.session_id+'</code></td><td>'+s.channel+'</td><td>'+s.reason+'</td><td>'+msgCount+'</td><td style="font-size:11px">'+new Date(s.created_at).toLocaleString()+'</td><td>'+actions+'</td></tr>';
+      var userMsgs=(s.pending_messages||[]).filter(function(m){return m.role==='user'}).length;
+      var channelTag='<span class="tag '+(s.channel==='line'?'tag-on':s.channel==='web'?'tag-on':'')+'">'+s.channel+'</span>';
+      var reasonTag=s.reason==='user_request'?'<span class="tag" style="background:rgba(59,130,246,.15);color:#3b82f6">User request</span>':'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Admin takeover</span>';
+      var actions='<button class="btn btn-primary btn-sm" onclick="openHandoffReply(\''+s.session_id+'\')">💬 Reply</button> <button class="btn btn-danger btn-sm" onclick="resolveHandoff(\''+s.session_id+'\')">✓ Resolve</button>';
+      rows.innerHTML+='<tr><td><code style="font-size:11px">'+s.session_id+'</code></td><td>'+channelTag+'</td><td>'+reasonTag+'</td><td>'+msgCount+' <span style="color:var(--muted);font-size:11px">('+userMsgs+' from user)</span></td><td style="font-size:11px">'+new Date(s.created_at).toLocaleString()+'</td><td>'+actions+'</td></tr>';
     });
     if(!d.sessions||!d.sessions.length)rows.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No active handoffs</td></tr>';
   }catch(e){toast(e.message,'err')}
 }
 window.loadHandoffs=loadHandoffs;
-window.openHandoffReply=function(sid){
+window.openHandoffReply=async function(sid){
   _handoffTarget=sid;
   document.getElementById('handoffReplyTarget').textContent=sid;
   document.getElementById('handoffReplyText').value='';
+  // Load and show message history for this handoff
+  try{
+    var s=await api('/handoff/'+encodeURIComponent(sid));
+    var historyEl=document.getElementById('handoffMsgHistory');
+    if(historyEl){
+      var html='';
+      (s.pending_messages||[]).forEach(function(m){
+        var cls=m.role==='admin'?'ai':'human';
+        var label=m.role==='admin'?'👤 Admin':'💬 User';
+        var time=m.at?new Date(m.at).toLocaleTimeString():'';
+        html+='<div class="msg-row '+cls+'" style="margin-bottom:6px"><div class="msg-role" style="font-size:11px">'+label+' <span style="color:var(--muted)">'+time+'</span></div><div class="msg-text" style="font-size:13px">'+esc(m.text||'')+'</div></div>';
+      });
+      if(!html)html='<p style="color:var(--muted);font-size:12px">No messages yet — the user is waiting for your reply.</p>';
+      historyEl.innerHTML=html;
+    }
+  }catch(e){}
   document.getElementById('handoffReplyBox').style.display='block';
 };
 window.sendHandoffReply=async function(){
   var text=document.getElementById('handoffReplyText').value.trim();
   if(!text)return;
-  try{await api('/handoff/'+_handoffTarget+'/reply',{method:'POST',body:{text:text}});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  try{await api('/handoff/'+_handoffTarget+'/reply',{method:'POST',body:{text:text}});document.getElementById('handoffReplyText').value='';toast('Reply sent','ok');openHandoffReply(_handoffTarget);loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 window.resolveCurrentHandoff=async function(){
   if(!confirm('Resolve this handoff and return session to bot?'))return;
-  try{await api('/handoff/'+_handoffTarget+'/resolve',{method:'POST'});document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
+  try{await api('/handoff/'+_handoffTarget+'/resolve',{method:'POST'});document.getElementById('handoffReplyBox').style.display='none';toast('Handoff resolved — bot is back in control','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 window.resolveHandoff=async function(sid){
-  if(!confirm('Resolve handoff for '+sid+'?'))return;
+  if(!confirm('Resolve handoff for '+sid+'? Bot will resume.'))return;
   try{await api('/handoff/'+sid+'/resolve',{method:'POST'});toast('Resolved','ok');loadHandoffs()}catch(e){toast(e.message,'err')}
 };
 

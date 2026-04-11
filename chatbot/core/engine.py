@@ -12,6 +12,7 @@ Lifecycle:
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Any, Optional
 
@@ -41,6 +42,51 @@ from chatbot.security.sanitize import (
 )
 from chatbot.security.spam import SpamTracker
 from chatbot.settings import Settings, get_settings
+
+
+# ── Handoff keyword detection ───────────────────────────────────────────────
+# Phrases that indicate the user wants to talk to a human. Checked with
+# simple substring matching (case-insensitive) before any paid LLM call.
+_HANDOFF_PATTERNS = re.compile(
+    r"(?i)"
+    r"(?:"
+    # English
+    r"talk to (?:a |an )?(?:human|person|someone|agent|staff|representative|support)"
+    r"|speak (?:to|with) (?:a |an )?(?:human|person|someone|agent|staff|representative|support)"
+    r"|connect me (?:to|with) (?:a |an )?(?:human|person|someone|agent|staff|representative)"
+    r"|transfer (?:me )?to (?:a |an )?(?:human|agent|staff|person|representative|support)"
+    r"|i (?:want|need) (?:a |to talk to (?:a )?)?(?:human|real person|agent|staff|representative)"
+    r"|(?:get|give) me (?:a )?(?:human|real person|agent|staff)"
+    r"|can i (?:talk|speak|chat) (?:to|with) (?:a )?(?:human|person|someone|agent)"
+    r"|let me (?:talk|speak|chat) (?:to|with) (?:a )?(?:human|person|someone|agent)"
+    # Hebrew
+    r"|לדבר עם (?:נציג|אדם|מישהו|תמיכה)"
+    r"|תעביר(?:ו)? (?:ל)?נציג"
+    r"|אני רוצה (?:לדבר עם )?(?:נציג|אדם|מישהו)"
+    r"|(?:אפשר|אני צריך) (?:לדבר עם )?(?:נציג|אדם|מישהו)"
+    # Thai
+    r"|(?:ขอ)?(?:คุย|พูด)กับ(?:คน|เจ้าหน้าที่|พนักงาน|แอดมิน)"
+    r"|ต้องการ(?:คุย|พูด)กับ(?:คน|เจ้าหน้าที่|พนักงาน)"
+    r"|ขอติดต่อ(?:เจ้าหน้าที่|พนักงาน|แอดมิน)"
+    # Arabic
+    r"|(?:أريد|اريد) (?:التحدث|الكلام) (?:مع|إلى) (?:شخص|موظف|ممثل)"
+    r"|(?:حوّلني|حولني) (?:إلى|الى) (?:شخص|موظف|ممثل)"
+    # Russian
+    r"|(?:хочу|могу) поговорить с (?:человеком|оператором|агентом)"
+    r"|(?:переведите|переключите) (?:на|к) (?:человеку|оператору|агенту)"
+    r")"
+)
+
+
+def _channel_from_session(session_id: str) -> str:
+    """Extract channel name from a session ID prefix."""
+    if session_id.startswith("line:"):
+        return "line"
+    if session_id.startswith("telegram:"):
+        return "telegram"
+    if session_id.startswith("whatsapp:"):
+        return "whatsapp"
+    return "web"
 
 
 class SourceDocument(BaseModel):
@@ -225,6 +271,20 @@ class Chatbot:
                 session_id=session_id,
                 sources=[],
                 metadata={"handoff": True},
+            )
+
+        # 3b. User-initiated handoff: detect phrases like "talk to a human".
+        #     This runs BEFORE the (paid) LLM call to save cost.
+        if self.settings.handoff_enabled and _HANDOFF_PATTERNS.search(question):
+            channel = _channel_from_session(session_id)
+            self.handoff.start_handoff(session_id, channel=channel, reason="user_request")
+            self.handoff.add_message(session_id, "user", question)
+            logger.info("[{}] User-initiated handoff (channel={})", session_id, channel)
+            return ChatResponse(
+                answer="I'm connecting you with our team now. A human agent will be with you shortly — please wait.",
+                session_id=session_id,
+                sources=[],
+                metadata={"handoff": True, "handoff_started": True},
             )
 
         # 3b. Spam / gibberish check (all channels).

@@ -184,6 +184,19 @@ class ChatbotProfile(BaseModel):
                 f"Politely refuse to discuss: {joined}. Redirect to relevant topics."
             )
 
+        # ── Handoff awareness ────────────────────────────────────────
+        sections.append(
+            "HUMAN HANDOFF:\n"
+            "If a customer explicitly asks to speak with a human, agent, staff member, "
+            "or representative, let them know you're connecting them. The system will "
+            "automatically detect the request and transfer the conversation.\n"
+            "If you cannot answer a question because the information is not in your "
+            "knowledge base, you may offer: 'Would you like me to connect you with "
+            "our team?' — but do NOT force handoff. Let the user decide.\n"
+            "When an admin has taken over a conversation, you will be silent — "
+            "do not interfere or respond. The admin's replies go directly to the user."
+        )
+
         if self.personality.style_keywords:
             joined = ", ".join(self.personality.style_keywords)
             sections.append(f"Tone: {joined}.")

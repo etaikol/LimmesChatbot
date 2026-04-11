@@ -113,7 +113,16 @@ class LineChannel:
         language = detect_language(text, supported=SUPPORTED_LANGUAGE_CODES)
         try:
             resp = self.bot.ask(text, session_id=session_id, language=language)
-            messages = self._build_messages(resp)
+            # When handoff is active or just started, send a distinct message
+            # so LINE users know they're talking to a human (or waiting).
+            if resp.metadata.get("handoff"):
+                messages = [text_message(resp.answer)]
+                if resp.metadata.get("handoff_started"):
+                    messages.append(
+                        text_message("💬 Your messages will now go directly to our team.")
+                    )
+            else:
+                messages = self._build_messages(resp)
         except ChatbotError as e:
             messages = [text_message(e.user_message)]
         except Exception as e:  # pragma: no cover

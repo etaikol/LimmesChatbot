@@ -43,6 +43,9 @@ class HandoffSession(BaseModel):
 class HandoffManager:
     """Thread-safe JSON-backed handoff session tracker."""
 
+    # Sessions older than this are auto-resolved to prevent stuck handoffs.
+    TIMEOUT_HOURS = 4
+
     def __init__(self, path: Path | None = None) -> None:
         self._path = path or (PROJECT_ROOT / ".handoff" / "sessions.json")
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -50,6 +53,7 @@ class HandoffManager:
 
     def is_handed_off(self, session_id: str) -> bool:
         """Check if a session is currently in handoff mode."""
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
         for s in data:
@@ -151,3 +155,28 @@ class HandoffManager:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         tmp.replace(self._path)
+
+    def _auto_resolve_stale(self) -> None:
+        """Auto-resolve handoff sessions that exceed TIMEOUT_HOURS."""
+        now = datetime.now(timezone.utc)
+        with self._lock:
+            data = self._load()
+            changed = False
+            for s in data:
+                if not s.get("is_active"):
+                    continue
+                created = s.get("created_at", "")
+                try:
+                    created_dt = datetime.fromisoformat(created)
+                except (ValueError, TypeError):
+                    continue
+                if (now - created_dt).total_seconds() > self.TIMEOUT_HOURS * 3600:
+                    s["is_active"] = False
+                    s["resolved_at"] = now.isoformat()
+                    changed = True
+                    logger.info(
+                        "[handoff] Auto-resolved stale session {} (>{}h)",
+                        s.get("session_id"), self.TIMEOUT_HOURS,
+                    )
+            if changed:
+                self._save(data)
