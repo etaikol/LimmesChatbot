@@ -34,7 +34,7 @@ RAG_CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
                 "no --- dividers, no backticks. Plain text only.\n"
                 "- For bullet lists use a simple dash or number. Keep lists short (3-5 items max).\n"
                 "- Phone numbers: write naturally — '054-725-0779' not a raw string dump.\n"
-                "- Email: write naturally — 'send us a message at ...' not just pasting the address.\n"
+                "- Email: write naturally — 'reach us a message at ...' not just pasting the address.\n"
                 "- Links: say 'you can find us on Facebook / Instagram' and give the link once, "
                 "don't list every URL you know unless specifically asked.\n"
                 "- Don't pepper every reply with contact details. Only give them when the person "
