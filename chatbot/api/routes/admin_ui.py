@@ -326,7 +326,7 @@ _HTML_BODY = r"""
       <div id="budgetChartLegend" style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted)"></div>
     </div>
     <!-- Full history table -->
-    <div style="margin-top:20px" id="budgetHistoryWrap" style="display:none">
+    <div style="margin-top:20px;display:none" id="budgetHistoryWrap">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span style="font-size:14px;font-weight:600" data-i18n="budget.history.title">Spend History</span>
         <div style="display:flex;gap:6px">
