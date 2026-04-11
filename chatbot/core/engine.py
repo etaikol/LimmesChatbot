@@ -214,7 +214,7 @@ class Chatbot:
         elif self.settings.ab_testing_enabled:
             self.ab_test = ABTestManager.from_config(profile.client.id)
         else:
-            self.ab_test = ABTestManager.from_config(profile.client.id)
+            self.ab_test = None
 
         # ── Analytics tracker ──────────────────────────────────────────
         if analytics_tracker is not None:
