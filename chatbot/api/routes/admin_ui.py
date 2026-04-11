@@ -913,8 +913,19 @@ function renderBudget(d){
   }
 }
 
+function _parseDayUtc(dayStr){
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dayStr||''));
+  if(!m)return NaN;
+  return Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]));
+}
+
 function daysDiff(dayStr,todayStr){
-  try{return Math.round((new Date(todayStr)-new Date(dayStr))/(1000*60*60*24));}catch(e){return 999;}
+  try{
+    var todayUtc=_parseDayUtc(todayStr);
+    var dayUtc=_parseDayUtc(dayStr);
+    if(!isFinite(todayUtc)||!isFinite(dayUtc))return 999;
+    return Math.floor((todayUtc-dayUtc)/(1000*60*60*24));
+  }catch(e){return 999;}
 }
 
 function _renderBudgetHistoryTable(d,hist,n){
