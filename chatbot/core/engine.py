@@ -40,6 +40,7 @@ from chatbot.security.sanitize import (
     sanitize_session_id,
     sanitize_user_input,
 )
+from chatbot.i18n.messages import get_messages
 from chatbot.security.spam import SpamTracker
 from chatbot.settings import Settings, get_settings
 
@@ -76,6 +77,27 @@ _HANDOFF_PATTERNS = re.compile(
     r"|(?:переведите|переключите) (?:на|к) (?:человеку|оператору|агенту)"
     r")"
 )
+
+
+def _spam_msg(key: str, language: str | None = None) -> str:
+    """Return a localised human-friendly message for a spam/status *key*.
+
+    *key* may be a plain i18n key (e.g. ``"handoff_waiting"``) or a
+    structured spam-tracker reference like ``"spam:gibberish"`` or
+    ``"spam:session_blocked:30"``.
+    """
+    msgs = get_messages(language or "en")
+    if key.startswith("spam:"):
+        parts = key.split(":")
+        sub = parts[1] if len(parts) > 1 else ""
+        secs = parts[2] if len(parts) > 2 else "0"
+        if sub in ("blocked_temporarily", "session_blocked"):
+            template = msgs.get(sub, "")
+            if template:
+                return template.replace("{seconds}", secs)
+            return f"Please try again in {secs} seconds."
+        return msgs.get(sub, key)
+    return msgs.get(key, key)
 
 
 def _channel_from_session(session_id: str) -> str:
@@ -248,7 +270,7 @@ class Chatbot:
             if self.settings.block_prompt_injection:
                 raise AbuseError(
                     "Prompt injection detected",
-                    user_message="I can only answer questions about our business. Please rephrase your question.",
+                    user_message=_spam_msg("off_topic", language),
                 )
 
         logger.debug("[{}] User message received ({} chars)", session_id, len(question))
@@ -267,7 +289,7 @@ class Chatbot:
                     metadata={"handoff": True, "from_admin": True},
                 )
             return ChatResponse(
-                answer="A human agent is reviewing your conversation. Please wait for a reply.",
+                answer=_spam_msg("handoff_waiting", language),
                 session_id=session_id,
                 sources=[],
                 metadata={"handoff": True},
@@ -280,19 +302,21 @@ class Chatbot:
             self.handoff.start_handoff(session_id, channel=channel, reason="user_request")
             self.handoff.add_message(session_id, "user", question)
             logger.info("[{}] User-initiated handoff (channel={})", session_id, channel)
+            msg = _spam_msg("handoff_connecting", language)
             return ChatResponse(
-                answer="I'm connecting you with our team now. A human agent will be with you shortly — please wait.",
+                answer=msg,
                 session_id=session_id,
                 sources=[],
                 metadata={"handoff": True, "handoff_started": True},
             )
 
-        # 3b. Spam / gibberish check (all channels).
+        # 3c. Spam / gibberish check (all channels).
         if self.spam_tracker is not None:
             rejection = self.spam_tracker.check(session_id, question)
             if rejection:
                 logger.info("[{}] Spam blocked: {}", session_id, rejection)
-                raise AbuseError(rejection, user_message=rejection)
+                msg = _spam_msg(rejection, language)
+                raise AbuseError(rejection, user_message=msg)
 
         history = self.memory.history_text(session_id)
 
