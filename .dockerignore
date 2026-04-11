@@ -19,4 +19,4 @@ tests/
 .idea/
 .vscode/
 *.md
-!data/README.md
+!data/**/*.md
