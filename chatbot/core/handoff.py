@@ -16,10 +16,8 @@ from __future__ import annotations
 
 import json
 import threading
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -62,7 +60,7 @@ class HandoffManager:
     def start_handoff(
         self, session_id: str, channel: str = "web", reason: str = "user_request"
     ) -> str:
-        """Flag a session for human handoff.  Returns the handoff id."""
+        """Flag a session for human handoff.  Returns the session id."""
         with self._lock:
             data = self._load()
             # Don't create duplicate active handoffs for the same session

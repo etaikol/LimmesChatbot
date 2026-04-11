@@ -65,6 +65,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                     )
             # Stream the body and stop reading as soon as the limit is
             # exceeded so oversized uploads are not fully buffered.
+            # The buffered body is replayed via a custom ASGI receive
+            # callable so downstream handlers see the full request body
+            # without us having to set the private ``request._body``.
             if request.method in ("POST", "PUT", "PATCH") and not length_hdr:
                 total_size = 0
                 chunks: list[bytes] = []
@@ -81,7 +84,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                             status_code=413,
                         )
                     chunks.append(chunk)
-                request._body = b"".join(chunks)
+                body = b"".join(chunks)
+
+                async def _replay_receive():
+                    return {"type": "http.request", "body": body, "more_body": False}
+
+                request = Request(request.scope, _replay_receive)
 
         response = await call_next(request)
 
