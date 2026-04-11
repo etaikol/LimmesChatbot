@@ -114,18 +114,11 @@ class LineChannel:
         language = detect_language(text, supported=SUPPORTED_LANGUAGE_CODES)
         try:
             resp = self.bot.ask(text, session_id=session_id, language=language)
-            # When handoff is active or just started, send a distinct message
-            # so LINE users know they're talking to a human (or waiting).
+            # `resp.answer` already contains the localized handoff text for
+            # user-initiated handoff, so avoid appending a duplicate LINE
+            # message when handoff has just started.
             if resp.metadata.get("handoff"):
                 messages = [text_message(resp.answer)]
-                if resp.metadata.get("handoff_started"):
-                    msgs = get_messages(language)
-                    messages.append(
-                        text_message(msgs.get(
-                            "handoff_connecting",
-                            "💬 Your messages will now go directly to our team.",
-                        ))
-                    )
             else:
                 messages = self._build_messages(resp)
         except ChatbotError as e:
