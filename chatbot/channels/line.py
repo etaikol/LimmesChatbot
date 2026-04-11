@@ -38,6 +38,7 @@ from chatbot.core.engine import Chatbot, ChatResponse
 from chatbot.exceptions import ChannelError, ChatbotError
 from chatbot.i18n import SUPPORTED_LANGUAGE_CODES
 from chatbot.i18n.detect import detect_language
+from chatbot.i18n.messages import get_messages
 from chatbot.logging_setup import logger
 
 REPLY_ENDPOINT = "https://api.line.me/v2/bot/message/reply"
@@ -118,8 +119,9 @@ class LineChannel:
             if resp.metadata.get("handoff"):
                 messages = [text_message(resp.answer)]
                 if resp.metadata.get("handoff_started"):
+                    msgs = get_messages(language)
                     messages.append(
-                        text_message("💬 Your messages will now go directly to our team.")
+                        text_message(msgs.get("handoff_connecting", resp.answer))
                     )
             else:
                 messages = self._build_messages(resp)

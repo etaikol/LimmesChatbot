@@ -611,7 +611,7 @@ _HTML_BODY = r"""
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-sm" onclick="sendHandoffReply()">Send Reply</button>
           <button class="btn btn-danger btn-sm" onclick="resolveCurrentHandoff()">Resolve &amp; Return to Bot</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('handoffReplyBox').style.display='none'">Cancel</button>
+          <button class="btn btn-ghost btn-sm" onclick="_stopHandoffPoll();_handoffTarget='';document.getElementById('handoffReplyBox').style.display='none'">Cancel</button>
         </div>
       </div>
     </div>

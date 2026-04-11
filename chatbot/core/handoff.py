@@ -65,6 +65,7 @@ class HandoffManager:
         self, session_id: str, channel: str = "web", reason: str = "user_request"
     ) -> str:
         """Flag a session for human handoff.  Returns the session id."""
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
             # Don't create duplicate active handoffs for the same session
@@ -83,6 +84,7 @@ class HandoffManager:
 
     def add_message(self, session_id: str, role: str, text: str) -> bool:
         """Append a message to the handoff queue (user or admin)."""
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
             for s in data:
@@ -103,6 +105,7 @@ class HandoffManager:
         (e.g. via SSE).  Marks the returned message as delivered so it
         won't be returned twice.
         """
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
             for s in data:
@@ -129,6 +132,7 @@ class HandoffManager:
 
     def resolve(self, session_id: str) -> bool:
         """End handoff, returning session to bot mode."""
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
             for s in data:
@@ -141,6 +145,7 @@ class HandoffManager:
         return False
 
     def list_active(self) -> list[dict]:
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
         return [s for s in data if s.get("is_active")]
@@ -151,6 +156,7 @@ class HandoffManager:
         return list(reversed(data[-limit:]))
 
     def get_session(self, session_id: str) -> dict | None:
+        self._auto_resolve_stale()
         with self._lock:
             data = self._load()
         for s in data:
