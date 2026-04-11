@@ -147,7 +147,8 @@ class Settings(BaseSettings):
 
     # ── Admin dashboard ────────────────────────────────────────────────────────
     # API key for the /admin endpoints. When empty the dashboard is disabled.
-    admin_api_key: str = "Admin5!"
+    # IMPORTANT: set ADMIN_API_KEY in your .env or environment for production.
+    admin_api_key: str = ""
 
     # ── LINE Messaging ───────────────────────────────────────────────────────
     line_channel_secret: str = ""
@@ -167,6 +168,35 @@ class Settings(BaseSettings):
     # ── Proactive widget message ─────────────────────────────────────────────
     proactive_delay_seconds: int = 60
     proactive_message: str = ""     # empty = use i18n default
+
+    # ── LINE Login (optional OAuth) ──────────────────────────────────────────
+    line_login_channel_id: str = ""
+    line_login_channel_secret: str = ""
+
+    # ── Hybrid search ────────────────────────────────────────────────────────
+    # NOTE: When enabled, retrieval behavior changes and BM25 index is built
+    # in-process. Opt-in to avoid unintentional changes to existing deployments.
+    hybrid_search_enabled: bool = False
+    hybrid_vector_weight: float = 0.6
+    hybrid_bm25_weight: float = 0.4
+
+    # ── A/B testing ──────────────────────────────────────────────────────────
+    ab_testing_enabled: bool = False
+
+    # ── Feedback collection ──────────────────────────────────────────────────
+    # NOTE: When enabled, user feedback is persisted to local disk.
+    # Opt-in to avoid unintentional data retention.
+    feedback_enabled: bool = False
+
+    # ── Analytics ────────────────────────────────────────────────────────────
+    # NOTE: When enabled, questions and session data are persisted to local disk.
+    # Opt-in to avoid unintentional data retention.
+    analytics_enabled: bool = False
+
+    # ── Long-term user memory ────────────────────────────────────────────────
+    # NOTE: When enabled, per-user facts are persisted to local disk.
+    # Opt-in to avoid unintentional data retention.
+    user_memory_enabled: bool = False
 
     # ── Validators ───────────────────────────────────────────────────────────
     @model_validator(mode="after")

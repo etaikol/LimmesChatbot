@@ -126,3 +126,86 @@ async def line_webhook(
 
     payload = await request.json()
     return JSONResponse(await channel.handle(payload))
+
+
+# ── LINE Login OAuth ─────────────────────────────────────────────────────────
+
+
+@router.get("/line/login")
+async def line_login_redirect(request: Request, session_id: str = ""):
+    """Redirect user to LINE Login authorization page."""
+    login_mgr = getattr(request.app.state, "line_login", None)
+    if login_mgr is None:
+        raise HTTPException(503, "LINE Login is not configured")
+
+    # Update redirect URI dynamically
+    base = str(request.base_url).rstrip("/")
+    login_mgr._redirect_uri = f"{base}/webhook/line/callback"
+
+    url, state = login_mgr.get_auth_url(session_id)
+
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=url)
+
+
+@router.get("/line/callback")
+async def line_login_callback(
+    request: Request,
+    code: str = "",
+    state: str = "",
+    error: str = "",
+):
+    """Handle LINE Login OAuth callback."""
+    if error:
+        return HTMLResponse(
+            f"<html><body><h2>Login failed</h2><p>Authentication error</p></body></html>",
+            status_code=400,
+        )
+
+    login_mgr = getattr(request.app.state, "line_login", None)
+    if login_mgr is None:
+        raise HTTPException(503, "LINE Login is not configured")
+
+    # Update redirect URI
+    base = str(request.base_url).rstrip("/")
+    login_mgr._redirect_uri = f"{base}/webhook/line/callback"
+
+    profile = await login_mgr.handle_callback(code, state)
+    if profile is None:
+        return HTMLResponse(
+            "<html><body><h2>Login failed</h2><p>Could not verify your identity.</p></body></html>",
+            status_code=400,
+        )
+
+    # Store in user memory
+    mem_store = getattr(request.app.state, "user_memory_store", None)
+    if mem_store:
+        user_profile = mem_store.get_or_create(
+            f"line:{profile.user_id}",
+            channel="line",
+        )
+        if profile.display_name:
+            user_profile.display_name = profile.display_name
+        if profile.email:
+            user_profile.add_fact(
+                f"Email: {profile.email}",
+                category="contact",
+                source="line_login",
+            )
+        mem_store._save()
+
+    # Safe display name (escape HTML)
+    import html as html_mod
+    safe_name = html_mod.escape(profile.display_name or "User")
+
+    # Return a success page that communicates back to the opener
+    return HTMLResponse(
+        "<!DOCTYPE html><html><head><title>Login Successful</title></head>"
+        f"<body><h2>Welcome, {safe_name}!</h2>"
+        "<p>You have been successfully logged in. You can close this window.</p>"
+        "<script>"
+        "if(window.opener){"
+        "window.opener.postMessage({type:'line_login_success'},'*');"
+        "setTimeout(()=>window.close(),2000);}"
+        "</script></body></html>"
+    )

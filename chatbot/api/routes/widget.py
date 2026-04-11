@@ -187,6 +187,10 @@ var css = '\
 .cb-lang[data-active="1"]{background:#e0f2fe;color:#0369a1;font-weight:600;}\
 .cb-lang small{color:var(--cb-muted);font-size:11px;}\
 @media (max-width:520px){.cb-panel{inset-inline-end:0;inset-inline-start:0;bottom:0;width:100vw;max-width:100vw;height:88vh;max-height:88vh;border-radius:20px 20px 0 0;}.cb-launcher{bottom:18px;inset-inline-end:18px;}}\
+.cb-fb{display:flex;gap:4px;margin-top:4px;align-self:flex-start;}\
+.cb-fb button{background:transparent;border:1px solid #e2e8f0;border-radius:8px;padding:3px 8px;cursor:pointer;font-size:14px;transition:all .15s;color:var(--cb-muted);}\
+.cb-fb button:hover{background:#f1f5f9;border-color:#94a3b8;}\
+.cb-fb button.active{border-color:var(--cb-accent);background:#e0f2fe;}\
 ';
 
 var style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
@@ -280,6 +284,36 @@ function add(text, who){
   return d;
 }
 
+var _msgIndex = 0;
+function addBotWithFeedback(text){
+  var d = add(text, 'b');
+  var idx = _msgIndex++;
+  var fb = document.createElement('div');
+  fb.className = 'cb-fb';
+  var upBtn = document.createElement('button');
+  upBtn.textContent = '\uD83D\uDC4D';
+  upBtn.title = bundle().thumbs_up || '\uD83D\uDC4D';
+  var downBtn = document.createElement('button');
+  downBtn.textContent = '\uD83D\uDC4E';
+  downBtn.title = bundle().thumbs_down || '\uD83D\uDC4E';
+  function sendFb(val){
+    upBtn.disabled = true; downBtn.disabled = true;
+    if(val==='up') upBtn.classList.add('active'); else downBtn.classList.add('active');
+    fetch(CONFIG.apiUrl + '/chat/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid, message_index: idx, feedback: val })
+    }).catch(function(){});
+  }
+  upBtn.addEventListener('click', function(){ sendFb('up'); });
+  downBtn.addEventListener('click', function(){ sendFb('down'); });
+  fb.appendChild(upBtn);
+  fb.appendChild(downBtn);
+  $msgs.appendChild(fb);
+  $msgs.scrollTop = $msgs.scrollHeight;
+  return d;
+}
+
 function addProducts(products){
   if (!products || !products.length) return;
   products.forEach(function(p){
@@ -331,7 +365,7 @@ async function send(text){
     try { data = await res.json(); } catch(_) {}
     t.remove();
     if (res.ok) {
-      add(data.answer || '(empty reply)', 'b');
+      addBotWithFeedback(data.answer || '(empty reply)');
       if (data.products) { addProducts(data.products); }
       // Start listening for real-time handoff replies via SSE
       if (data.handoff && !_sseActive) {

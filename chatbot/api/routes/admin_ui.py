@@ -253,6 +253,22 @@ _HTML_BODY = r"""
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span data-i18n="nav.fallback">Unanswered</span>
     </button>
+    <button class="nav-item" data-page="analytics" onclick="showPage('analytics',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+      <span data-i18n="nav.analytics">Analytics</span>
+    </button>
+    <button class="nav-item" data-page="feedback" onclick="showPage('feedback',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+      <span data-i18n="nav.feedback">Feedback</span>
+    </button>
+    <button class="nav-item" data-page="abtest" onclick="showPage('abtest',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>
+      <span data-i18n="nav.abtest">A/B Testing</span>
+    </button>
+    <button class="nav-item" data-page="usermemory" onclick="showPage('usermemory',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span data-i18n="nav.usermemory">User Memory</span>
+    </button>
     <div class="nav-section" data-i18n="nav.section.content">Content</div>
     <button class="nav-item" data-page="data" onclick="showPage('data',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -627,6 +643,76 @@ _HTML_BODY = r"""
     <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.question">Question</th><th>Answer Given</th><th data-i18n="th.session_id">Session</th><th data-i18n="th.time">Time</th><th data-i18n="th.status">Status</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="fallbackRows"></tbody></table></div>
   </div>
 
+  <!-- ═══════ Analytics ═══════ -->
+  <div class="page" id="page-analytics">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.analytics">📈 Analytics</span>
+      <div><button class="btn btn-ghost btn-sm" onclick="loadAnalytics()" data-i18n="btn.refresh">↻ Refresh</button> <button class="btn btn-danger btn-sm" data-admin-only onclick="clearAnalytics()" data-i18n="btn.clearAll">Clear All</button></div>
+    </div>
+    <div class="cards" id="analyticsCards"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div>
+        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px" data-i18n="analytics.topQuestions">Top Questions</h3>
+        <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.question">Question</th><th data-i18n="analytics.count">Count</th></tr></thead><tbody id="analyticsTopRows"></tbody></table></div>
+      </div>
+      <div>
+        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px" data-i18n="analytics.byLanguage">By Language</h3>
+        <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.language">Language</th><th data-i18n="analytics.count">Count</th></tr></thead><tbody id="analyticsLangRows"></tbody></table></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px" data-i18n="analytics.byChannel">By Channel</h3>
+        <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.channel">Channel</th><th data-i18n="analytics.count">Count</th></tr></thead><tbody id="analyticsChannelRows"></tbody></table></div>
+      </div>
+      <div>
+        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px" data-i18n="analytics.byVariant">By A/B Variant</h3>
+        <div class="tbl-wrap"><table><thead><tr><th data-i18n="analytics.variant">Variant</th><th data-i18n="analytics.count">Count</th></tr></thead><tbody id="analyticsVariantRows"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ Feedback ═══════ -->
+  <div class="page" id="page-feedback">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.feedback">👍 Feedback</span>
+      <div><button class="btn btn-ghost btn-sm" onclick="loadFeedback()" data-i18n="btn.refresh">↻ Refresh</button> <button class="btn btn-danger btn-sm" data-admin-only onclick="clearFeedback()" data-i18n="btn.clearAll">Clear All</button></div>
+    </div>
+    <div class="cards" id="feedbackCards"></div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showFeedbackTab('all',this)" data-i18n="feedback.all">All</button>
+      <button class="tab-btn" onclick="showFeedbackTab('negative',this)" data-i18n="feedback.negative">Negative Only</button>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="th.session_id">Session</th><th data-i18n="th.question">Question</th><th data-i18n="feedback.answer">Answer</th><th data-i18n="feedback.rating">Rating</th><th data-i18n="feedback.comment">Comment</th><th data-i18n="th.time">Time</th></tr></thead><tbody id="feedbackRows"></tbody></table></div>
+  </div>
+
+  <!-- ═══════ A/B Testing ═══════ -->
+  <div class="page" id="page-abtest">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.abtest">🔀 A/B Testing</span>
+      <button class="btn btn-danger btn-sm" data-admin-only onclick="clearABAssignments()" data-i18n="abtest.clearAssign">Clear Assignments</button>
+    </div>
+    <div class="cards" id="abtestCards"></div>
+    <div class="cfg-card" id="abtestConfig">
+      <h4 data-i18n="abtest.config">Test Configuration</h4>
+      <div class="form-group"><label class="form-label" data-i18n="abtest.testName">Test Name</label><input class="form-input" id="abTestName" placeholder="e.g. personality_test_1"></div>
+      <div class="form-group"><label class="form-label" data-i18n="abtest.variants">Variants (JSON array)</label><textarea class="form-textarea" id="abTestVariants" placeholder='[{"name":"control","personality":"default","weight":50},{"name":"friendly","personality":"friendly_official","weight":50}]'></textarea></div>
+      <button class="btn btn-primary" data-admin-only onclick="saveABTest()" data-i18n="btn.save">Save</button>
+    </div>
+    <h3 style="font-size:14px;color:var(--muted);margin:16px 0 10px" data-i18n="abtest.results">Results</h3>
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="analytics.variant">Variant</th><th data-i18n="abtest.users">Users</th><th data-i18n="abtest.weight">Weight %</th><th data-i18n="abtest.personality">Personality</th></tr></thead><tbody id="abtestRows"></tbody></table></div>
+  </div>
+
+  <!-- ═══════ User Memory ═══════ -->
+  <div class="page" id="page-usermemory">
+    <div class="page-title" style="justify-content:space-between">
+      <span data-i18n="page.usermemory">🧠 User Memory</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadUserMemory()" data-i18n="btn.refresh">↻ Refresh</button>
+    </div>
+    <div class="cards" id="umCards"></div>
+    <div class="tbl-wrap"><table><thead><tr><th data-i18n="um.userId">User ID</th><th data-i18n="um.displayName">Display Name</th><th data-i18n="um.facts">Facts</th><th data-i18n="um.tags">Tags</th><th data-i18n="um.lastSeen">Last Seen</th><th data-i18n="th.actions">Actions</th></tr></thead><tbody id="umRows"></tbody></table></div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -680,7 +766,10 @@ var ONB_STEPS=[
   {icon:'📁',titleK:'onb.step1_title',bodyK:'onb.step1_body',page:'data'},
   {icon:'🏢',titleK:'onb.step2_title',bodyK:'onb.step2_body',page:'config',configTab:'client'},
   {icon:'🤖',titleK:'onb.step3_title',bodyK:'onb.step3_body',page:'config',configTab:'personality'},
-  {icon:'📊',titleK:'onb.step4_title',bodyK:'onb.step4_body',page:'overview'},
+  {icon:'🛍️',titleK:'onb.step4_title',bodyK:'onb.step4_body',page:'products'},
+  {icon:'💬',titleK:'onb.step5_title',bodyK:'onb.step5_body',page:'line'},
+  {icon:'🤝',titleK:'onb.step6_title',bodyK:'onb.step6_body',page:'handoff'},
+  {icon:'📊',titleK:'onb.step7_title',bodyK:'onb.step7_body',page:'overview'},
 ];
 function showOnboarding(){
   document.getElementById('onbOverlay').style.display='block';
@@ -803,7 +892,7 @@ window.showPage=function(id,btn){
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
   document.getElementById('page-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
-  var loaders={overview:loadOverviewData,sessions:loadSessions,budget:loadBudget,config:loadConfig,line:loadLine,data:loadDataFiles,logs:loadLogs,users:loadUsers,products:loadProducts,contacts:loadContacts,handoff:loadHandoffs,fallback:loadFallbacks};
+  var loaders={overview:loadOverviewData,sessions:loadSessions,budget:loadBudget,config:loadConfig,line:loadLine,data:loadDataFiles,logs:loadLogs,users:loadUsers,products:loadProducts,contacts:loadContacts,handoff:loadHandoffs,fallback:loadFallbacks,analytics:loadAnalytics,feedback:loadFeedback,abtest:loadABTest,usermemory:loadUserMemory};
   if(loaders[id])loaders[id]();
 };
 
@@ -1480,7 +1569,7 @@ async function loadContacts(){
     (d.messages||[]).forEach(function(m){
       var statusTag=m.replied?'<span class="tag tag-on">Replied</span>':m.read?'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Read</span>':'<span class="tag tag-off">Unread</span>';
       var actions='<button class="btn btn-ghost btn-sm" onclick="markContactRead(\''+m.id+'\')">✓ Read</button> <button class="btn btn-ghost btn-sm" onclick="markContactReplied(\''+m.id+'\')">↩ Replied</button> <button class="btn btn-danger btn-sm" onclick="deleteContact(\''+m.id+'\')">✕</button>';
-      rows.innerHTML+='<tr><td>'+m.channel+'</td><td>'+m.customer_name+'</td><td style="font-size:12px">'+m.customer_contact+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+m.message+'</td><td style="font-size:11px">'+new Date(m.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
+      rows.innerHTML+='<tr><td>'+esc(m.channel)+'</td><td>'+esc(m.customer_name)+'</td><td style="font-size:12px">'+esc(m.customer_contact)+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+esc(m.message)+'</td><td style="font-size:11px">'+new Date(m.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
     });
   }catch(e){toast(e.message,'err')}
 }
@@ -1571,7 +1660,7 @@ async function loadFallbacks(){
     (d.questions||[]).forEach(function(q){
       var statusTag=q.added_to_kb?'<span class="tag tag-on">In KB</span>':q.resolved?'<span class="tag" style="background:rgba(245,158,11,.15);color:var(--warn)">Resolved</span>':'<span class="tag tag-off">Open</span>';
       var actions='<button class="btn btn-ghost btn-sm" onclick="resolveFallback(\''+encodeURIComponent(q.question)+'\')">✓ Resolve</button> <button class="btn btn-primary btn-sm" onclick="addToKb(\''+encodeURIComponent(q.question)+'\')">+ KB</button> <button class="btn btn-danger btn-sm" onclick="deleteFallback(\''+encodeURIComponent(q.question)+'\')">✕</button>';
-      rows.innerHTML+='<tr><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+q.question+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:11px;color:var(--muted)">'+q.answer_given.substring(0,100)+'</td><td style="font-size:11px">'+q.session_id+'</td><td style="font-size:11px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
+      rows.innerHTML+='<tr><td style="max-width:200px;white-space:pre-wrap;font-size:12px">'+esc(q.question)+'</td><td style="max-width:200px;white-space:pre-wrap;font-size:11px;color:var(--muted)">'+esc((q.answer_given||'').substring(0,100))+'</td><td style="font-size:11px">'+esc(q.session_id)+'</td><td style="font-size:11px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+statusTag+'</td><td>'+actions+'</td></tr>';
     });
     if(!d.questions||!d.questions.length)rows.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No unanswered questions — great!</td></tr>';
   }catch(e){toast(e.message,'err')}
@@ -1580,6 +1669,122 @@ window.loadFallbacks=loadFallbacks;
 window.resolveFallback=async function(q){try{await api('/fallback-log/resolve',{method:'PATCH',body:{question:decodeURIComponent(q)}});loadFallbacks();toast('Resolved','ok')}catch(e){toast(e.message,'err')}};
 window.addToKb=async function(q){try{await api('/fallback-log/add-to-kb',{method:'PATCH',body:{question:decodeURIComponent(q)}});loadFallbacks();toast('Marked as added to KB','ok')}catch(e){toast(e.message,'err')}};
 window.deleteFallback=async function(q){if(!confirm('Delete this entry?'))return;try{await api('/fallback-log',{method:'DELETE',body:{question:decodeURIComponent(q)}});loadFallbacks();toast('Deleted','ok')}catch(e){toast(e.message,'err')}};
+
+// ── Analytics ─────────────────────────────────────────────────────────
+window.loadAnalytics=async function(){
+  try{
+    var d=await api('/analytics');
+    var dv=d.daily_volume||{};
+    document.getElementById('analyticsCards').innerHTML=
+      card(t('analytics.total'),d.total_questions||0,'')+
+      card(t('analytics.avgResponse'),((d.avg_response_time_ms||0)/1000).toFixed(2)+'s','')+
+      card(t('analytics.unanswered'),d.unanswered_count||0,'')+
+      card(t('analytics.dailyVolume'),Object.keys(dv).length+' days','');
+    var topR='';(d.top_questions||[]).forEach(function(q){topR+='<tr><td style="font-size:12px;max-width:300px;white-space:pre-wrap">'+esc(q.question||'')+'</td><td>'+q.count+'</td></tr>'});
+    document.getElementById('analyticsTopRows').innerHTML=topR||'<tr><td colspan="2" style="text-align:center;color:var(--muted)">No data</td></tr>';
+    var langR='';Object.entries(d.language_breakdown||{}).forEach(function(e){langR+='<tr><td>'+esc(e[0])+'</td><td>'+e[1]+'</td></tr>'});
+    document.getElementById('analyticsLangRows').innerHTML=langR||'<tr><td colspan="2" style="text-align:center;color:var(--muted)">No data</td></tr>';
+    var chR='';Object.entries(d.channel_breakdown||{}).forEach(function(e){chR+='<tr><td style="text-transform:capitalize">'+esc(e[0])+'</td><td>'+e[1]+'</td></tr>'});
+    document.getElementById('analyticsChannelRows').innerHTML=chR||'<tr><td colspan="2" style="text-align:center;color:var(--muted)">No data</td></tr>';
+    var vR='';Object.entries(d.ab_test_results||{}).forEach(function(e){vR+='<tr><td>'+esc(e[0])+'</td><td>'+e[1].questions+'</td></tr>'});
+    document.getElementById('analyticsVariantRows').innerHTML=vR||'<tr><td colspan="2" style="text-align:center;color:var(--muted)">No data</td></tr>';
+  }catch(e){toast(e.message,'err')}
+};
+window.clearAnalytics=async function(){if(!confirm('Clear all analytics data?'))return;try{await api('/analytics',{method:'DELETE'});toast('Cleared','ok');loadAnalytics()}catch(e){toast(e.message,'err')}};
+
+// ── Feedback ──────────────────────────────────────────────────────────
+var _feedbackData=null;var _feedbackFilter='all';
+window.loadFeedback=async function(){
+  try{
+    var d=await api('/feedback');_feedbackData=d;
+    var entries=d.feedback||[];var up=entries.filter(function(e){return e.feedback==='up'}).length;var down=entries.filter(function(e){return e.feedback==='down'}).length;
+    document.getElementById('feedbackCards').innerHTML=
+      card(t('feedback.total'),entries.length,'')+
+      card('👍 '+t('feedback.positive'),up,'')+
+      card('👎 '+t('feedback.negativeCount'),down,'')+
+      card(t('feedback.rate'),entries.length?(Math.round(up/entries.length*100))+'%':'—','');
+    renderFeedbackTable(entries);
+  }catch(e){toast(e.message,'err')}
+};
+function renderFeedbackTable(entries){
+  if(_feedbackFilter==='negative')entries=entries.filter(function(e){return e.feedback==='down'});
+  var html='';entries.forEach(function(e){
+    var rating=e.feedback==='up'?'<span style="font-size:18px">👍</span>':'<span style="font-size:18px">👎</span>';
+    html+='<tr><td style="font-size:11px;font-family:monospace">'+esc((e.session_id||'').slice(0,16))+'</td><td style="font-size:12px;max-width:200px;white-space:pre-wrap">'+esc(e.question||'—')+'</td><td style="font-size:12px;max-width:200px;white-space:pre-wrap;color:var(--muted)">'+esc((e.answer||'—').slice(0,100))+'</td><td>'+rating+'</td><td style="font-size:12px">'+esc(e.comment||'')+'</td><td style="font-size:11px">'+new Date(e.timestamp).toLocaleString()+'</td></tr>';
+  });
+  document.getElementById('feedbackRows').innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No feedback yet</td></tr>';
+}
+window.showFeedbackTab=function(tab,btn){
+  _feedbackFilter=tab;
+  document.querySelectorAll('#page-feedback .tab-btn').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  if(_feedbackData)renderFeedbackTable(_feedbackData.feedback||[]);
+};
+window.clearFeedback=async function(){if(!confirm('Clear all feedback data?'))return;try{await api('/feedback',{method:'DELETE'});toast('Cleared','ok');loadFeedback()}catch(e){toast(e.message,'err')}};
+
+// ── A/B Testing ───────────────────────────────────────────────────────
+window.loadABTest=async function(){
+  try{
+    var d=await api('/ab-test');
+    var cfg=d.config||{};var dist=d.distribution||{};
+    document.getElementById('abtestCards').innerHTML=
+      card(t('abtest.status'),cfg.name?'<span class="tag tag-on">Active</span>':'<span class="tag tag-off">Not Set</span>',cfg.name||'')+
+      card(t('abtest.totalUsers'),d.total_assigned||0,'');
+    if(cfg.name)document.getElementById('abTestName').value=cfg.name;
+    if(cfg.variants)document.getElementById('abTestVariants').value=JSON.stringify(cfg.variants,null,2);
+    var rows='';(cfg.variants||[]).forEach(function(v){
+      var count=dist[v.name]||0;
+      rows+='<tr><td>'+esc(v.name)+'</td><td>'+count+'</td><td>'+v.weight+'%</td><td>'+esc(v.personality||'default')+'</td></tr>';
+    });
+    document.getElementById('abtestRows').innerHTML=rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted)">No test configured</td></tr>';
+  }catch(e){toast(e.message,'err')}
+};
+window.saveABTest=async function(){
+  var name=document.getElementById('abTestName').value.trim();
+  var variantsRaw=document.getElementById('abTestVariants').value.trim();
+  if(!name||!variantsRaw){toast('Name and variants required','err');return}
+  try{var variants=JSON.parse(variantsRaw)}catch(e){toast('Invalid JSON: '+e.message,'err');return}
+  try{await api('/ab-test',{method:'PUT',body:{name:name,variants:variants}});toast('Saved','ok');loadABTest()}catch(e){toast(e.message,'err')}
+};
+window.clearABAssignments=async function(){if(!confirm('Clear all A/B user assignments?'))return;try{await api('/ab-test/assignments',{method:'DELETE'});toast('Cleared','ok');loadABTest()}catch(e){toast(e.message,'err')}};
+
+// ── User Memory ───────────────────────────────────────────────────────
+window.loadUserMemory=async function(){
+  try{
+    var d=await api('/user-memory');
+    var profiles=d.users||[];
+    document.getElementById('umCards').innerHTML=card(t('um.totalProfiles'),d.total||profiles.length,'');
+    var html='';profiles.forEach(function(p){
+      var facts=p.facts_count||0;
+      var tags=(p.tags||[]).map(function(t){return'<span class="tag tag-on" style="margin:1px">'+esc(t)+'</span>'}).join(' ');
+      html+='<tr><td style="font-size:11px;font-family:monospace">'+esc((p.user_id||'').slice(0,20))+'</td><td>'+esc(p.display_name||'—')+'</td><td>'+facts+'</td><td>'+tags+'</td><td style="font-size:11px">'+new Date(p.last_seen).toLocaleString()+'</td><td><button class="btn btn-ghost btn-sm um-view-btn" data-user-id="'+esc(p.user_id||'')+'">View</button> <button class="btn btn-danger btn-sm um-delete-btn" data-admin-only data-user-id="'+esc(p.user_id||'')+'">Delete</button></td></tr>';
+    });
+    document.getElementById('umRows').innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No user profiles yet</td></tr>';
+    Array.prototype.forEach.call(document.querySelectorAll('#umRows .um-view-btn'),function(btn){
+      btn.addEventListener('click',function(){
+        viewUserMemory(btn.getAttribute('data-user-id')||'');
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#umRows .um-delete-btn'),function(btn){
+      btn.addEventListener('click',function(){
+        deleteUserMemory(btn.getAttribute('data-user-id')||'');
+      });
+    });
+  }catch(e){toast(e.message,'err')}
+};
+window.viewUserMemory=async function(uid){
+  try{
+    var d=await api('/user-memory/'+encodeURIComponent(uid));var p=d;
+    var html='<div class="modal-bg" onclick="if(event.target===this)this.remove()"><div class="modal"><div class="modal-head"><h3>User: '+esc(p.display_name||p.user_id)+'</h3><button class="btn btn-ghost btn-sm" onclick="this.closest(\'.modal-bg\').remove()">&times;</button></div><div class="modal-body">';
+    html+='<div class="cfg-card"><h4>Facts</h4>';
+    (p.facts||[]).forEach(function(f){html+='<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><strong>['+esc(f.category||'general')+']</strong> '+esc(f.fact||'')+'<span style="color:var(--muted);font-size:11px;margin-left:8px">'+esc(f.source||'')+'</span></div>'});
+    if(!p.facts||!p.facts.length)html+='<p style="color:var(--muted)">No facts stored</p>';
+    html+='</div>';
+    html+='<div class="cfg-card"><h4>Tags</h4><p>'+(p.tags||[]).map(function(t){return'<span class="tag tag-on" style="margin:2px">'+esc(t)+'</span>'}).join(' ')||'<span style="color:var(--muted)">No tags</span>'+'</p></div>';
+    html+='</div></div></div>';document.body.insertAdjacentHTML('beforeend',html);
+  }catch(e){toast(e.message,'err')}
+};
+window.deleteUserMemory=async function(uid){if(!confirm('Delete memory for user '+uid+'?'))return;try{await api('/user-memory/'+encodeURIComponent(uid),{method:'DELETE'});toast('Deleted','ok');loadUserMemory()}catch(e){toast(e.message,'err')}};
 
 })();"""
 
@@ -1708,8 +1913,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "onb.step2_body": "Set your business name, location, language, and which personality preset to use. This tells the bot who it's representing.",
         "onb.step3_title": "\U0001f916 AI Personalization",
         "onb.step3_body": "Customize the bot's tone, character, and response style. The personality shapes how the bot speaks to your customers.",
-        "onb.step4_title": "\U0001f4ca Overview",
-        "onb.step4_body": "Monitor sessions, budget, and channels. All live stats in one place.",
+        "onb.step4_title": "\U0001f6cd\ufe0f Products",
+        "onb.step4_body": "Manage your product catalog \u2014 add items with images and details. The bot can recommend and display them in LINE carousels.",
+        "onb.step5_title": "\U0001f4ac LINE Channel",
+        "onb.step5_body": "Connect your LINE Official Account. The bot can respond to customers, send product carousels, and push admin replies in real time.",
+        "onb.step6_title": "\U0001f91d Handoff & Messages",
+        "onb.step6_body": "When the bot can't help, it hands off to you. Review pending conversations and reply directly \u2014 your message is pushed to the customer instantly.",
+        "onb.step7_title": "\U0001f4ca Analytics & Overview",
+        "onb.step7_body": "Monitor sessions, budget, feedback, and unanswered questions. All live stats in one place to measure your bot's performance.",
         "onb.skip": "Skip",
         "onb.next": "Next",
         "onb.prev": "Back",
@@ -1765,6 +1976,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "page.fallback": "\u2753 Unanswered Questions",
         "products.total": "Total Products",
         "products.categories": "Categories",
+        "products.inStock": "In Stock",
+        "products.outOfStock": "Out of Stock",
+        "btn.save": "Save",
         "contacts.unread": "Unread",
         "contacts.total": "Total Messages",
         "fallback.unresolved": "Unresolved",
@@ -1776,6 +1990,50 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "th.time": "Time",
         "th.question": "Question",
         "cfg.handoff": "Handoff & Proactive",
+        "nav.analytics": "Analytics",
+        "nav.feedback": "Feedback",
+        "nav.abtest": "A/B Testing",
+        "nav.usermemory": "User Memory",
+        "page.analytics": "\U0001f4c8 Analytics",
+        "page.feedback": "\U0001f44d Feedback",
+        "page.abtest": "\U0001f500 A/B Testing",
+        "page.usermemory": "\U0001f9e0 User Memory",
+        "analytics.topQuestions": "Top Questions",
+        "analytics.byLanguage": "By Language",
+        "analytics.byChannel": "By Channel",
+        "analytics.byVariant": "By A/B Variant",
+        "analytics.count": "Count",
+        "analytics.variant": "Variant",
+        "analytics.total": "Total Events",
+        "analytics.avgResponse": "Avg Response",
+        "analytics.unanswered": "Unanswered",
+        "analytics.dailyVolume": "Daily Volume",
+        "feedback.all": "All",
+        "feedback.negative": "Negative Only",
+        "feedback.answer": "Answer",
+        "feedback.rating": "Rating",
+        "feedback.comment": "Comment",
+        "feedback.total": "Total",
+        "feedback.positive": "Positive",
+        "feedback.negativeCount": "Negative",
+        "feedback.rate": "Satisfaction",
+        "abtest.config": "Test Configuration",
+        "abtest.testName": "Test Name",
+        "abtest.variants": "Variants",
+        "abtest.status": "Status",
+        "abtest.totalUsers": "Total Users Assigned",
+        "abtest.users": "Users",
+        "abtest.weight": "Weight %",
+        "abtest.personality": "Personality",
+        "abtest.results": "Results",
+        "abtest.clearAssign": "Clear Assignments",
+        "um.userId": "User ID",
+        "um.displayName": "Display Name",
+        "um.facts": "Facts",
+        "um.tags": "Tags",
+        "um.lastSeen": "Last Seen",
+        "um.totalProfiles": "Total Profiles",
+        "th.language": "Language",
     },
     "he": {
         "nav.overview": "\u05e1\u05e7\u05d9\u05e8\u05d4",
@@ -1898,8 +2156,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "onb.step2_body": "\u05d4\u05d2\u05d3\u05d9\u05e8\u05d5 \u05e9\u05dd \u05e2\u05e1\u05e7, \u05de\u05d9\u05e7\u05d5\u05dd, \u05e9\u05e4\u05d4 \u05d5\u05d0\u05d9\u05d6\u05d5 \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05dc\u05d4\u05e9\u05ea\u05de\u05e9. \u05d4\u05d1\u05d5\u05d8 \u05d9\u05d3\u05e2 \u05de\u05d9 \u05d4\u05d5\u05d0 \u05de\u05d9\u05d9\u05e6\u05d2.",
         "onb.step3_title": "\U0001f916 \u05d4\u05ea\u05d0\u05de\u05ea AI",
         "onb.step3_body": "\u05d4\u05ea\u05d0\u05d9\u05de\u05d5 \u05d0\u05ea \u05d4\u05d8\u05d5\u05df, \u05d4\u05d0\u05d5\u05e4\u05d9 \u05d5\u05e1\u05d2\u05e0\u05d5\u05df \u05d4\u05ea\u05d2\u05d5\u05d1\u05d4. \u05d4\u05d0\u05d9\u05e9\u05d9\u05d5\u05ea \u05e7\u05d5\u05d1\u05e2\u05ea \u05d0\u05d9\u05da \u05d4\u05d1\u05d5\u05d8 \u05de\u05d3\u05d1\u05e8 \u05e2\u05dd \u05d4\u05dc\u05e7\u05d5\u05d7\u05d5\u05ea \u05e9\u05dc\u05db\u05dd.",
-        "onb.step4_title": "\U0001f4ca \u05e1\u05e7\u05d9\u05e8\u05d4",
-        "onb.step4_body": "\u05e2\u05e7\u05d1\u05d5 \u05d0\u05d7\u05e8\u05d9 \u05e9\u05d9\u05d7\u05d5\u05ea, \u05ea\u05e7\u05e6\u05d9\u05d1 \u05d5\u05e2\u05e8\u05d5\u05e6\u05d9\u05dd. \u05db\u05dc \u05d4\u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05d1\u05de\u05e7\u05d5\u05dd \u05d0\u05d7\u05d3.",
+        "onb.step4_title": "\U0001f6cd\ufe0f \u05de\u05d5\u05e6\u05e8\u05d9\u05dd",
+        "onb.step4_body": "\u05e0\u05d4\u05dc\u05d5 \u05d0\u05ea \u05e7\u05d8\u05dc\u05d5\u05d2 \u05d4\u05de\u05d5\u05e6\u05e8\u05d9\u05dd \u2014 \u05d4\u05d5\u05e1\u05d9\u05e4\u05d5 \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05e2\u05dd \u05ea\u05de\u05d5\u05e0\u05d5\u05ea \u05d5\u05e4\u05e8\u05d8\u05d9\u05dd. \u05d4\u05d1\u05d5\u05d8 \u05d9\u05db\u05d5\u05dc \u05dc\u05d4\u05de\u05dc\u05d9\u05e5 \u05d5\u05dc\u05d4\u05e6\u05d9\u05d2 \u05d0\u05d5\u05ea\u05dd \u05d1\u05e7\u05e8\u05d5\u05e1\u05dc\u05d5\u05ea LINE.",
+        "onb.step5_title": "\U0001f4ac \u05e2\u05e8\u05d5\u05e5 LINE",
+        "onb.step5_body": "\u05d7\u05d1\u05e8\u05d5 \u05d0\u05ea \u05d7\u05e9\u05d1\u05d5\u05df LINE \u05d4\u05e8\u05e9\u05de\u05d9 \u05e9\u05dc\u05db\u05dd. \u05d4\u05d1\u05d5\u05d8 \u05d9\u05e2\u05e0\u05d4 \u05dc\u05dc\u05e7\u05d5\u05d7\u05d5\u05ea, \u05d9\u05e9\u05dc\u05d7 \u05e7\u05e8\u05d5\u05e1\u05dc\u05d5\u05ea \u05de\u05d5\u05e6\u05e8\u05d9\u05dd \u05d5\u05d9\u05d3\u05d7\u05d5\u05e3 \u05ea\u05e9\u05d5\u05d1\u05d5\u05ea \u05de\u05e0\u05d4\u05dc \u05d1\u05d6\u05de\u05df \u05d0\u05de\u05ea.",
+        "onb.step6_title": "\U0001f91d \u05d4\u05e2\u05d1\u05e8\u05d4 \u05d5\u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
+        "onb.step6_body": "\u05db\u05e9\u05d4\u05d1\u05d5\u05d8 \u05dc\u05d0 \u05d9\u05db\u05d5\u05dc \u05dc\u05e2\u05d6\u05d5\u05e8, \u05d4\u05d5\u05d0 \u05de\u05e2\u05d1\u05d9\u05e8 \u05d0\u05dc\u05d9\u05db\u05dd. \u05e6\u05e4\u05d5 \u05d1\u05e9\u05d9\u05d7\u05d5\u05ea \u05de\u05de\u05ea\u05d9\u05e0\u05d5\u05ea \u05d5\u05d4\u05e9\u05d9\u05d1\u05d5 \u05d9\u05e9\u05d9\u05e8\u05d5\u05ea \u2014 \u05d4\u05d4\u05d5\u05d3\u05e2\u05d4 \u05e0\u05d3\u05d7\u05e4\u05ea \u05dc\u05dc\u05e7\u05d5\u05d7 \u05de\u05d9\u05d3.",
+        "onb.step7_title": "\U0001f4ca \u05d0\u05e0\u05dc\u05d9\u05d8\u05d9\u05e7\u05d4 \u05d5\u05e1\u05e7\u05d9\u05e8\u05d4",
+        "onb.step7_body": "\u05e2\u05e7\u05d1\u05d5 \u05d0\u05d7\u05e8\u05d9 \u05e9\u05d9\u05d7\u05d5\u05ea, \u05ea\u05e7\u05e6\u05d9\u05d1, \u05de\u05e9\u05d5\u05d1 \u05d5\u05e9\u05d0\u05dc\u05d5\u05ea \u05dc\u05dc\u05d0 \u05de\u05e2\u05e0\u05d4. \u05db\u05dc \u05d4\u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05d1\u05de\u05e7\u05d5\u05dd \u05d0\u05d7\u05d3 \u05dc\u05de\u05d3\u05d9\u05d3\u05ea \u05d1\u05d9\u05e6\u05d5\u05e2\u05d9 \u05d4\u05d1\u05d5\u05d8.",
         "onb.skip": "\u05d3\u05dc\u05d2",
         "onb.next": "\u05d4\u05d1\u05d0",
         "onb.prev": "\u05d4\u05e7\u05d5\u05d3\u05dd",
@@ -1955,6 +2219,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "page.fallback": "\u2753 \u05e9\u05d0\u05dc\u05d5\u05ea \u05dc\u05dc\u05d0 \u05de\u05e2\u05e0\u05d4",
         "products.total": "\u05e1\u05d4\u05f4\u05db \u05de\u05d5\u05e6\u05e8\u05d9\u05dd",
         "products.categories": "\u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d5\u05ea",
+        "products.inStock": "\u05d1\u05de\u05dc\u05d0\u05d9",
+        "products.outOfStock": "\u05d0\u05d6\u05dc",
+        "btn.save": "\u05e9\u05de\u05d5\u05e8",
         "contacts.unread": "\u05dc\u05d0 \u05e0\u05e7\u05e8\u05d0\u05d5",
         "contacts.total": "\u05e1\u05d4\u05f4\u05db \u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
         "fallback.unresolved": "\u05dc\u05d0 \u05e0\u05e4\u05ea\u05e8\u05d5",
@@ -1966,6 +2233,50 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "th.time": "\u05d6\u05de\u05df",
         "th.question": "\u05e9\u05d0\u05dc\u05d4",
         "cfg.handoff": "\u05d4\u05e2\u05d1\u05e8\u05d4 \u05d5\u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
+        "nav.analytics": "\u05d0\u05e0\u05dc\u05d9\u05d8\u05d9\u05e7\u05d4",
+        "nav.feedback": "\u05de\u05e9\u05d5\u05d1",
+        "nav.abtest": "\u05de\u05d1\u05d3\u05e7 A/B",
+        "nav.usermemory": "\u05d6\u05d9\u05db\u05e8\u05d5\u05df \u05de\u05e9\u05ea\u05de\u05e9\u05d9\u05dd",
+        "page.analytics": "\U0001f4c8 \u05d0\u05e0\u05dc\u05d9\u05d8\u05d9\u05e7\u05d4",
+        "page.feedback": "\U0001f44d \u05de\u05e9\u05d5\u05d1",
+        "page.abtest": "\U0001f500 \u05de\u05d1\u05d3\u05e7 A/B",
+        "page.usermemory": "\U0001f9e0 \u05d6\u05d9\u05db\u05e8\u05d5\u05df \u05de\u05e9\u05ea\u05de\u05e9\u05d9\u05dd",
+        "analytics.topQuestions": "\u05e9\u05d0\u05dc\u05d5\u05ea \u05e0\u05e4\u05d5\u05e6\u05d5\u05ea",
+        "analytics.byLanguage": "\u05dc\u05e4\u05d9 \u05e9\u05e4\u05d4",
+        "analytics.byChannel": "\u05dc\u05e4\u05d9 \u05e2\u05e8\u05d5\u05e5",
+        "analytics.byVariant": "\u05dc\u05e4\u05d9 \u05d5\u05e8\u05d9\u05d0\u05e0\u05d8 A/B",
+        "analytics.count": "\u05db\u05de\u05d5\u05ea",
+        "analytics.variant": "\u05d5\u05e8\u05d9\u05d0\u05e0\u05d8",
+        "analytics.total": "\u05e1\u05d4\u05f4\u05db \u05d0\u05d9\u05e8\u05d5\u05e2\u05d9\u05dd",
+        "analytics.avgResponse": "\u05d6\u05de\u05df \u05ea\u05d2\u05d5\u05d1\u05d4 \u05de\u05de\u05d5\u05e6\u05e2",
+        "analytics.unanswered": "\u05dc\u05dc\u05d0 \u05de\u05e2\u05e0\u05d4",
+        "analytics.dailyVolume": "\u05e0\u05e4\u05d7 \u05d9\u05d5\u05de\u05d9",
+        "feedback.all": "\u05d4\u05db\u05dc",
+        "feedback.negative": "\u05e9\u05dc\u05d9\u05dc\u05d9 \u05d1\u05dc\u05d1\u05d3",
+        "feedback.answer": "\u05ea\u05e9\u05d5\u05d1\u05d4",
+        "feedback.rating": "\u05d3\u05d9\u05e8\u05d5\u05d2",
+        "feedback.comment": "\u05d4\u05e2\u05e8\u05d4",
+        "feedback.total": "\u05e1\u05d4\u05f4\u05db",
+        "feedback.positive": "\u05d7\u05d9\u05d5\u05d1\u05d9",
+        "feedback.negativeCount": "\u05e9\u05dc\u05d9\u05dc\u05d9",
+        "feedback.rate": "\u05e9\u05d1\u05d9\u05e2\u05d5\u05ea",
+        "abtest.config": "\u05d4\u05d2\u05d3\u05e8\u05ea \u05de\u05d1\u05d3\u05e7",
+        "abtest.testName": "\u05e9\u05dd \u05de\u05d1\u05d3\u05e7",
+        "abtest.variants": "\u05d5\u05e8\u05d9\u05d0\u05e0\u05d8\u05d9\u05dd",
+        "abtest.status": "\u05de\u05e6\u05d1",
+        "abtest.totalUsers": "\u05de\u05e9\u05ea\u05de\u05e9\u05d9\u05dd \u05de\u05e9\u05d5\u05d9\u05db\u05d9\u05dd",
+        "abtest.users": "\u05de\u05e9\u05ea\u05de\u05e9\u05d9\u05dd",
+        "abtest.weight": "\u05de\u05e9\u05e7\u05dc %",
+        "abtest.personality": "\u05d0\u05d9\u05e9\u05d9\u05d5\u05ea",
+        "abtest.results": "\u05ea\u05d5\u05e6\u05d0\u05d5\u05ea",
+        "abtest.clearAssign": "\u05e0\u05e7\u05d4 \u05e9\u05d9\u05d9\u05db\u05d5\u05d9\u05d9\u05dd",
+        "um.userId": "\u05de\u05d6\u05d4\u05d4 \u05de\u05e9\u05ea\u05de\u05e9",
+        "um.displayName": "\u05e9\u05dd \u05ea\u05e6\u05d5\u05d2\u05d4",
+        "um.facts": "\u05e2\u05d5\u05d1\u05d3\u05d5\u05ea",
+        "um.tags": "\u05ea\u05d2\u05d9\u05d5\u05ea",
+        "um.lastSeen": "\u05e0\u05e8\u05d0\u05d4 \u05dc\u05d0\u05d7\u05e8\u05d5\u05e0\u05d4",
+        "um.totalProfiles": "\u05e1\u05d4\u05f4\u05db \u05e4\u05e8\u05d5\u05e4\u05d9\u05dc\u05d9\u05dd",
+        "th.language": "\u05e9\u05e4\u05d4",
     },
     "th": {
         "nav.overview": "\u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
@@ -2088,8 +2399,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "onb.step2_body": "\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32\u0e0a\u0e37\u0e48\u0e2d\u0e18\u0e38\u0e23\u0e01\u0e34\u0e08, \u0e2a\u0e16\u0e32\u0e19\u0e17\u0e35\u0e48, \u0e20\u0e32\u0e29\u0e32, \u0e41\u0e25\u0e30\u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e \u0e1a\u0e2d\u0e17\u0e08\u0e30\u0e23\u0e39\u0e49\u0e27\u0e48\u0e32\u0e15\u0e31\u0e27\u0e40\u0e2d\u0e07\u0e01\u0e33\u0e25\u0e31\u0e07\u0e40\u0e1b\u0e47\u0e19\u0e15\u0e31\u0e27\u0e41\u0e17\u0e19\u0e02\u0e2d\u0e07\u0e43\u0e04\u0e23",
         "onb.step3_title": "\U0001f916 \u0e1b\u0e23\u0e31\u0e1a\u0e41\u0e15\u0e48\u0e07 AI",
         "onb.step3_body": "\u0e1b\u0e23\u0e31\u0e1a\u0e41\u0e15\u0e48\u0e07\u0e42\u0e17\u0e19, \u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01, \u0e41\u0e25\u0e30\u0e23\u0e39\u0e1b\u0e41\u0e1a\u0e1a\u0e01\u0e32\u0e23\u0e15\u0e2d\u0e1a\u0e02\u0e2d\u0e07\u0e1a\u0e2d\u0e17 \u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e27\u0e34\u0e18\u0e35\u0e17\u0e35\u0e48\u0e1a\u0e2d\u0e17\u0e1e\u0e39\u0e14\u0e01\u0e31\u0e1a\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13",
-        "onb.step4_title": "\U0001f4ca \u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
-        "onb.step4_body": "\u0e14\u0e39\u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19, \u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13, \u0e41\u0e25\u0e30\u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07 \u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e2a\u0e14\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14\u0e43\u0e19\u0e17\u0e35\u0e48\u0e40\u0e14\u0e35\u0e22\u0e27",
+        "onb.step4_title": "\U0001f6cd\ufe0f \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32",
+        "onb.step4_body": "\u0e08\u0e31\u0e14\u0e01\u0e32\u0e23\u0e41\u0e04\u0e15\u0e15\u0e32\u0e25\u0e47\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u2014 \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e23\u0e39\u0e1b\u0e20\u0e32\u0e1e\u0e41\u0e25\u0e30\u0e23\u0e32\u0e22\u0e25\u0e30\u0e40\u0e2d\u0e35\u0e22\u0e14 \u0e1a\u0e2d\u0e17\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e41\u0e19\u0e30\u0e19\u0e33\u0e41\u0e25\u0e30\u0e41\u0e2a\u0e14\u0e07\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19 LINE carousel",
+        "onb.step5_title": "\U0001f4ac \u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07 LINE",
+        "onb.step5_body": "\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d\u0e1a\u0e31\u0e0d\u0e0a\u0e35 LINE Official \u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13 \u0e1a\u0e2d\u0e17\u0e08\u0e30\u0e15\u0e2d\u0e1a\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32 \u0e2a\u0e48\u0e07 carousel \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u0e41\u0e25\u0e30\u0e2a\u0e48\u0e07\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e08\u0e32\u0e01\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19\u0e41\u0e1a\u0e1a\u0e40\u0e23\u0e35\u0e22\u0e25\u0e44\u0e17\u0e21\u0e4c",
+        "onb.step6_title": "\U0001f91d \u0e01\u0e32\u0e23\u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d\u0e41\u0e25\u0e30\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21",
+        "onb.step6_body": "\u0e40\u0e21\u0e37\u0e48\u0e2d\u0e1a\u0e2d\u0e17\u0e0a\u0e48\u0e27\u0e22\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49 \u0e08\u0e30\u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e04\u0e38\u0e13 \u0e14\u0e39\u0e1a\u0e17\u0e2a\u0e19\u0e17\u0e19\u0e32\u0e17\u0e35\u0e48\u0e23\u0e2d\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23\u0e41\u0e25\u0e30\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e31\u0e1a\u0e44\u0e14\u0e49\u0e42\u0e14\u0e22\u0e15\u0e23\u0e07 \u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e08\u0e30\u0e2a\u0e48\u0e07\u0e16\u0e36\u0e07\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e17\u0e31\u0e19\u0e17\u0e35",
+        "onb.step7_title": "\U0001f4ca \u0e27\u0e34\u0e40\u0e04\u0e23\u0e32\u0e30\u0e2b\u0e4c\u0e41\u0e25\u0e30\u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
+        "onb.step7_body": "\u0e14\u0e39\u0e40\u0e0b\u0e2a\u0e0a\u0e31\u0e19, \u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13, \u0e1f\u0e35\u0e14\u0e41\u0e1a\u0e47\u0e04, \u0e41\u0e25\u0e30\u0e04\u0e33\u0e16\u0e32\u0e21\u0e17\u0e35\u0e48\u0e44\u0e21\u0e48\u0e21\u0e35\u0e04\u0e33\u0e15\u0e2d\u0e1a \u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e2a\u0e14\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14\u0e43\u0e19\u0e17\u0e35\u0e48\u0e40\u0e14\u0e35\u0e22\u0e27\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e27\u0e31\u0e14\u0e1c\u0e25\u0e1a\u0e2d\u0e17",
         "onb.skip": "\u0e02\u0e49\u0e32\u0e21",
         "onb.next": "\u0e16\u0e31\u0e14\u0e44\u0e1b",
         "onb.prev": "\u0e01\u0e25\u0e31\u0e1a",
@@ -2145,6 +2462,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "page.fallback": "\u2753 \u0e04\u0e33\u0e16\u0e32\u0e21\u0e17\u0e35\u0e48\u0e44\u0e21\u0e48\u0e21\u0e35\u0e04\u0e33\u0e15\u0e2d\u0e1a",
         "products.total": "\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
         "products.categories": "\u0e2b\u0e21\u0e27\u0e14\u0e2b\u0e21\u0e39\u0e48",
+        "products.inStock": "\u0e21\u0e35\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32",
+        "products.outOfStock": "\u0e2b\u0e21\u0e14\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32",
+        "btn.save": "\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01",
         "contacts.unread": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e2d\u0e48\u0e32\u0e19",
         "contacts.total": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
         "fallback.unresolved": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e41\u0e01\u0e49\u0e44\u0e02",
@@ -2156,5 +2476,49 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "th.time": "\u0e40\u0e27\u0e25\u0e32",
         "th.question": "\u0e04\u0e33\u0e16\u0e32\u0e21",
         "cfg.handoff": "\u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d\u0e41\u0e25\u0e30\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19",
+        "nav.analytics": "\u0e27\u0e34\u0e40\u0e04\u0e23\u0e32\u0e30\u0e2b\u0e4c",
+        "nav.feedback": "\u0e04\u0e27\u0e32\u0e21\u0e04\u0e34\u0e14\u0e40\u0e2b\u0e47\u0e19",
+        "nav.abtest": "\u0e17\u0e14\u0e2a\u0e2d\u0e1a A/B",
+        "nav.usermemory": "\u0e04\u0e27\u0e32\u0e21\u0e08\u0e33\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49",
+        "page.analytics": "\U0001f4c8 \u0e27\u0e34\u0e40\u0e04\u0e23\u0e32\u0e30\u0e2b\u0e4c",
+        "page.feedback": "\U0001f44d \u0e04\u0e27\u0e32\u0e21\u0e04\u0e34\u0e14\u0e40\u0e2b\u0e47\u0e19",
+        "page.abtest": "\U0001f500 \u0e17\u0e14\u0e2a\u0e2d\u0e1a A/B",
+        "page.usermemory": "\U0001f9e0 \u0e04\u0e27\u0e32\u0e21\u0e08\u0e33\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49",
+        "analytics.topQuestions": "\u0e04\u0e33\u0e16\u0e32\u0e21\u0e22\u0e2d\u0e14\u0e19\u0e34\u0e22\u0e21",
+        "analytics.byLanguage": "\u0e15\u0e32\u0e21\u0e20\u0e32\u0e29\u0e32",
+        "analytics.byChannel": "\u0e15\u0e32\u0e21\u0e0a\u0e48\u0e2d\u0e07\u0e17\u0e32\u0e07",
+        "analytics.byVariant": "\u0e15\u0e32\u0e21\u0e27\u0e32\u0e23\u0e34\u0e41\u0e2d\u0e19\u0e15\u0e4c A/B",
+        "analytics.count": "\u0e08\u0e33\u0e19\u0e27\u0e19",
+        "analytics.variant": "\u0e27\u0e32\u0e23\u0e34\u0e41\u0e2d\u0e19\u0e15\u0e4c",
+        "analytics.total": "\u0e40\u0e2b\u0e15\u0e38\u0e01\u0e32\u0e23\u0e13\u0e4c\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "analytics.avgResponse": "\u0e40\u0e27\u0e25\u0e32\u0e15\u0e2d\u0e1a\u0e40\u0e09\u0e25\u0e35\u0e48\u0e22",
+        "analytics.unanswered": "\u0e44\u0e21\u0e48\u0e21\u0e35\u0e04\u0e33\u0e15\u0e2d\u0e1a",
+        "analytics.dailyVolume": "\u0e1b\u0e23\u0e34\u0e21\u0e32\u0e13\u0e23\u0e32\u0e22\u0e27\u0e31\u0e19",
+        "feedback.all": "\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "feedback.negative": "\u0e40\u0e0a\u0e34\u0e07\u0e25\u0e1a\u0e40\u0e17\u0e48\u0e32\u0e19\u0e31\u0e49\u0e19",
+        "feedback.answer": "\u0e04\u0e33\u0e15\u0e2d\u0e1a",
+        "feedback.rating": "\u0e04\u0e30\u0e41\u0e19\u0e19",
+        "feedback.comment": "\u0e04\u0e27\u0e32\u0e21\u0e04\u0e34\u0e14\u0e40\u0e2b\u0e47\u0e19",
+        "feedback.total": "\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "feedback.positive": "\u0e40\u0e0a\u0e34\u0e07\u0e1a\u0e27\u0e01",
+        "feedback.negativeCount": "\u0e40\u0e0a\u0e34\u0e07\u0e25\u0e1a",
+        "feedback.rate": "\u0e04\u0e27\u0e32\u0e21\u0e1e\u0e36\u0e07\u0e1e\u0e2d\u0e43\u0e08",
+        "abtest.config": "\u0e01\u0e32\u0e23\u0e15\u0e31\u0e49\u0e07\u0e04\u0e48\u0e32\u0e01\u0e32\u0e23\u0e17\u0e14\u0e2a\u0e2d\u0e1a",
+        "abtest.testName": "\u0e0a\u0e37\u0e48\u0e2d\u0e01\u0e32\u0e23\u0e17\u0e14\u0e2a\u0e2d\u0e1a",
+        "abtest.variants": "\u0e27\u0e32\u0e23\u0e34\u0e41\u0e2d\u0e19\u0e15\u0e4c",
+        "abtest.status": "\u0e2a\u0e16\u0e32\u0e19\u0e30",
+        "abtest.totalUsers": "\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49\u0e17\u0e35\u0e48\u0e16\u0e39\u0e01\u0e01\u0e33\u0e2b\u0e19\u0e14",
+        "abtest.users": "\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49",
+        "abtest.weight": "\u0e19\u0e49\u0e33\u0e2b\u0e19\u0e31\u0e01 %",
+        "abtest.personality": "\u0e1a\u0e38\u0e04\u0e25\u0e34\u0e01\u0e20\u0e32\u0e1e",
+        "abtest.results": "\u0e1c\u0e25\u0e25\u0e31\u0e1e\u0e18\u0e4c",
+        "abtest.clearAssign": "\u0e25\u0e49\u0e32\u0e07\u0e01\u0e32\u0e23\u0e01\u0e33\u0e2b\u0e19\u0e14",
+        "um.userId": "\u0e23\u0e2b\u0e31\u0e2a\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49",
+        "um.displayName": "\u0e0a\u0e37\u0e48\u0e2d\u0e17\u0e35\u0e48\u0e41\u0e2a\u0e14\u0e07",
+        "um.facts": "\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25",
+        "um.tags": "\u0e41\u0e17\u0e47\u0e01",
+        "um.lastSeen": "\u0e40\u0e02\u0e49\u0e32\u0e43\u0e0a\u0e49\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14",
+        "um.totalProfiles": "\u0e42\u0e1b\u0e23\u0e44\u0e1f\u0e25\u0e4c\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+        "th.language": "\u0e20\u0e32\u0e29\u0e32",
     },
 }

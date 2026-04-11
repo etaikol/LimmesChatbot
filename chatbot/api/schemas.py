@@ -66,3 +66,29 @@ class HealthReply(BaseModel):
 
 class ClearReply(BaseModel):
     cleared: str
+
+
+class FeedbackRequest(BaseModel):
+    session_id: str = Field(
+        ...,
+        max_length=MAX_SESSION_ID_LEN,
+        description="Session identifier",
+    )
+    message_index: int = Field(
+        default=0,
+        description="Which assistant message (0-based)",
+    )
+    feedback: str = Field(
+        ...,
+        pattern=r"^(up|down)$",
+        description="Thumbs up or down",
+    )
+    comment: str = Field(
+        default="",
+        max_length=1000,
+        description="Optional feedback comment",
+    )
+
+
+class FeedbackReply(BaseModel):
+    ok: bool = True

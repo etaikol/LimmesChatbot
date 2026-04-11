@@ -23,6 +23,10 @@ from chatbot.core.handoff import HandoffManager
 from chatbot.core.memory import SessionStore
 from chatbot.core.products import ProductCatalog
 from chatbot.core.profile import ChatbotProfile
+from chatbot.core.ab_testing import ABTestManager
+from chatbot.core.analytics import AnalyticsTracker
+from chatbot.core.feedback import FeedbackStore
+from chatbot.core.user_memory import UserMemoryStore
 from chatbot.exceptions import (
     AbuseError,
     BudgetError,
@@ -48,33 +52,65 @@ from chatbot.settings import Settings, get_settings
 # ── Handoff keyword detection ───────────────────────────────────────────────
 # Phrases that indicate the user wants to talk to a human. Checked with
 # simple substring matching (case-insensitive) before any paid LLM call.
+#
+# The keyword list is intentionally broad — false positives are cheap (the
+# user just gets the handoff message) while false negatives cost a wasted
+# LLM call *and* the user never reaches a human.
+
+_HUMAN_WORDS = (
+    r"human|person|some?one|anybody|people|agent|staff|representative|support"
+    r"|manager|prof\w+al|expert|advisor|specialist|boss|owner"
+    r"|real person|real human|live agent|live person|live chat"
+)
+
 _HANDOFF_PATTERNS = re.compile(
     r"(?i)"
     r"(?:"
-    # English
-    r"talk to (?:a |an )?(?:human|person|someone|agent|staff|representative|support)"
-    r"|speak (?:to|with) (?:a |an )?(?:human|person|someone|agent|staff|representative|support)"
-    r"|connect me (?:to|with) (?:a |an )?(?:human|person|someone|agent|staff|representative)"
-    r"|transfer (?:me )?to (?:a |an )?(?:human|agent|staff|person|representative|support)"
-    r"|i (?:want|need) (?:a |to talk to (?:a )?)?(?:human|real person|agent|staff|representative)"
-    r"|(?:get|give) me (?:a )?(?:human|real person|agent|staff)"
-    r"|can i (?:talk|speak|chat) (?:to|with) (?:a )?(?:human|person|someone|agent)"
-    r"|let me (?:talk|speak|chat) (?:to|with) (?:a )?(?:human|person|someone|agent)"
-    # Hebrew
-    r"|לדבר עם (?:נציג|אדם|מישהו|תמיכה)"
-    r"|תעביר(?:ו)? (?:ל)?נציג"
-    r"|אני רוצה (?:לדבר עם )?(?:נציג|אדם|מישהו)"
-    r"|(?:אפשר|אני צריך) (?:לדבר עם )?(?:נציג|אדם|מישהו)"
-    # Thai
-    r"|(?:ขอ)?(?:คุย|พูด)กับ(?:คน|เจ้าหน้าที่|พนักงาน|แอดมิน)"
-    r"|ต้องการ(?:คุย|พูด)กับ(?:คน|เจ้าหน้าที่|พนักงาน)"
-    r"|ขอติดต่อ(?:เจ้าหน้าที่|พนักงาน|แอดมิน)"
-    # Arabic
-    r"|(?:أريد|اريد) (?:التحدث|الكلام) (?:مع|إلى) (?:شخص|موظف|ممثل)"
-    r"|(?:حوّلني|حولني) (?:إلى|الى) (?:شخص|موظف|ممثل)"
-    # Russian
-    r"|(?:хочу|могу) поговорить с (?:человеком|оператором|агентом)"
-    r"|(?:переведите|переключите) (?:на|к) (?:человеку|оператору|агенту)"
+    # ── English ──────────────────────────────────────────────────
+    # "talk/speak/chat to/with a human/agent/professional/..."
+    r"(?:talk|speak|chat|communicate)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "connect/transfer/put me to/with a ..."
+    r"|(?:connect|transfer|put|redirect|switch|escalate)\s+(?:me\s+)?(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "i want/need/would like to talk to ..."
+    r"|i\s+(?:want|need|would like|wanna|gotta)\s+(?:to\s+)?(?:talk|speak|chat|communicate)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "i want/need a human/agent/representative"
+    r"|i\s+(?:want|need|would like)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "can/could/may i talk/speak/chat to/with ..."
+    r"|(?:can|could|may)\s+i\s+(?:talk|speak|chat)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "let me talk/speak to ..."
+    r"|let\s+me\s+(?:talk|speak|chat)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "get/give me a human/agent"
+    r"|(?:get|give)\s+me\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "is there someone/anyone i can talk to"
+    r"|is\s+there\s+(?:someone|anyone|somebody|a\s+person|a\s+human)\s+(?:i\s+can\s+(?:talk|speak|chat)\s+(?:to|with))?"
+    # "can someone contact/reach/call me"
+    r"|(?:can|could)\s+(?:someone|anyone|somebody)\s+(?:contact|reach|call|message|get back to)\s+me"
+    # "i(?:'d| would) like to speak with ..."
+    r"|i(?:'d|\s+would)\s+like\s+to\s+(?:talk|speak|chat)\s+(?:to|with)\s+(?:a\s+|an\s+)?(?:" + _HUMAN_WORDS + r")"
+    # "no bot" / "not a bot" / "stop bot"
+    r"|(?:no|not|stop)\s+(?:a\s+)?bot"
+
+    # ── Hebrew ───────────────────────────────────────────────────
+    r"|לדבר\s+עם\s+(?:נציג|אדם|מישהו|תמיכה|מנהל|מומחה|איש מקצוע)"
+    r"|תעביר(?:ו)?\s+(?:ל)?נציג"
+    r"|אני\s+רוצה\s+(?:לדבר\s+עם\s+)?(?:נציג|אדם|מישהו|מנהל)"
+    r"|(?:אפשר|אני\s+צריך)\s+(?:לדבר\s+עם\s+)?(?:נציג|אדם|מישהו)"
+    r"|(?:יש|אפשר)\s+(?:פה\s+)?מישהו\s+(?:לדבר\s+)?(?:איתו|עם)?"
+
+    # ── Thai ─────────────────────────────────────────────────────
+    r"|(?:ขอ)?(?:คุย|พูด|ติดต่อ|สนทนา)(?:กับ)?(?:คน|เจ้าหน้าที่|พนักงาน|แอดมิน|ผู้จัดการ|ผู้เชี่ยวชาญ)"
+    r"|ต้องการ(?:คุย|พูด|ติดต่อ)(?:กับ)?(?:คน|เจ้าหน้าที่|พนักงาน)"
+    r"|ขอติดต่อ(?:เจ้าหน้าที่|พนักงาน|แอดมิน|ผู้จัดการ)"
+    r"|มีใคร(?:ให้|ที่)?(?:คุย|ปรึกษา|ติดต่อ)(?:ได้)?"
+    r"|ขอ(?:คุย|พูด)กับ(?:คน|ทีม)"
+
+    # ── Arabic ───────────────────────────────────────────────────
+    r"|(?:أريد|اريد)\s+(?:التحدث|الكلام)\s+(?:مع|إلى)\s+(?:شخص|موظف|ممثل)"
+    r"|(?:حوّلني|حولني)\s+(?:إلى|الى)\s+(?:شخص|موظف|ممثل)"
+
+    # ── Russian ──────────────────────────────────────────────────
+    r"|(?:хочу|могу)\s+поговорить\s+с\s+(?:человеком|оператором|агентом)"
+    r"|(?:переведите|переключите)\s+(?:на|к)\s+(?:человеку|оператору|агенту)"
     r")"
 )
 
@@ -145,6 +181,10 @@ class Chatbot:
         product_catalog: Optional[ProductCatalog] = None,
         handoff_manager: Optional[HandoffManager] = None,
         fallback_log: Optional[FallbackLog] = None,
+        ab_test_manager: Optional[ABTestManager] = None,
+        analytics_tracker: Optional[AnalyticsTracker] = None,
+        feedback_store: Optional[FeedbackStore] = None,
+        user_memory_store: Optional[UserMemoryStore] = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.profile = profile
@@ -199,6 +239,38 @@ class Chatbot:
 
         # ── Fallback logger ────────────────────────────────────────────
         self.fallback_log = fallback_log or FallbackLog()
+
+        # ── A/B testing ────────────────────────────────────────────────
+        if ab_test_manager is not None:
+            self.ab_test = ab_test_manager
+        elif self.settings.ab_testing_enabled:
+            self.ab_test = ABTestManager.from_config(profile.client.id)
+        else:
+            self.ab_test = None
+
+        # ── Analytics tracker ──────────────────────────────────────────
+        if analytics_tracker is not None:
+            self.analytics: AnalyticsTracker | None = analytics_tracker
+        elif self.settings.analytics_enabled:
+            self.analytics = AnalyticsTracker()
+        else:
+            self.analytics = None
+
+        # ── Feedback store ─────────────────────────────────────────────
+        if feedback_store is not None:
+            self.feedback: FeedbackStore | None = feedback_store
+        elif self.settings.feedback_enabled:
+            self.feedback = FeedbackStore()
+        else:
+            self.feedback = None
+
+        # ── Long-term user memory ──────────────────────────────────────
+        if user_memory_store is not None:
+            self.user_memory: UserMemoryStore | None = user_memory_store
+        elif self.settings.user_memory_enabled:
+            self.user_memory = UserMemoryStore()
+        else:
+            self.user_memory = None
 
         # Build the LangChain RAG chain once
         self.chain = build_rag_chain(
@@ -330,22 +402,57 @@ class Chatbot:
 
         # 5. The actual paid LLM call with retry for transient failures.
         catalog_text = self.product_catalog.for_system_prompt()
-        system_prompt = self.profile.build_system_prompt(
+
+        # 5a. A/B test variant: may override the personality
+        ab_variant_name = ""
+        active_profile = self.profile
+        if self.ab_test and self.ab_test.enabled:
+            variant = self.ab_test.assign(session_id)
+            if variant:
+                ab_variant_name = variant.name
+                if variant.personality != self.profile.personality.name:
+                    try:
+                        from chatbot.core.profile import PersonalityConfig
+                        alt_personality = PersonalityConfig.load(variant.personality)
+                        active_profile = self.profile.model_copy()
+                        active_profile.personality = alt_personality
+                    except Exception as e:
+                        logger.warning("[ab] Could not load variant personality: {}", e)
+
+        # 5b. Long-term user memory context
+        user_memory_text = ""
+        if self.user_memory:
+            channel = _channel_from_session(session_id)
+            self.user_memory.record_interaction(
+                session_id,
+                question=question,
+                language=language or "",
+                channel=channel,
+            )
+            user_memory_text = self.user_memory.get_prompt_context(session_id)
+
+        system_prompt = active_profile.build_system_prompt(
             language=language, product_catalog_text=catalog_text,
         )
+        if user_memory_text:
+            system_prompt = system_prompt + "\n\n" + user_memory_text
+
+        _ask_start = time.time()
         invoke_input = {
             "question": question,
             "history": history or "(no prior conversation)",
             "system_prompt": system_prompt,
         }
         answer: str = self._invoke_with_retry(invoke_input, session_id)
+        _response_time_ms = int((time.time() - _ask_start) * 1000)
 
         # 6. Persist memory
         self.memory.add_message(session_id, "user", question)
         self.memory.add_message(session_id, "assistant", answer)
 
         # 6b. Log fallback if the bot couldn't answer
-        if looks_like_fallback(answer):
+        is_fallback = looks_like_fallback(answer)
+        if is_fallback:
             from chatbot.core.fallback_log import FallbackEntry
             self.fallback_log.log(FallbackEntry(
                 question=question,
@@ -353,6 +460,20 @@ class Chatbot:
                 session_id=session_id,
                 language=language or "",
             ))
+
+        # 6c. Track analytics
+        if self.analytics:
+            channel = _channel_from_session(session_id)
+            self.analytics.track_question(
+                session_id=session_id,
+                question=question,
+                response_time_ms=_response_time_ms,
+                language=language or "",
+                channel=channel,
+                was_fallback=is_fallback,
+                personality=active_profile.personality.name,
+                ab_variant=ab_variant_name,
+            )
 
         # Do not trigger a second retrieval here. The RAG chain already
         # performs retrieval internally, and a second lookup can both add

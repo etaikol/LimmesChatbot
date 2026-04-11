@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Security
 from fastapi.security.api_key import APIKeyHeader
 from starlette.responses import StreamingResponse
 
-from chatbot.api.schemas import ChatReply, ChatRequest, ClearReply, SourceModel
+from chatbot.api.schemas import ChatReply, ChatRequest, ClearReply, FeedbackReply, FeedbackRequest, SourceModel
 from chatbot.exceptions import ChatbotError
 from chatbot.i18n import SUPPORTED_LANGUAGE_CODES, resolve_language
 from chatbot.i18n.detect import detect_language
@@ -130,6 +130,68 @@ def clear_session(session_id: str, request: Request) -> ClearReply:
 
     bot.reset(session_id)
     return ClearReply(cleared=sanitize_session_id(session_id))
+
+
+# ── Feedback ─────────────────────────────────────────────────────────────────
+
+
+@router.post("/chat/feedback", response_model=FeedbackReply, dependencies=[Depends(_require_api_key)])
+async def submit_feedback(req: FeedbackRequest, request: Request) -> FeedbackReply:
+    """Submit thumbs up/down feedback for a bot answer."""
+    bot = request.app.state.bot
+
+    # Rate limit by IP
+    ip_limiter = request.app.state.ip_limiter
+    if ip_limiter is not None:
+        ip_limiter.check(_client_ip(request))
+
+    feedback_store = getattr(bot, "feedback", None)
+    if feedback_store is None:
+        raise HTTPException(503, "Feedback collection is disabled")
+
+    from chatbot.core.feedback import FeedbackEntry
+
+    # Get the question/answer from session history if available
+    question = ""
+    answer = ""
+    try:
+        mem = bot.memory.get(req.session_id)
+        msgs = mem.messages
+        # Find the nth assistant message
+        assistant_msgs = [m for m in msgs if m.role == "assistant"]
+        if req.message_index < len(assistant_msgs):
+            answer = assistant_msgs[req.message_index].content
+            # Find the preceding user message
+            idx = msgs.index(assistant_msgs[req.message_index])
+            for i in range(idx - 1, -1, -1):
+                if msgs[i].role == "user":
+                    question = msgs[i].content
+                    break
+    except Exception:
+        pass
+
+    entry = FeedbackEntry(
+        session_id=req.session_id,
+        message_index=req.message_index,
+        question=question,
+        answer=answer,
+        feedback=req.feedback,
+        comment=req.comment,
+    )
+    feedback_store.add(entry)
+
+    # Also track in analytics
+    analytics = getattr(bot, "analytics", None)
+    if analytics:
+        from chatbot.core.analytics import AnalyticsEvent
+
+        analytics.track(AnalyticsEvent(
+            event_type="feedback",
+            session_id=req.session_id,
+            feedback=req.feedback,
+        ))
+
+    return FeedbackReply(ok=True)
 
 
 # ── SSE push stream (handoff replies) ───────────────────────────────────────

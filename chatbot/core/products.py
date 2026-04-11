@@ -89,7 +89,22 @@ class ProductCatalog:
         """
         if not self.products:
             return ""
-        lines = ["Product catalog (use these exact names when referring to products):"]
+        lines = [
+            "Product catalog (reference only — use these exact names when "
+            "referring to products):",
+            "",
+            "IMPORTANT PRODUCT RULES:",
+            "- When a customer asks about products, mention them by NAME only.",
+            "- Do NOT list prices, full descriptions, or catalog-style tables "
+            "in your text response.",
+            "- The system automatically attaches product cards with prices, "
+            "images, and details when you mention a product by name.",
+            "- You may say general things like 'we have several options' or "
+            "'I recommend X — it is great for relaxing' but keep it "
+            "conversational, not a catalog dump.",
+            "- If the customer specifically asks 'how much is X?', you may "
+            "mention the price for THAT specific product only.",
+        ]
         by_cat: dict[str, list[Product]] = {}
         for p in self.products:
             by_cat.setdefault(p.category or "Other", []).append(p)

@@ -29,6 +29,9 @@ from chatbot.core.fallback_log import FallbackLog
 from chatbot.core.handoff import HandoffManager
 from chatbot.core.products import ProductCatalog
 from chatbot.core.push import PushService
+from chatbot.core.analytics import AnalyticsTracker
+from chatbot.core.feedback import FeedbackStore
+from chatbot.core.user_memory import UserMemoryStore
 from chatbot.exceptions import (
     AbuseError,
     BudgetError,
@@ -85,6 +88,26 @@ async def lifespan(app: FastAPI):
     app.state.fallback_log = bot.fallback_log
     app.state.product_catalog = bot.product_catalog
     app.state.push_service = PushService(settings)
+
+    # ── Analytics, Feedback, User Memory ───────────────────────────────
+    app.state.analytics_tracker = bot.analytics
+    app.state.feedback_store = bot.feedback
+    app.state.user_memory_store = bot.user_memory
+    app.state.ab_test_manager = bot.ab_test
+
+    # ── LINE Login (optional) ─────────────────────────────────────────
+    app.state.line_login = None
+    if settings.line_login_channel_id:
+        from chatbot.channels.line_login import LineLoginManager
+        try:
+            app.state.line_login = LineLoginManager(
+                channel_id=settings.line_login_channel_id,
+                channel_secret=settings.line_login_channel_secret,
+                redirect_uri="",  # set dynamically per request
+            )
+            logger.info("LINE Login enabled")
+        except Exception as e:
+            logger.warning("LINE Login not configured: {}", e)
 
     # ── Rate limiters (per-IP and per-session) ─────────────────────────
     if settings.rate_limit_enabled:
@@ -152,7 +175,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization", "X-Session-Id", "X-Api-Key", "X-Admin-Key", "X-Auth-Token"],
         max_age=600,
     )
