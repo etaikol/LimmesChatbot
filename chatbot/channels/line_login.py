@@ -15,7 +15,7 @@ Flow:
 Setup:
     1. Create a LINE Login channel at https://developers.line.biz/console/
     2. Set LINE_LOGIN_CHANNEL_ID and LINE_LOGIN_CHANNEL_SECRET in .env
-    3. Add callback URL: https://<host>/auth/line/callback
+    3. Add callback URL: https://<host>/webhook/line/callback
 
 LINE Login reference:
     https://developers.line.biz/en/docs/line-login/integrate-line-login/
