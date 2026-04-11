@@ -43,9 +43,11 @@ class AnalyticsTracker:
     """In-memory analytics with JSON persistence and aggregation."""
 
     MAX_EVENTS = 50000  # cap to prevent unbounded growth
+    FLUSH_BATCH_SIZE = 50  # persist every N new events to reduce per-request IO
 
     def __init__(self, storage_dir: Optional[Path] = None) -> None:
         self._events: list[AnalyticsEvent] = []
+        self._pending: int = 0  # events added since last flush
         self._storage_dir = storage_dir or (PROJECT_ROOT / ".analytics")
         self._storage_dir.mkdir(parents=True, exist_ok=True)
         self._file = self._storage_dir / "events.json"
@@ -80,7 +82,16 @@ class AnalyticsTracker:
         # Trim old events
         if len(self._events) > self.MAX_EVENTS:
             self._events = self._events[-self.MAX_EVENTS :]
-        self._save()
+        self._pending += 1
+        if self._pending >= self.FLUSH_BATCH_SIZE:
+            self._save()
+            self._pending = 0
+
+    def flush(self) -> None:
+        """Flush any pending (un-persisted) events to disk immediately."""
+        if self._pending > 0:
+            self._save()
+            self._pending = 0
 
     def track_question(
         self,
@@ -242,6 +253,7 @@ class AnalyticsTracker:
     def clear(self) -> int:
         n = len(self._events)
         self._events.clear()
+        self._pending = 0
         self._save()
         return n
 

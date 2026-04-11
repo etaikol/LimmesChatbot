@@ -40,8 +40,11 @@ class FeedbackEntry(BaseModel):
 class FeedbackStore:
     """In-memory feedback store with JSON file persistence."""
 
+    FLUSH_BATCH_SIZE = 10  # persist every N submissions to reduce per-request IO
+
     def __init__(self, storage_dir: Optional[Path] = None) -> None:
         self._entries: list[FeedbackEntry] = []
+        self._pending: int = 0  # entries added since last flush
         self._storage_dir = storage_dir or (PROJECT_ROOT / ".feedback")
         self._storage_dir.mkdir(parents=True, exist_ok=True)
         self._file = self._storage_dir / "feedback.json"
@@ -74,13 +77,22 @@ class FeedbackStore:
 
     def add(self, entry: FeedbackEntry) -> None:
         self._entries.append(entry)
-        self._save()
+        self._pending += 1
+        if self._pending >= self.FLUSH_BATCH_SIZE:
+            self._save()
+            self._pending = 0
         logger.debug(
             "[feedback] {} from {} (session={})",
             entry.feedback,
             entry.channel,
             entry.session_id,
         )
+
+    def flush(self) -> None:
+        """Flush any pending (un-persisted) entries to disk immediately."""
+        if self._pending > 0:
+            self._save()
+            self._pending = 0
 
     def list_all(self, limit: int = 500) -> list[dict[str, Any]]:
         return [e.model_dump() for e in reversed(self._entries[-limit:])]
@@ -107,5 +119,6 @@ class FeedbackStore:
     def clear(self) -> int:
         n = len(self._entries)
         self._entries.clear()
+        self._pending = 0
         self._save()
         return n

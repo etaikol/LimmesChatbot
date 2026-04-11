@@ -50,6 +50,7 @@ class ABTestManager:
         self._storage_dir = storage_dir or (PROJECT_ROOT / ".abtest")
         self._storage_dir.mkdir(parents=True, exist_ok=True)
         self._file = self._storage_dir / "assignments.json"
+        self._config_file = self._storage_dir / "config.json"
         self._load()
 
     def _load(self) -> None:
@@ -59,6 +60,13 @@ class ABTestManager:
                     self._assignments = json.load(f)
             except Exception as e:
                 logger.warning("Could not load A/B assignments: {}", e)
+        # A persisted config override takes precedence over the YAML source.
+        if self._config_file.exists():
+            try:
+                with open(self._config_file, "r", encoding="utf-8") as f:
+                    self.test = ABTest(**json.load(f))
+            except Exception as e:
+                logger.warning("Could not load A/B config override: {}", e)
 
     def _save(self) -> None:
         try:
@@ -70,6 +78,17 @@ class ABTestManager:
             tmp.replace(self._file)
         except Exception as e:
             logger.warning("Could not save A/B assignments: {}", e)
+
+    def _save_config(self) -> None:
+        try:
+            tmp = self._config_file.with_suffix(".json.tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self.test.model_dump(), f, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            tmp.replace(self._config_file)
+        except Exception as e:
+            logger.warning("Could not save A/B test config: {}", e)
 
     @property
     def enabled(self) -> bool:
@@ -125,8 +144,9 @@ class ABTestManager:
         return self.test.model_dump()
 
     def update_config(self, data: dict[str, Any]) -> None:
-        """Update A/B test configuration."""
+        """Update A/B test configuration and persist it to survive restarts."""
         self.test = ABTest(**data)
+        self._save_config()
         logger.info("[ab] Updated A/B test config: {}", self.test.name)
 
     def stats(self) -> dict[str, Any]:

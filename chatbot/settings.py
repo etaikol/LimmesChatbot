@@ -174,7 +174,9 @@ class Settings(BaseSettings):
     line_login_channel_secret: str = ""
 
     # ── Hybrid search ────────────────────────────────────────────────────────
-    hybrid_search_enabled: bool = True
+    # NOTE: When enabled, retrieval behavior changes and BM25 index is built
+    # in-process. Opt-in to avoid unintentional changes to existing deployments.
+    hybrid_search_enabled: bool = False
     hybrid_vector_weight: float = 0.6
     hybrid_bm25_weight: float = 0.4
 
@@ -182,13 +184,19 @@ class Settings(BaseSettings):
     ab_testing_enabled: bool = False
 
     # ── Feedback collection ──────────────────────────────────────────────────
-    feedback_enabled: bool = True
+    # NOTE: When enabled, user feedback is persisted to local disk.
+    # Opt-in to avoid unintentional data retention.
+    feedback_enabled: bool = False
 
     # ── Analytics ────────────────────────────────────────────────────────────
-    analytics_enabled: bool = True
+    # NOTE: When enabled, questions and session data are persisted to local disk.
+    # Opt-in to avoid unintentional data retention.
+    analytics_enabled: bool = False
 
     # ── Long-term user memory ────────────────────────────────────────────────
-    user_memory_enabled: bool = True
+    # NOTE: When enabled, per-user facts are persisted to local disk.
+    # Opt-in to avoid unintentional data retention.
+    user_memory_enabled: bool = False
 
     # ── Validators ───────────────────────────────────────────────────────────
     @model_validator(mode="after")
