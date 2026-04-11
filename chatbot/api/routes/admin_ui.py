@@ -766,7 +766,7 @@ var ONB_STEPS=[
   {icon:'📁',titleK:'onb.step1_title',bodyK:'onb.step1_body',page:'data'},
   {icon:'🏢',titleK:'onb.step2_title',bodyK:'onb.step2_body',page:'config',configTab:'client'},
   {icon:'🤖',titleK:'onb.step3_title',bodyK:'onb.step3_body',page:'config',configTab:'personality'},
-  {icon:'�️',titleK:'onb.step4_title',bodyK:'onb.step4_body',page:'products'},
+  {icon:'🛍️',titleK:'onb.step4_title',bodyK:'onb.step4_body',page:'products'},
   {icon:'💬',titleK:'onb.step5_title',bodyK:'onb.step5_body',page:'line'},
   {icon:'🤝',titleK:'onb.step6_title',bodyK:'onb.step6_body',page:'handoff'},
   {icon:'📊',titleK:'onb.step7_title',bodyK:'onb.step7_body',page:'overview'},
