@@ -157,7 +157,7 @@ class LineChannel:
                     action_text=f"Tell me about {p['name']}",
                 ))
         if bubbles:
-            messages.append(carousel(bubbles[:10]))  # LINE carousel max 12
+            messages.append(flex_message("Products", carousel(bubbles[:10])))
 
         return messages[:5]  # LINE reply limit: 5 messages
 

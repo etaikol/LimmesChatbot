@@ -972,9 +972,10 @@ var ENV_GROUPS=[
   {label:'cfg.rag',keys:['EMBEDDING_MODEL','CHUNK_SIZE','CHUNK_OVERLAP','RETRIEVAL_K']},
   {label:'cfg.conversation',keys:['MAX_HISTORY_TURNS','MAX_MESSAGE_CHARS']},
   {label:'cfg.rate',keys:['RATE_LIMIT_ENABLED','RATE_LIMIT_IP_PER_MINUTE','RATE_LIMIT_IP_BURST','RATE_LIMIT_SESSION_PER_MINUTE','RATE_LIMIT_SESSION_BURST']},
-  {label:'cfg.spam',keys:['SPAM_DETECTION_ENABLED','SPAM_MAX_STRIKES','SPAM_COOLDOWN_SECONDS']},
+  {label:'cfg.spam',keys:['SPAM_DETECTION_ENABLED','SPAM_MAX_STRIKES','SPAM_COOLDOWN_SECONDS','SPAM_MIN_MESSAGE_CHARS']},
   {label:'cfg.budget_cap',keys:['DAILY_TOKEN_CAP','DAILY_USD_CAP']},
-  {label:'cfg.security',keys:['API_CORS_ORIGINS','API_STRICT_CORS','API_HSTS_ENABLED']},
+  {label:'cfg.security',keys:['API_CORS_ORIGINS','API_STRICT_CORS','API_HSTS_ENABLED','BLOCK_PROMPT_INJECTION']},
+  {label:'cfg.handoff',keys:['HANDOFF_ENABLED','PROACTIVE_DELAY_SECONDS','PROACTIVE_MESSAGE']},
   {label:'cfg.general',keys:['ACTIVE_CLIENT','LOG_LEVEL','DEBUG']}
 ];
 
@@ -1774,6 +1775,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "th.message": "Message",
         "th.time": "Time",
         "th.question": "Question",
+        "cfg.handoff": "Handoff & Proactive",
     },
     "he": {
         "nav.overview": "\u05e1\u05e7\u05d9\u05e8\u05d4",
@@ -1956,6 +1958,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "contacts.unread": "\u05dc\u05d0 \u05e0\u05e7\u05e8\u05d0\u05d5",
         "contacts.total": "\u05e1\u05d4\u05f4\u05db \u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
         "fallback.unresolved": "\u05dc\u05d0 \u05e0\u05e4\u05ea\u05e8\u05d5",
+        "th.name": "\u05e9\u05dd",
+        "th.category": "\u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d4",
+        "th.price": "\u05de\u05d7\u05d9\u05e8",
+        "th.image": "\u05ea\u05de\u05d5\u05e0\u05d4",
+        "th.message": "\u05d4\u05d5\u05d3\u05e2\u05d4",
+        "th.time": "\u05d6\u05de\u05df",
+        "th.question": "\u05e9\u05d0\u05dc\u05d4",
+        "cfg.handoff": "\u05d4\u05e2\u05d1\u05e8\u05d4 \u05d5\u05d4\u05d5\u05d3\u05e2\u05d5\u05ea",
     },
     "th": {
         "nav.overview": "\u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21",
@@ -2138,5 +2148,13 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "contacts.unread": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e2d\u0e48\u0e32\u0e19",
         "contacts.total": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
         "fallback.unresolved": "\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e41\u0e01\u0e49\u0e44\u0e02",
+        "th.name": "\u0e0a\u0e37\u0e48\u0e2d",
+        "th.category": "\u0e2b\u0e21\u0e27\u0e14\u0e2b\u0e21\u0e39\u0e48",
+        "th.price": "\u0e23\u0e32\u0e04\u0e32",
+        "th.image": "\u0e23\u0e39\u0e1b\u0e20\u0e32\u0e1e",
+        "th.message": "\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21",
+        "th.time": "\u0e40\u0e27\u0e25\u0e32",
+        "th.question": "\u0e04\u0e33\u0e16\u0e32\u0e21",
+        "cfg.handoff": "\u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d\u0e41\u0e25\u0e30\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19",
     },
 }
