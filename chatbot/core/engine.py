@@ -23,6 +23,10 @@ from chatbot.core.handoff import HandoffManager
 from chatbot.core.memory import SessionStore
 from chatbot.core.products import ProductCatalog
 from chatbot.core.profile import ChatbotProfile
+from chatbot.core.ab_testing import ABTestManager
+from chatbot.core.analytics import AnalyticsTracker
+from chatbot.core.feedback import FeedbackStore
+from chatbot.core.user_memory import UserMemoryStore
 from chatbot.exceptions import (
     AbuseError,
     BudgetError,
@@ -145,6 +149,10 @@ class Chatbot:
         product_catalog: Optional[ProductCatalog] = None,
         handoff_manager: Optional[HandoffManager] = None,
         fallback_log: Optional[FallbackLog] = None,
+        ab_test_manager: Optional[ABTestManager] = None,
+        analytics_tracker: Optional[AnalyticsTracker] = None,
+        feedback_store: Optional[FeedbackStore] = None,
+        user_memory_store: Optional[UserMemoryStore] = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.profile = profile
@@ -199,6 +207,38 @@ class Chatbot:
 
         # ── Fallback logger ────────────────────────────────────────────
         self.fallback_log = fallback_log or FallbackLog()
+
+        # ── A/B testing ────────────────────────────────────────────────
+        if ab_test_manager is not None:
+            self.ab_test = ab_test_manager
+        elif self.settings.ab_testing_enabled:
+            self.ab_test = ABTestManager.from_config(profile.client.id)
+        else:
+            self.ab_test = ABTestManager.from_config(profile.client.id)
+
+        # ── Analytics tracker ──────────────────────────────────────────
+        if analytics_tracker is not None:
+            self.analytics: AnalyticsTracker | None = analytics_tracker
+        elif self.settings.analytics_enabled:
+            self.analytics = AnalyticsTracker()
+        else:
+            self.analytics = None
+
+        # ── Feedback store ─────────────────────────────────────────────
+        if feedback_store is not None:
+            self.feedback: FeedbackStore | None = feedback_store
+        elif self.settings.feedback_enabled:
+            self.feedback = FeedbackStore()
+        else:
+            self.feedback = None
+
+        # ── Long-term user memory ──────────────────────────────────────
+        if user_memory_store is not None:
+            self.user_memory: UserMemoryStore | None = user_memory_store
+        elif self.settings.user_memory_enabled:
+            self.user_memory = UserMemoryStore()
+        else:
+            self.user_memory = None
 
         # Build the LangChain RAG chain once
         self.chain = build_rag_chain(
@@ -330,22 +370,57 @@ class Chatbot:
 
         # 5. The actual paid LLM call with retry for transient failures.
         catalog_text = self.product_catalog.for_system_prompt()
-        system_prompt = self.profile.build_system_prompt(
+
+        # 5a. A/B test variant: may override the personality
+        ab_variant_name = ""
+        active_profile = self.profile
+        if self.ab_test and self.ab_test.enabled:
+            variant = self.ab_test.assign(session_id)
+            if variant:
+                ab_variant_name = variant.name
+                if variant.personality != self.profile.personality.name:
+                    try:
+                        from chatbot.core.profile import PersonalityConfig
+                        alt_personality = PersonalityConfig.load(variant.personality)
+                        active_profile = self.profile.model_copy()
+                        active_profile.personality = alt_personality
+                    except Exception as e:
+                        logger.warning("[ab] Could not load variant personality: {}", e)
+
+        # 5b. Long-term user memory context
+        user_memory_text = ""
+        if self.user_memory:
+            channel = _channel_from_session(session_id)
+            self.user_memory.record_interaction(
+                session_id,
+                question=question,
+                language=language or "",
+                channel=channel,
+            )
+            user_memory_text = self.user_memory.get_prompt_context(session_id)
+
+        system_prompt = active_profile.build_system_prompt(
             language=language, product_catalog_text=catalog_text,
         )
+        if user_memory_text:
+            system_prompt = system_prompt + "\n\n" + user_memory_text
+
+        _ask_start = time.time()
         invoke_input = {
             "question": question,
             "history": history or "(no prior conversation)",
             "system_prompt": system_prompt,
         }
         answer: str = self._invoke_with_retry(invoke_input, session_id)
+        _response_time_ms = int((time.time() - _ask_start) * 1000)
 
         # 6. Persist memory
         self.memory.add_message(session_id, "user", question)
         self.memory.add_message(session_id, "assistant", answer)
 
         # 6b. Log fallback if the bot couldn't answer
-        if looks_like_fallback(answer):
+        is_fallback = looks_like_fallback(answer)
+        if is_fallback:
             from chatbot.core.fallback_log import FallbackEntry
             self.fallback_log.log(FallbackEntry(
                 question=question,
@@ -353,6 +428,20 @@ class Chatbot:
                 session_id=session_id,
                 language=language or "",
             ))
+
+        # 6c. Track analytics
+        if self.analytics:
+            channel = _channel_from_session(session_id)
+            self.analytics.track_question(
+                session_id=session_id,
+                question=question,
+                response_time_ms=_response_time_ms,
+                language=language or "",
+                channel=channel,
+                was_fallback=is_fallback,
+                personality=active_profile.personality.name,
+                ab_variant=ab_variant_name,
+            )
 
         # Do not trigger a second retrieval here. The RAG chain already
         # performs retrieval internally, and a second lookup can both add

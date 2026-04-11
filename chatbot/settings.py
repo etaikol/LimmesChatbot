@@ -168,6 +168,27 @@ class Settings(BaseSettings):
     proactive_delay_seconds: int = 60
     proactive_message: str = ""     # empty = use i18n default
 
+    # ── LINE Login (optional OAuth) ──────────────────────────────────────────
+    line_login_channel_id: str = ""
+    line_login_channel_secret: str = ""
+
+    # ── Hybrid search ────────────────────────────────────────────────────────
+    hybrid_search_enabled: bool = True
+    hybrid_vector_weight: float = 0.6
+    hybrid_bm25_weight: float = 0.4
+
+    # ── A/B testing ──────────────────────────────────────────────────────────
+    ab_testing_enabled: bool = False
+
+    # ── Feedback collection ──────────────────────────────────────────────────
+    feedback_enabled: bool = True
+
+    # ── Analytics ────────────────────────────────────────────────────────────
+    analytics_enabled: bool = True
+
+    # ── Long-term user memory ────────────────────────────────────────────────
+    user_memory_enabled: bool = True
+
     # ── Validators ───────────────────────────────────────────────────────────
     @model_validator(mode="after")
     def _default_log_file(self) -> "Settings":

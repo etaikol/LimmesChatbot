@@ -82,6 +82,19 @@ _EN: dict[str, str] = {
     "blocked_temporarily":      "I'm having trouble understanding your messages right now. Please try again in {seconds} seconds.",
     "off_topic":                "I'm here to help with questions about our business. For other topics, a general assistant like ChatGPT would be a better fit! 😊",
     "server_error":             "Something went wrong on our end — our team has been notified. Please try again in a moment.",
+    # Feedback
+    "feedback_thanks":          "Thanks for your feedback! 👍",
+    "feedback_sorry":           "Sorry to hear that. We'll work to improve! 🙏",
+    "feedback_prompt":          "Was this answer helpful?",
+    "thumbs_up":                "👍",
+    "thumbs_down":              "👎",
+    # Analytics / returning user
+    "welcome_back":             "Welcome back! 👋 How can I help you today?",
+    # LINE Login
+    "line_login_prompt":        "Log in with LINE for a personalized experience",
+    "line_login_success":       "You're logged in! Welcome, {name} 👋",
+    # Campaign
+    "campaign_sent":            "Campaign message sent successfully",
 }
 
 MESSAGES: dict[str, dict[str, str]] = {
@@ -110,6 +123,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "blocked_temporarily": "קשה לי להבין את ההודעות שלך כרגע. נסו שוב בעוד {seconds} שניות.",
         "off_topic":           "אני כאן לשאלות על העסק שלנו. לנושאים אחרים, עוזר כמו ChatGPT יתאים יותר 😊",
         "server_error":        "משהו השתבש אצלנו — הצוות קיבל הודעה. אפשר לנסות שוב? 😊",
+        "feedback_thanks":     "תודה על המשוב! 👍",
+        "feedback_sorry":      "מצטערים לשמוע. נשתפר! 🙏",
+        "feedback_prompt":     "התשובה הייתה מועילה?",
+        "welcome_back":        "שמחים לראותך שוב! 👋 במה אוכל לעזור?",
+        "line_login_prompt":   "התחבר/י עם LINE לחוויה מותאמת אישית",
+        "line_login_success":  "התחברת בהצלחה! ברוך/ה הבא/ה, {name} 👋",
     },
 
     "ar": {
@@ -131,6 +150,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "session_blocked":     "لم أتمكن من فهم رسائلك. يرجى المحاولة مجدداً بعد {seconds} ثانية.",
         "off_topic":           "أنا هنا للمساعدة في أسئلة عن نشاطنا التجاري. للمواضيع الأخرى، مساعد عام سيكون أنسب 😊",
         "server_error":        "حدث خطأ من جانبنا — فريقنا أُبلغ. يرجى المحاولة مجدداً 😊",
+        "feedback_thanks":     "شكراً لملاحظاتك! 👍",
+        "feedback_sorry":      "نأسف لذلك. سنعمل على التحسين! 🙏",
+        "feedback_prompt":     "هل كانت هذه الإجابة مفيدة؟",
+        "welcome_back":        "أهلاً بعودتك! 👋 كيف أقدر أساعدك؟",
+        "line_login_prompt":   "سجّل دخولك عبر LINE لتجربة مخصصة",
+        "line_login_success":  "تم تسجيل الدخول! أهلاً {name} 👋",
     },
 
     "fa": {
@@ -152,6 +177,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "session_blocked":     "پیام‌های شما قابل فهم نبودند. لطفاً بعد از {seconds} ثانیه دوباره تلاش کنید.",
         "off_topic":           "من اینجام که به سوالات مربوط به کسب‌وکارمون جواب بدم. برای سایر موضوعات، یه دستیار عمومی مناسب‌تره 😊",
         "server_error":        "مشکلی از سمت ما پیش آمد — تیم ما مطلع شد. لطفاً دوباره امتحان کنید 😊",
+        "feedback_thanks":     "ممنون از بازخوردتان! 👍",
+        "feedback_sorry":      "متأسفیم. بهتر می‌کنیم! 🙏",
+        "feedback_prompt":     "آیا این پاسخ مفید بود؟",
+        "welcome_back":        "خوش برگشتید! 👋 چطور کمکتون کنم؟",
+        "line_login_prompt":   "برای تجربه شخصی‌سازی شده با LINE وارد شوید",
+        "line_login_success":  "ورود موفق! خوش آمدید {name} 👋",
     },
 
     "th": {
@@ -176,6 +207,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "session_blocked":     "ส่งข้อความที่ไม่สามารถเข้าใจได้หลายครั้ง โปรดลองใหม่ใน {seconds} วินาที",
         "off_topic":           "ผม/หนูเป็นผู้ช่วยสำหรับคำถามเกี่ยวกับธุรกิจของเราครับ/ค่ะ สำหรับเรื่องอื่นๆ ลอง ChatGPT ดูนะครับ/ค่ะ 😊",
         "server_error":        "เกิดข้อผิดพลาดจากฝั่งเรา — ทีมงานได้รับแจ้งแล้ว โปรดลองอีกครั้ง 😊",
+        "feedback_thanks":     "ขอบคุณสำหรับความคิดเห็น! 👍",
+        "feedback_sorry":      "ขอโทษด้วย เราจะปรับปรุงให้ดีขึ้น! 🙏",
+        "feedback_prompt":     "คำตอบนี้เป็นประโยชน์ไหมครับ/ค่ะ?",
+        "welcome_back":        "ยินดีต้อนรับกลับ! 👋 สอบถามได้เลยครับ/ค่ะ",
+        "line_login_prompt":   "เข้าสู่ระบบด้วย LINE เพื่อประสบการณ์ที่เหมาะกับคุณ",
+        "line_login_success":  "เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับ {name} 👋",
     },
 
     "fr": {
@@ -197,6 +234,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "session_blocked":     "Trop de messages incompréhensibles. Réessayez dans {seconds} secondes.",
         "off_topic":           "Je suis là pour les questions sur notre activité. Pour d'autres sujets, un assistant général sera plus adapté 😊",
         "server_error":        "Une erreur s'est produite de notre côté — nos équipes ont été notifiées. Réessayez 😊",
+        "feedback_thanks":     "Merci pour votre retour ! 👍",
+        "feedback_sorry":      "Désolé. Nous allons nous améliorer ! 🙏",
+        "feedback_prompt":     "Cette réponse vous a-t-elle été utile ?",
+        "welcome_back":        "Ravi de vous revoir ! 👋 Comment puis-je vous aider ?",
+        "line_login_prompt":   "Connectez-vous avec LINE pour une expérience personnalisée",
+        "line_login_success":  "Vous êtes connecté ! Bienvenue, {name} 👋",
     },
 
     "es": {
@@ -218,6 +261,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "session_blocked":     "Demasiados mensajes que no pude entender. Intenta de nuevo en {seconds} segundos.",
         "off_topic":           "Estoy aquí para preguntas sobre nuestro negocio. Para otros temas, un asistente general es más adecuado 😊",
         "server_error":        "Algo salió mal de nuestro lado — el equipo fue notificado. Intenta de nuevo 😊",
+        "feedback_thanks":     "¡Gracias por tu opinión! 👍",
+        "feedback_sorry":      "Lo sentimos. ¡Vamos a mejorar! 🙏",
+        "feedback_prompt":     "¿Te fue útil esta respuesta?",
+        "welcome_back":        "¡Bienvenido de nuevo! 👋 ¿En qué te puedo ayudar?",
+        "line_login_prompt":   "Inicia sesión con LINE para una experiencia personalizada",
+        "line_login_success":  "¡Has iniciado sesión! Bienvenido, {name} 👋",
     },
 
     "de": {
@@ -239,6 +288,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "session_blocked":     "Zu viele unverständliche Nachrichten. Bitte versuche es in {seconds} Sekunden erneut.",
         "off_topic":           "Ich bin für Fragen zu unserem Geschäft da. Für andere Themen ist ein allgemeiner Assistent besser geeignet 😊",
         "server_error":        "Bei uns ist etwas schiefgelaufen — das Team wurde benachrichtigt. Bitte erneut versuchen 😊",
+        "feedback_thanks":     "Danke für Ihr Feedback! 👍",
+        "feedback_sorry":      "Das tut uns leid. Wir arbeiten daran! 🙏",
+        "feedback_prompt":     "War diese Antwort hilfreich?",
+        "welcome_back":        "Willkommen zurück! 👋 Wie kann ich Ihnen helfen?",
+        "line_login_prompt":   "Melden Sie sich mit LINE an für ein personalisiertes Erlebnis",
+        "line_login_success":  "Angemeldet! Willkommen, {name} 👋",
     },
 
     "ru": {
@@ -261,6 +316,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "session_blocked":     "Слишком много непонятных сообщений. Попробуйте снова через {seconds} секунд.",
         "off_topic":           "Я здесь для вопросов о нашем бизнесе. Для других тем лучше подойдёт общий ассистент вроде ChatGPT 😊",
         "server_error":        "Что-то пошло не так с нашей стороны — команда уведомлена. Попробуйте ещё раз 😊",
+        "feedback_thanks":     "Спасибо за отзыв! 👍",
+        "feedback_sorry":      "Извините. Мы будем работать над улучшением! 🙏",
+        "feedback_prompt":     "Был ли этот ответ полезен?",
+        "welcome_back":        "С возвращением! 👋 Чем могу помочь?",
+        "line_login_prompt":   "Войдите через LINE для персонализированного опыта",
+        "line_login_success":  "Вы вошли! Добро пожаловать, {name} 👋",
     },
 
     "ja": {
@@ -276,6 +337,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "powered_by":       "AIアシスタント",
         "welcome":          "こんにちは！👋 商品・価格・インテリアのアドバイス・ご予約など、何でもお気軽にどうぞ 😊",
         "budget_reached":   "本日の利用上限に達しました。明日お試しください。",
+        "feedback_thanks":  "フィードバックありがとうございます！👍",
+        "feedback_sorry":   "申し訳ありません。改善に努めます！🙏",
+        "feedback_prompt":  "この回答は役に立ちましたか？",
+        "welcome_back":     "おかえりなさい！👋 何かお手伝いできますか？",
+        "line_login_prompt": "LINEでログインしてパーソナライズ体験を",
+        "line_login_success": "ログインしました！ようこそ、{name}さん 👋",
     },
 
     "zh": {
@@ -291,6 +358,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "powered_by":       "AI 助手",
         "welcome":          "您好！👋 欢迎光临 — 产品咨询、报价、装饰建议或预约均可，请问有什么能帮您的？😊",
         "budget_reached":   "今日使用额度已用完，请明天再试。",
+        "feedback_thanks":  "感谢您的反馈！👍",
+        "feedback_sorry":   "很抱歉。我们会改进的！🙏",
+        "feedback_prompt":  "这个回答对您有帮助吗？",
+        "welcome_back":     "欢迎回来！👋 有什么可以帮您的？",
+        "line_login_prompt": "使用LINE登录以获得个性化体验",
+        "line_login_success": "登录成功！欢迎，{name} 👋",
     },
 
     "hi": {
@@ -306,6 +379,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "powered_by":       "AI सहायक",
         "welcome":          "नमस्ते! 👋 उत्पाद, कीमतें, डिज़ाइन सुझाव या अपॉइंटमेंट बुक करने में मदद के लिए मैं यहाँ हूँ 😊",
         "budget_reached":   "क्षमा करें, आज की सीमा समाप्त हो गई है। कल पुनः प्रयास करें।",
+        "feedback_thanks":  "आपकी प्रतिक्रिया के लिए धन्यवाद! 👍",
+        "feedback_sorry":   "क्षमा करें। हम सुधार करेंगे! 🙏",
+        "feedback_prompt":  "क्या यह उत्तर सहायक था?",
+        "welcome_back":     "वापस स्वागत है! 👋 कैसे मदद कर सकता हूँ?",
+        "line_login_prompt": "व्यक्तिगत अनुभव के लिए LINE से लॉगिन करें",
+        "line_login_success": "लॉगिन सही! स्वागत है, {name} 👋",
     },
 }
 

@@ -270,6 +270,115 @@ class RichMenuManager:
             resp.raise_for_status()
             return resp.json().get("richMenuId")
 
+    # ── Per-user targeting ───────────────────────────────────────────────
+
+    async def link_menu_to_user(self, menu_id: str, user_id: str) -> bool:
+        """POST /v2/bot/user/{userId}/richmenu/{richMenuId}
+
+        Assign a specific rich menu to a user, overriding the default.
+        Used for per-segment menu targeting.
+        """
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{API_BASE}/user/{user_id}/richmenu/{menu_id}",
+                headers=self._headers,
+            )
+            if resp.status_code >= 400:
+                logger.warning(
+                    "[rich-menu] Link to user {} failed [{}]: {}",
+                    user_id, resp.status_code, resp.text,
+                )
+                return False
+            logger.info("[rich-menu] Linked menu {} to user {}", menu_id, user_id)
+            return True
+
+    async def unlink_menu_from_user(self, user_id: str) -> bool:
+        """DELETE /v2/bot/user/{userId}/richmenu
+
+        Remove the per-user menu override, reverting to default.
+        """
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.delete(
+                f"{API_BASE}/user/{user_id}/richmenu",
+                headers=self._headers,
+            )
+            if resp.status_code >= 400:
+                logger.warning(
+                    "[rich-menu] Unlink user {} failed [{}]: {}",
+                    user_id, resp.status_code, resp.text,
+                )
+                return False
+            logger.info("[rich-menu] Unlinked menu from user {}", user_id)
+            return True
+
+    async def link_menu_to_users(
+        self, menu_id: str, user_ids: list[str]
+    ) -> dict:
+        """POST /v2/bot/richmenu/bulk/link
+
+        Assign a rich menu to multiple users at once (max 500).
+        """
+        results = {"ok": 0, "failed": 0}
+        for batch_start in range(0, len(user_ids), 500):
+            batch = user_ids[batch_start : batch_start + 500]
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{API_BASE}/richmenu/bulk/link",
+                    headers=self._headers,
+                    json={
+                        "richMenuId": menu_id,
+                        "userIds": batch,
+                    },
+                )
+                if resp.status_code < 400:
+                    results["ok"] += len(batch)
+                else:
+                    results["failed"] += len(batch)
+                    logger.warning(
+                        "[rich-menu] Bulk link failed [{}]: {}",
+                        resp.status_code, resp.text,
+                    )
+        return results
+
+    async def unlink_menu_from_users(self, user_ids: list[str]) -> dict:
+        """POST /v2/bot/richmenu/bulk/unlink
+
+        Remove per-user menu overrides from multiple users at once.
+        """
+        results = {"ok": 0, "failed": 0}
+        for batch_start in range(0, len(user_ids), 500):
+            batch = user_ids[batch_start : batch_start + 500]
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{API_BASE}/richmenu/bulk/unlink",
+                    headers=self._headers,
+                    json={"userIds": batch},
+                )
+                if resp.status_code < 400:
+                    results["ok"] += len(batch)
+                else:
+                    results["failed"] += len(batch)
+                    logger.warning(
+                        "[rich-menu] Bulk unlink failed [{}]: {}",
+                        resp.status_code, resp.text,
+                    )
+        return results
+
+    async def get_user_menu(self, user_id: str) -> Optional[str]:
+        """GET /v2/bot/user/{userId}/richmenu
+
+        Returns the rich menu ID linked to a specific user, or None.
+        """
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{API_BASE}/user/{user_id}/richmenu",
+                headers=self._headers,
+            )
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            return resp.json().get("richMenuId")
+
 
 # ── CLI entry point ──────────────────────────────────────────────────────────
 

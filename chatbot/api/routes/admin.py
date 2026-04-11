@@ -1159,3 +1159,303 @@ async def upload_data_file(request: Request) -> dict:
     full_path.write_text(text, encoding="utf-8")
     logger.info("[admin] Uploaded data file: {}", rel_path)
     return {"uploaded": rel_path, "size": len(text)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Analytics Dashboard
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/analytics", dependencies=[Depends(_require_admin_key)])
+def analytics_dashboard(request: Request, days: int = 7) -> dict:
+    """Return aggregated analytics for the dashboard."""
+    tracker = getattr(request.app.state, "analytics_tracker", None)
+    if tracker is None:
+        return {"error": "Analytics not enabled", "period_days": days}
+    return tracker.dashboard_summary(days=min(days, 90))
+
+
+@router.delete("/analytics", dependencies=[Depends(_require_admin_role)])
+def clear_analytics(request: Request) -> dict:
+    tracker = getattr(request.app.state, "analytics_tracker", None)
+    if tracker is None:
+        raise HTTPException(503, "Analytics not enabled")
+    count = tracker.clear()
+    return {"cleared": count}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Feedback
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/feedback", dependencies=[Depends(_require_admin_key)])
+def list_feedback(request: Request, limit: int = 200) -> dict:
+    store = getattr(request.app.state, "feedback_store", None)
+    if store is None:
+        return {"feedback": [], "stats": {}}
+    return {
+        "feedback": store.list_all(limit=min(limit, 500)),
+        "stats": store.stats(),
+    }
+
+
+@router.get("/feedback/negative", dependencies=[Depends(_require_admin_key)])
+def list_negative_feedback(request: Request, limit: int = 50) -> dict:
+    store = getattr(request.app.state, "feedback_store", None)
+    if store is None:
+        return {"feedback": []}
+    return {"feedback": store.recent_negative(limit=min(limit, 200))}
+
+
+@router.delete("/feedback", dependencies=[Depends(_require_admin_role)])
+def clear_feedback(request: Request) -> dict:
+    store = getattr(request.app.state, "feedback_store", None)
+    if store is None:
+        raise HTTPException(503, "Feedback not enabled")
+    count = store.clear()
+    return {"cleared": count}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# A/B Testing
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/ab-test", dependencies=[Depends(_require_admin_key)])
+def ab_test_status(request: Request) -> dict:
+    mgr = getattr(request.app.state, "ab_test_manager", None)
+    if mgr is None:
+        return {"enabled": False}
+    return {**mgr.stats(), "config": mgr.get_config()}
+
+
+@router.put("/ab-test", dependencies=[Depends(_require_admin_role)])
+async def update_ab_test(request: Request) -> dict:
+    """Update A/B test config. Body: {enabled, name, variants: [{name, personality, weight}]}."""
+    mgr = getattr(request.app.state, "ab_test_manager", None)
+    if mgr is None:
+        raise HTTPException(503, "A/B testing not available")
+    body = await request.json()
+    mgr.update_config(body)
+    return {"ok": True, **mgr.stats()}
+
+
+@router.delete("/ab-test/assignments", dependencies=[Depends(_require_admin_role)])
+def clear_ab_assignments(request: Request) -> dict:
+    mgr = getattr(request.app.state, "ab_test_manager", None)
+    if mgr is None:
+        raise HTTPException(503, "A/B testing not available")
+    count = mgr.clear_assignments()
+    return {"cleared": count}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# User Memory (Long-term)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/user-memory", dependencies=[Depends(_require_admin_key)])
+def list_user_memories(request: Request, limit: int = 100) -> dict:
+    store = getattr(request.app.state, "user_memory_store", None)
+    if store is None:
+        return {"users": [], "total": 0}
+    users = store.list_users(limit=min(limit, 500))
+    return {"users": users, "total": store.count()}
+
+
+@router.get("/user-memory/{user_id}", dependencies=[Depends(_require_admin_key)])
+def get_user_memory(user_id: str, request: Request) -> dict:
+    store = getattr(request.app.state, "user_memory_store", None)
+    if store is None:
+        raise HTTPException(503, "User memory not enabled")
+    user = store.get_user(user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    return user
+
+
+@router.post("/user-memory/{user_id}/facts", dependencies=[Depends(_require_admin_role)])
+async def add_user_fact(user_id: str, request: Request) -> dict:
+    """Add a fact about a user. Body: {fact, category}."""
+    store = getattr(request.app.state, "user_memory_store", None)
+    if store is None:
+        raise HTTPException(503, "User memory not enabled")
+    body = await request.json()
+    fact = body.get("fact", "").strip()
+    if not fact:
+        raise HTTPException(400, "fact is required")
+    category = body.get("category", "general")
+    store.add_fact(user_id, fact, category=category, source="admin")
+    return {"ok": True}
+
+
+@router.patch("/user-memory/{user_id}/tags", dependencies=[Depends(_require_admin_role)])
+async def update_user_tags(user_id: str, request: Request) -> dict:
+    """Update user tags for segmentation. Body: {tags: [...]}."""
+    store = getattr(request.app.state, "user_memory_store", None)
+    if store is None:
+        raise HTTPException(503, "User memory not enabled")
+    body = await request.json()
+    tags = body.get("tags", [])
+    if not isinstance(tags, list):
+        raise HTTPException(400, "tags must be a list")
+    if not store.update_user_tags(user_id, tags):
+        raise HTTPException(404, "User not found")
+    return {"ok": True}
+
+
+@router.delete("/user-memory/{user_id}", dependencies=[Depends(_require_admin_role)])
+def delete_user_memory(user_id: str, request: Request) -> dict:
+    store = getattr(request.app.state, "user_memory_store", None)
+    if store is None:
+        raise HTTPException(503, "User memory not enabled")
+    if not store.delete_user(user_id):
+        raise HTTPException(404, "User not found")
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LINE Push Campaigns
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/line/push/campaign", dependencies=[Depends(_require_admin_role)])
+async def line_push_campaign(request: Request) -> dict:
+    """Send a campaign message to selected LINE users.
+
+    Body: {user_ids: [...], messages: [{type, text, ...}]} or {segment: "tag"}.
+    """
+    push = getattr(request.app.state, "push_service", None)
+    if push is None:
+        raise HTTPException(503, "Push service not available")
+    s = request.app.state.bot.settings
+    if not s.line_channel_access_token:
+        raise HTTPException(400, "LINE not configured")
+
+    body = await request.json()
+
+    # Resolve user IDs from segment tag if provided
+    user_ids = body.get("user_ids", [])
+    segment = body.get("segment", "")
+    if segment and not user_ids:
+        mem_store = getattr(request.app.state, "user_memory_store", None)
+        if mem_store:
+            user_ids = mem_store.get_segment(segment)
+
+    messages = body.get("messages", [])
+    if not messages:
+        text = body.get("text", "")
+        if text:
+            messages = [{"type": "text", "text": text}]
+        else:
+            raise HTTPException(400, "messages or text is required")
+
+    if user_ids:
+        result = await push.line_multicast(user_ids, messages)
+    else:
+        # Broadcast to all followers
+        result = await push.line_broadcast(messages)
+
+    logger.info("[admin] LINE campaign sent: {}", result)
+    return result
+
+
+@router.post("/line/push/imagemap", dependencies=[Depends(_require_admin_role)])
+async def line_push_imagemap_msg(request: Request) -> dict:
+    """Push an imagemap message to a user or broadcast.
+
+    Body: {user_id or broadcast: true, base_url, alt_text, areas: [...]}
+    """
+    push = getattr(request.app.state, "push_service", None)
+    if push is None:
+        raise HTTPException(503, "Push service not available")
+
+    body = await request.json()
+    from chatbot.channels.line_imagemap import imagemap_message
+
+    msg = imagemap_message(
+        base_url=body.get("base_url", ""),
+        alt_text=body.get("alt_text", "Menu"),
+        base_width=body.get("base_width", 1040),
+        base_height=body.get("base_height", 1040),
+        areas=body.get("areas", []),
+    )
+
+    user_id = body.get("user_id", "")
+    if user_id:
+        ok = await push.line_push_imagemap(user_id, msg)
+        return {"ok": ok}
+
+    if body.get("broadcast"):
+        result = await push.line_broadcast([msg])
+        return result
+
+    raise HTTPException(400, "user_id or broadcast: true is required")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LINE Rich Menu Per-User Targeting
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/line/rich-menus/{menu_id}/link-user", dependencies=[Depends(_require_admin_role)])
+async def line_link_menu_to_user(menu_id: str, request: Request) -> dict:
+    """Assign a rich menu to a specific user. Body: {user_id}."""
+    s = request.app.state.bot.settings
+    if not s.line_channel_access_token:
+        raise HTTPException(400, "LINE not configured")
+    body = await request.json()
+    user_id = body.get("user_id", "")
+    if not user_id:
+        raise HTTPException(400, "user_id is required")
+
+    from chatbot.channels.line_rich_menu import RichMenuManager
+    mgr = RichMenuManager(s.line_channel_access_token)
+    ok = await mgr.link_menu_to_user(menu_id, user_id)
+    return {"ok": ok}
+
+
+@router.post("/line/rich-menus/{menu_id}/link-segment", dependencies=[Depends(_require_admin_role)])
+async def line_link_menu_to_segment(menu_id: str, request: Request) -> dict:
+    """Assign a rich menu to all users in a segment. Body: {segment}."""
+    s = request.app.state.bot.settings
+    if not s.line_channel_access_token:
+        raise HTTPException(400, "LINE not configured")
+    body = await request.json()
+    segment = body.get("segment", "")
+    if not segment:
+        raise HTTPException(400, "segment is required")
+
+    mem_store = getattr(request.app.state, "user_memory_store", None)
+    if not mem_store:
+        raise HTTPException(503, "User memory not enabled")
+
+    user_ids = mem_store.get_segment(segment)
+    if not user_ids:
+        return {"ok": True, "linked": 0, "note": "No users in segment"}
+
+    from chatbot.channels.line_rich_menu import RichMenuManager
+    mgr = RichMenuManager(s.line_channel_access_token)
+    result = await mgr.link_menu_to_users(menu_id, user_ids)
+    return {"ok": True, **result}
+
+
+@router.delete("/line/rich-menus/user/{user_id}", dependencies=[Depends(_require_admin_role)])
+async def line_unlink_user_menu(user_id: str, request: Request) -> dict:
+    """Remove per-user rich menu override."""
+    s = request.app.state.bot.settings
+    if not s.line_channel_access_token:
+        raise HTTPException(400, "LINE not configured")
+    from chatbot.channels.line_rich_menu import RichMenuManager
+    mgr = RichMenuManager(s.line_channel_access_token)
+    ok = await mgr.unlink_menu_from_user(user_id)
+    return {"ok": ok}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LINE Login Status
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/line/login-status", dependencies=[Depends(_require_admin_key)])
+def line_login_status(request: Request) -> dict:
+    s = request.app.state.bot.settings
+    return {
+        "enabled": bool(s.line_login_channel_id),
+        "channel_id_set": bool(s.line_login_channel_id),
+        "channel_secret_set": bool(s.line_login_channel_secret),
+    }

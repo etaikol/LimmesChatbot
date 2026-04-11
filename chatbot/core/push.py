@@ -1,5 +1,6 @@
 """
-Push delivery service — delivers admin handoff replies to users in real time.
+Push delivery service — delivers admin handoff replies to users in real time,
+and supports LINE Push API campaign/broadcast messaging.
 
 Session IDs encode the channel: ``line:<userId>``, ``telegram:<chatId>``,
 ``whatsapp:<number>``, ``web_<random>``.  The service parses this prefix,
@@ -12,10 +13,20 @@ then pushes through the appropriate channel API:
 - **Telegram**: ``sendMessage`` Bot API.
 - **WhatsApp**: Twilio REST API ``messages.create``.
 
+Campaign messaging:
+- **LINE Multicast**: Send to up to 500 users at once.
+- **LINE Broadcast**: Send to all followers.
+
 Usage from the admin reply route::
 
     push: PushService = request.app.state.push_service
     await push.deliver(session_id, text)
+
+Campaign usage::
+
+    push: PushService = request.app.state.push_service
+    result = await push.line_multicast(user_ids, messages)
+    result = await push.line_broadcast(messages)
 """
 
 from __future__ import annotations
@@ -186,3 +197,157 @@ class PushService:
             return "whatsapp", session_id[9:]
         # web sessions: web_<hex>
         return "web", session_id
+
+    # ═══════════════════════════════════════════════════════════════════
+    # LINE Campaign Messaging (Push API extensions)
+    # ═══════════════════════════════════════════════════════════════════
+
+    async def line_multicast(
+        self,
+        user_ids: list[str],
+        messages: list[dict],
+    ) -> dict[str, Any]:
+        """Send messages to multiple LINE users (up to 500 per call).
+
+        Parameters
+        ----------
+        user_ids:  List of LINE user IDs (max 500).
+        messages:  List of LINE message objects (max 5).
+
+        Returns dict with success status and details.
+        """
+        token = self.settings.line_channel_access_token
+        if not token:
+            return {"ok": False, "error": "LINE not configured"}
+
+        if not user_ids:
+            return {"ok": False, "error": "No user IDs provided"}
+
+        url = "https://api.line.me/v2/bot/message/multicast"
+        results: list[dict] = []
+
+        # LINE allows max 500 recipients per multicast call
+        for batch_start in range(0, len(user_ids), 500):
+            batch = user_ids[batch_start : batch_start + 500]
+            payload = {
+                "to": batch,
+                "messages": messages[:5],
+            }
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.post(
+                        url,
+                        headers={
+                            "Authorization": f"Bearer {token}",
+                            "Content-Type": "application/json",
+                        },
+                        json=payload,
+                    )
+                    ok = resp.status_code < 400
+                    results.append({
+                        "batch": batch_start // 500 + 1,
+                        "recipients": len(batch),
+                        "ok": ok,
+                        "status": resp.status_code,
+                    })
+                    if not ok:
+                        logger.warning(
+                            "[push] LINE multicast batch {} failed [{}]: {}",
+                            batch_start // 500 + 1,
+                            resp.status_code,
+                            resp.text,
+                        )
+            except httpx.HTTPError as e:
+                results.append({
+                    "batch": batch_start // 500 + 1,
+                    "recipients": len(batch),
+                    "ok": False,
+                    "error": str(e),
+                })
+
+        total_sent = sum(r["recipients"] for r in results if r.get("ok"))
+        logger.info("[push] LINE multicast: {}/{} users", total_sent, len(user_ids))
+        return {
+            "ok": all(r.get("ok") for r in results),
+            "total_recipients": len(user_ids),
+            "sent": total_sent,
+            "batches": results,
+        }
+
+    async def line_broadcast(self, messages: list[dict]) -> dict[str, Any]:
+        """Broadcast messages to ALL LINE followers.
+
+        Parameters
+        ----------
+        messages:  List of LINE message objects (max 5).
+        """
+        token = self.settings.line_channel_access_token
+        if not token:
+            return {"ok": False, "error": "LINE not configured"}
+
+        url = "https://api.line.me/v2/bot/message/broadcast"
+        payload = {"messages": messages[:5]}
+
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                if resp.status_code >= 400:
+                    logger.warning(
+                        "[push] LINE broadcast failed [{}]: {}",
+                        resp.status_code,
+                        resp.text,
+                    )
+                    return {
+                        "ok": False,
+                        "status": resp.status_code,
+                        "error": resp.text,
+                    }
+            logger.info("[push] LINE broadcast sent")
+            return {"ok": True}
+        except httpx.HTTPError as e:
+            logger.warning("[push] LINE broadcast error: {}", e)
+            return {"ok": False, "error": str(e)}
+
+    async def line_push_flex(
+        self, user_id: str, flex_message: dict
+    ) -> bool:
+        """Push a Flex Message to a single LINE user."""
+        token = self.settings.line_channel_access_token
+        if not token:
+            return False
+
+        url = "https://api.line.me/v2/bot/message/push"
+        payload = {
+            "to": user_id,
+            "messages": [flex_message] if isinstance(flex_message, dict) else flex_message[:5],
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                if resp.status_code >= 400:
+                    logger.warning("[push] LINE flex push failed: {}", resp.text)
+                    return False
+            return True
+        except httpx.HTTPError as e:
+            logger.warning("[push] LINE flex push error: {}", e)
+            return False
+
+    async def line_push_imagemap(
+        self, user_id: str, imagemap: dict
+    ) -> bool:
+        """Push an Imagemap message to a single LINE user."""
+        return await self.line_push_flex(user_id, imagemap)
