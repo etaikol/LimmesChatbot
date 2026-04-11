@@ -1366,8 +1366,8 @@ async function loadProducts(){
     document.getElementById('productStats').innerHTML=
       '<div class="card"><div class="card-label">'+t('products.total')+'</div><div class="card-value">'+d.total+'</div></div>'
       +'<div class="card"><div class="card-label">'+t('products.categories')+'</div><div class="card-value">'+cats.length+'</div></div>'
-      +'<div class="card"><div class="card-label">In Stock</div><div class="card-value" style="color:var(--success)">'+inStock+'</div></div>'
-      +'<div class="card"><div class="card-label">Out of Stock</div><div class="card-value" style="color:var(--danger)">'+(d.total-inStock)+'</div></div>';
+      +'<div class="card"><div class="card-label">'+t('products.inStock')+'</div><div class="card-value" style="color:var(--success)">'+inStock+'</div></div>'
+      +'<div class="card"><div class="card-label">'+t('products.outOfStock')+'</div><div class="card-value" style="color:var(--danger)">'+(d.total-inStock)+'</div></div>';
     _renderProductRows();
   }catch(e){toast(e.message,'err')}
 }
