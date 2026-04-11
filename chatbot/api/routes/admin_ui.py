@@ -319,13 +319,13 @@ _HTML_BODY = r"""
     <!-- Today progress bars -->
     <div id="budgetBars"></div>
     <!-- Spend bar chart (last 30 days) -->
-    <div class="card" style="margin-top:20px;padding:20px" id="budgetChartWrap" style="display:none">
+    <div class="card" style="margin-top:20px;padding:20px;display:none" id="budgetChartWrap">
       <div class="card-label" style="margin-bottom:12px">Daily spend — last 30 days (USD)</div>
       <div id="budgetChart" style="display:flex;align-items:flex-end;gap:4px;height:80px;overflow-x:auto"></div>
       <div id="budgetChartLegend" style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted)"></div>
     </div>
     <!-- Full history table -->
-    <div style="margin-top:20px" id="budgetHistoryWrap" style="display:none">
+    <div style="margin-top:20px;display:none" id="budgetHistoryWrap">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span style="font-size:14px;font-weight:600">Spend History</span>
         <div style="display:flex;gap:6px">
