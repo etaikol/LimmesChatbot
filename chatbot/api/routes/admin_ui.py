@@ -1757,9 +1757,19 @@ window.loadUserMemory=async function(){
     var html='';profiles.forEach(function(p){
       var facts=p.facts_count||0;
       var tags=(p.tags||[]).map(function(t){return'<span class="tag tag-on" style="margin:1px">'+esc(t)+'</span>'}).join(' ');
-      html+='<tr><td style="font-size:11px;font-family:monospace">'+esc((p.user_id||'').slice(0,20))+'</td><td>'+esc(p.display_name||'—')+'</td><td>'+facts+'</td><td>'+tags+'</td><td style="font-size:11px">'+new Date(p.last_seen).toLocaleString()+'</td><td><button class="btn btn-ghost btn-sm" onclick="viewUserMemory(\''+esc(p.user_id)+'\')">View</button> <button class="btn btn-danger btn-sm" data-admin-only onclick="deleteUserMemory(\''+esc(p.user_id)+'\')">Delete</button></td></tr>';
+      html+='<tr><td style="font-size:11px;font-family:monospace">'+esc((p.user_id||'').slice(0,20))+'</td><td>'+esc(p.display_name||'—')+'</td><td>'+facts+'</td><td>'+tags+'</td><td style="font-size:11px">'+new Date(p.last_seen).toLocaleString()+'</td><td><button class="btn btn-ghost btn-sm um-view-btn" data-user-id="'+esc(p.user_id||'')+'">View</button> <button class="btn btn-danger btn-sm um-delete-btn" data-admin-only data-user-id="'+esc(p.user_id||'')+'">Delete</button></td></tr>';
     });
     document.getElementById('umRows').innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">No user profiles yet</td></tr>';
+    Array.prototype.forEach.call(document.querySelectorAll('#umRows .um-view-btn'),function(btn){
+      btn.addEventListener('click',function(){
+        viewUserMemory(btn.getAttribute('data-user-id')||'');
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#umRows .um-delete-btn'),function(btn){
+      btn.addEventListener('click',function(){
+        deleteUserMemory(btn.getAttribute('data-user-id')||'');
+      });
+    });
   }catch(e){toast(e.message,'err')}
 };
 window.viewUserMemory=async function(uid){
