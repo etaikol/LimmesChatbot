@@ -187,6 +187,8 @@ class HandoffManager:
                     created_dt = datetime.fromisoformat(created)
                 except (ValueError, TypeError):
                     continue
+                if created_dt.tzinfo is None:
+                    created_dt = created_dt.replace(tzinfo=timezone.utc)
                 if (now - created_dt).total_seconds() > self.TIMEOUT_HOURS * 3600:
                     s["is_active"] = False
                     s["resolved_at"] = now.isoformat()
