@@ -320,21 +320,21 @@ _HTML_BODY = r"""
     <div id="budgetBars"></div>
     <!-- Spend bar chart (last 30 days) -->
     <div class="card" style="margin-top:20px;padding:20px;display:none" id="budgetChartWrap">
-      <div class="card-label" style="margin-bottom:12px">Daily spend — last 30 days (USD)</div>
+      <div class="card-label" style="margin-bottom:12px" data-i18n="budget.chart.dailySpend30dUsd">Daily spend — last 30 days (USD)</div>
       <div id="budgetChart" style="display:flex;align-items:flex-end;gap:4px;height:80px;overflow-x:auto"></div>
       <div id="budgetChartLegend" style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted)"></div>
     </div>
     <!-- Full history table -->
-    <div style="margin-top:20px;display:none" id="budgetHistoryWrap">
+    <div style="margin-top:20px" id="budgetHistoryWrap" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span style="font-size:14px;font-weight:600">Spend History</span>
+        <span style="font-size:14px;font-weight:600" data-i18n="budget.history.title">Spend History</span>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" id="bh7" onclick="filterBudgetHistory(7,this)">7 days</button>
-          <button class="btn btn-ghost btn-sm active" id="bh30" onclick="filterBudgetHistory(30,this)">30 days</button>
-          <button class="btn btn-ghost btn-sm" id="bhAll" onclick="filterBudgetHistory(0,this)">All</button>
+          <button class="btn btn-ghost btn-sm" id="bh7" onclick="filterBudgetHistory(7,this)" data-i18n="budget.history.filter.7days">7 days</button>
+          <button class="btn btn-ghost btn-sm active" id="bh30" onclick="filterBudgetHistory(30,this)" data-i18n="budget.history.filter.30days">30 days</button>
+          <button class="btn btn-ghost btn-sm" id="bhAll" onclick="filterBudgetHistory(0,this)" data-i18n="budget.history.filter.all">All</button>
         </div>
       </div>
-      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Tokens Used</th><th>USD Spent</th><th>% of Daily Cap</th></tr></thead><tbody id="budgetHistoryRows"></tbody></table></div>
+      <div class="tbl-wrap"><table><thead><tr><th data-i18n="budget.history.header.date">Date</th><th data-i18n="budget.history.header.tokensUsed">Tokens Used</th><th data-i18n="budget.history.header.usdSpent">USD Spent</th><th data-i18n="budget.history.header.dailyCapPct">% of Daily Cap</th></tr></thead><tbody id="budgetHistoryRows"></tbody></table></div>
       <div style="text-align:right;font-size:12px;color:var(--muted);margin-top:6px" id="budgetHistoryTotal"></div>
     </div>
   </div>
