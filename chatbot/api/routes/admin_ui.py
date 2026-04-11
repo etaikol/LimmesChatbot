@@ -314,8 +314,29 @@ _HTML_BODY = r"""
       <span data-i18n="page.budget">💰 Budget</span>
       <button class="btn btn-danger btn-sm" data-admin-only onclick="resetBudget()" data-i18n="btn.resetToday">Reset Today</button>
     </div>
+    <!-- Summary cards: today / 7d / 30d -->
     <div class="cards" id="budgetCards"></div>
+    <!-- Today progress bars -->
     <div id="budgetBars"></div>
+    <!-- Spend bar chart (last 30 days) -->
+    <div class="card" style="margin-top:20px;padding:20px" id="budgetChartWrap" style="display:none">
+      <div class="card-label" style="margin-bottom:12px">Daily spend — last 30 days (USD)</div>
+      <div id="budgetChart" style="display:flex;align-items:flex-end;gap:4px;height:80px;overflow-x:auto"></div>
+      <div id="budgetChartLegend" style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted)"></div>
+    </div>
+    <!-- Full history table -->
+    <div style="margin-top:20px" id="budgetHistoryWrap" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:14px;font-weight:600">Spend History</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" id="bh7" onclick="filterBudgetHistory(7,this)">7 days</button>
+          <button class="btn btn-ghost btn-sm active" id="bh30" onclick="filterBudgetHistory(30,this)">30 days</button>
+          <button class="btn btn-ghost btn-sm" id="bhAll" onclick="filterBudgetHistory(0,this)">All</button>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Tokens Used</th><th>USD Spent</th><th>% of Daily Cap</th></tr></thead><tbody id="budgetHistoryRows"></tbody></table></div>
+      <div style="text-align:right;font-size:12px;color:var(--muted);margin-top:6px" id="budgetHistoryTotal"></div>
+    </div>
   </div>
 
   <!-- ═══════ Configuration ═══════ -->
@@ -587,9 +608,7 @@ _HTML_BODY = r"""
   <div class="onb-body" id="onbBody"></div>
   <div class="onb-dots" id="onbDots"></div>
   <div class="onb-btns" id="onbBtns"></div>
-</div>
-
-<div class="toast" id="toast"></div>"""
+</div>"""
 
 # ══════════════════════════════════════════════════════════════════════
 # JS  (the placeholder __LANGS_JSON__ is replaced at render time)
@@ -790,13 +809,100 @@ window.clearAllSessions=async function(){if(!confirm('Clear ALL sessions?'))retu
 
 // ── Budget ────────────────────────────────────────────────────────────
 var _lastBudgetData=null;
+var _budgetHistoryFilter=30;
 function renderBudget(d){
   _lastBudgetData=d;
-  var tc=d.daily_token_cap||1,uc=d.daily_usd_cap||1;
-  var tp=Math.min(100,Math.round(d.tokens_used/tc*100)),up=Math.min(100,Math.round(d.usd_used/uc*100));
-  document.getElementById('budgetCards').innerHTML=card(t('bud.today'),'📅 '+d.day,'')+card(t('bud.model'),d.model,'')+card(t('bud.tokens'),d.tokens_used.toLocaleString(),'/ '+tc.toLocaleString())+card(t('bud.usd'),'$'+d.usd_used.toFixed(4),'/ $'+d.daily_usd_cap.toFixed(2))+card(t('bud.status'),d.enabled?t('bud.enabled'):t('bud.disabled'),'');
-  document.getElementById('budgetBars').innerHTML='<div class="card" style="margin-bottom:16px"><div class="card-label">'+t('bud.token_usage')+' ('+tp+'%)</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div><div class="card"><div class="card-label">'+t('bud.usd_usage')+' ('+up+'%)</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+  var hist=d.history||[];
+  var tc=d.daily_token_cap||0,uc=d.daily_usd_cap||0;
+  var tp=tc?Math.min(100,Math.round(d.tokens_used/tc*100)):0;
+  var up=uc?Math.min(100,Math.round(d.usd_used/uc*100)):0;
+
+  // ── Summary totals ──
+  var sum7=hist.filter(function(r){return daysDiff(r.day,d.day)<=6;});
+  var sum30=hist.filter(function(r){return daysDiff(r.day,d.day)<=29;});
+  var usd7=sum7.reduce(function(a,r){return a+r.usd;},0);
+  var usd30=sum30.reduce(function(a,r){return a+r.usd;},0);
+  var tok7=sum7.reduce(function(a,r){return a+r.tokens;},0);
+  var tok30=sum30.reduce(function(a,r){return a+r.tokens;},0);
+
+  document.getElementById('budgetCards').innerHTML=
+    card('Today','$'+d.usd_used.toFixed(4),'📅 '+d.day)+
+    card('Last 7 days','$'+usd7.toFixed(4),tok7.toLocaleString()+' tokens')+
+    card('Last 30 days','$'+usd30.toFixed(4),tok30.toLocaleString()+' tokens')+
+    card('Model',d.model,d.enabled?'<span class="tag tag-on">Budget ON</span>':'<span class="tag tag-off">No cap</span>');
+
+  // ── Today progress bars ──
+  var bars='';
+  if(tc||uc){
+    if(tc)bars+='<div class="card" style="margin-bottom:12px"><div class="card-label">Token usage today ('+tp+'%) — '+d.tokens_used.toLocaleString()+' / '+tc.toLocaleString()+'</div><div class="progress"><div class="progress-fill" style="width:'+tp+'%;background:'+(tp>80?'var(--danger)':tp>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+    if(uc)bars+='<div class="card" style="margin-bottom:12px"><div class="card-label">USD usage today ('+up+'%) — $'+d.usd_used.toFixed(4)+' / $'+uc.toFixed(2)+'</div><div class="progress"><div class="progress-fill" style="width:'+up+'%;background:'+(up>80?'var(--danger)':up>50?'var(--warn)':'var(--success)')+'"></div></div></div>';
+  }
+  document.getElementById('budgetBars').innerHTML=bars;
+
+  // ── Bar chart ──
+  if(hist.length){
+    document.getElementById('budgetChartWrap').style.display='';
+    var chartDays=hist.slice(0,30);
+    var maxUsd=Math.max.apply(null,chartDays.map(function(r){return r.usd;}));
+    if(maxUsd===0)maxUsd=1;
+    var chartHtml='';
+    chartDays.slice().reverse().forEach(function(row){
+      var pct=Math.max(2,Math.round(row.usd/maxUsd*100));
+      var isToday=row.day===d.day;
+      var col=isToday?'var(--accent)':'var(--bg3)';
+      var label=row.day.slice(5); // MM-DD
+      chartHtml+='<div title="'+row.day+': $'+row.usd.toFixed(4)+'" style="flex:1;min-width:12px;max-width:28px;display:flex;flex-direction:column;align-items:center;gap:3px">'
+        +'<div style="width:100%;background:'+col+';border-radius:3px 3px 0 0;height:'+pct+'px;min-height:2px;transition:height .3s"></div>'
+        +'<div style="font-size:9px;color:var(--muted);white-space:nowrap;transform:rotate(-45deg);transform-origin:top center;margin-top:4px">'+label+'</div>'
+        +'</div>';
+    });
+    document.getElementById('budgetChart').innerHTML=chartHtml;
+    document.getElementById('budgetChartLegend').innerHTML=
+      '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--accent);border-radius:2px;display:inline-block"></span>Today</span>'
+      +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bg3);border-radius:2px;display:inline-block"></span>Previous days</span>';
+  }
+
+  // ── History table ──
+  if(hist.length){
+    document.getElementById('budgetHistoryWrap').style.display='';
+    _renderBudgetHistoryTable(d,hist,_budgetHistoryFilter);
+  }
 }
+
+function daysDiff(dayStr,todayStr){
+  try{return Math.round((new Date(todayStr)-new Date(dayStr))/(1000*60*60*24));}catch(e){return 999;}
+}
+
+function _renderBudgetHistoryTable(d,hist,n){
+  var rows=n?hist.filter(function(r){return daysDiff(r.day,d.day)<n;}):hist;
+  var uc=d.daily_usd_cap||0;
+  var html='';
+  var totalUsd=0,totalTok=0;
+  rows.forEach(function(row){
+    var isToday=row.day===d.day;
+    var capPct=uc?Math.round(row.usd/uc*100):'-';
+    var capCls=typeof capPct==='number'?(capPct>80?'color:var(--danger)':capPct>50?'color:var(--warn)':'color:var(--success)'):'color:var(--muted)';
+    totalUsd+=row.usd; totalTok+=row.tokens;
+    html+='<tr'+(isToday?' style="font-weight:600"':'')+'>'
+      +'<td>'+row.day+(isToday?' <span class="tag tag-on" style="font-size:10px">today</span>':'')+'</td>'
+      +'<td>'+row.tokens.toLocaleString()+'</td>'
+      +'<td>$'+row.usd.toFixed(4)+'</td>'
+      +'<td style="'+capCls+'">'+(typeof capPct==='number'?capPct+'%':'-')+'</td>'
+      +'</tr>';
+  });
+  if(!html)html='<tr><td colspan="4" style="text-align:center;color:var(--muted)">No data for this period</td></tr>';
+  document.getElementById('budgetHistoryRows').innerHTML=html;
+  document.getElementById('budgetHistoryTotal').textContent='Total: $'+totalUsd.toFixed(4)+' across '+rows.length+' day(s), '+totalTok.toLocaleString()+' tokens';
+  // active button state
+  ['bh7','bh30','bhAll'].forEach(function(id){if(document.getElementById(id))document.getElementById(id).classList.remove('active')});
+  var active=n===7?'bh7':n===30?'bh30':'bhAll';
+  if(document.getElementById(active))document.getElementById(active).classList.add('active');
+}
+
+window.filterBudgetHistory=function(n,btn){
+  _budgetHistoryFilter=n;
+  if(_lastBudgetData)_renderBudgetHistoryTable(_lastBudgetData,_lastBudgetData.history||[],n);
+};
 async function loadBudget(){try{var d=await api('/budget');renderBudget(d)}catch(e){toast(e.message,'err')}}
 window.resetBudget=async function(){if(!confirm('Reset budget?'))return;try{await api('/budget/reset',{method:'POST'});toast('Budget reset','ok');loadBudget()}catch(e){toast(e.message,'err')}};
 

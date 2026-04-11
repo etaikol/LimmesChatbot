@@ -170,43 +170,85 @@ class BudgetGuard:
 
         with self._lock:
             day = _today_utc()
-            tokens, usd = self._counters_for(day)
-            self._state["day"] = day
-            self._state["tokens"] = tokens + input_tokens + output_tokens
-            self._state["usd"] = round(usd + cost, 6)
+            self._ensure_day(day)
+            entry = self._state["history"][day]
+            entry["tokens"] = entry["tokens"] + input_tokens + output_tokens
+            entry["usd"] = round(entry["usd"] + cost, 6)
+            self._state["current_day"] = day
+            self._trim_history()
             self._save()
 
     def snapshot(self) -> dict:
         with self._lock:
             day = _today_utc()
-            tokens, usd = self._counters_for(day)
+            self._ensure_day(day)
+            entry = self._state["history"][day]
+            history = [
+                {"day": d, "tokens": v["tokens"], "usd": round(v["usd"], 4)}
+                for d, v in sorted(self._state["history"].items(), reverse=True)
+            ]
             return {
                 "day": day,
-                "tokens_used": tokens,
-                "usd_used": round(usd, 4),
+                "tokens_used": entry["tokens"],
+                "usd_used": round(entry["usd"], 4),
                 "daily_token_cap": self.daily_token_cap,
                 "daily_usd_cap": self.daily_usd_cap,
                 "model": self.model,
                 "enabled": self.enabled,
+                "history": history,
             }
 
     # ── Internals ───────────────────────────────────────────────────────────
 
+    def reset(self) -> None:
+        """Reset today's counters to zero and persist."""
+        with self._lock:
+            day = _today_utc()
+            self._state.setdefault("history", {})[day] = {"tokens": 0, "usd": 0.0}
+            self._state["current_day"] = day
+            self._save()
+
+    def _ensure_day(self, day: str) -> None:
+        """Make sure today's entry exists in history dict."""
+        history = self._state.setdefault("history", {})
+        if day not in history:
+            history[day] = {"tokens": 0, "usd": 0.0}
+        self._state["current_day"] = day
+
+    def _trim_history(self, keep: int = 30) -> None:
+        """Keep only the most recent `keep` days."""
+        history = self._state.get("history", {})
+        if len(history) > keep:
+            for old_day in sorted(history.keys())[:-keep]:
+                del history[old_day]
+
     def _counters_for(self, day: str) -> tuple[int, float]:
-        if self._state.get("day") != day:
-            # Roll over: forget yesterday
-            self._state = {"day": day, "tokens": 0, "usd": 0.0}
-        return int(self._state.get("tokens", 0)), float(self._state.get("usd", 0.0))
+        """Return (tokens, usd) for the given day from the history dict."""
+        self._ensure_day(day)
+        entry = self._state["history"][day]
+        return int(entry.get("tokens", 0)), float(entry.get("usd", 0.0))
 
     def _load(self) -> dict:
         try:
             if self.state_file.exists():
                 data = json.loads(self.state_file.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
+                    # Migrate old format: {"day":..., "tokens":..., "usd":...}
+                    if "history" not in data and "day" in data:
+                        old_day = data.get("day", _today_utc())
+                        data = {
+                            "current_day": old_day,
+                            "history": {
+                                old_day: {
+                                    "tokens": data.get("tokens", 0),
+                                    "usd": data.get("usd", 0.0),
+                                }
+                            },
+                        }
                     return data
         except Exception as e:
             logger.warning("Could not load budget state ({}): {}", self.state_file, e)
-        return {"day": _today_utc(), "tokens": 0, "usd": 0.0}
+        return {"current_day": _today_utc(), "history": {}}
 
     def _save(self) -> None:
         try:
