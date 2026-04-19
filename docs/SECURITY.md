@@ -186,12 +186,4 @@ Before going live:
 
 ## 6. Future Roadmap
 
-| Item                            | Priority | Notes                                                                                       |
-| ------------------------------- | -------- | ------------------------------------------------------------------------------------------- |
-| Redis-backed rate limiter       | High     | Required for multi-instance / horizontal scaling                                            |
-| Per-user authentication         | Medium   | Currently all web users are anonymous; add optional JWT or API-key auth                     |
-| Content filtering on LLM output | Medium   | Catch the model generating unsafe content before it reaches the user                        |
-| Audit trail / structured log    | Medium   | Structured JSON log entries for every chat turn for compliance                              |
-| Encrypted session storage       | Low      | File-based sessions are plaintext; encrypt at rest or use PostgreSQL with column encryption |
-| CSP header for widget           | Low      | Widget is injected into third-party pages; a nonce-based CSP would tighten XSS protection   |
-| IP allowlists for webhooks      | Low      | Twilio/Telegram/LINE publish their egress IPs; allow only those                             |
+Security-specific roadmap items now live in [`FEATURES.md`](FEATURES.md) alongside the rest of the roadmap (Tiers 2 and 3).

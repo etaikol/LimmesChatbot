@@ -1,0 +1,10 @@
+products:
+- id: black-cherry
+  name: Black Cherry
+  name_en: ''
+  category: ''
+  price: '50'
+  image_url: /images/BlackCherry.jpg
+  description: "สายพันธุ์ซาติว่า ราคาถูก \n50 กรัม 2000 บาท"
+  tags: []
+  in_stock: true

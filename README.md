@@ -9,6 +9,8 @@ You: "What time do you open on Friday?"
 Bot: "We're open from 9:00 to 14:00 on Fridays. Anything else I can help with?"
 ```
 
+> **What's built & what's next:** see [`docs/FEATURES.md`](docs/FEATURES.md) — the live capability index with roadmap tiers.
+
 ## What you get
 
 - **RAG over any file**: PDF, TXT, Markdown, HTML, DOCX, CSV, JSON.

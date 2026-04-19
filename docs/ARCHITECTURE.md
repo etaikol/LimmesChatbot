@@ -1,5 +1,9 @@
 # Architecture
 
+> For the full capability index and roadmap, see [`FEATURES.md`](FEATURES.md). This file is the module map + pipeline only.
+>
+> **Note:** advanced modules (analytics, feedback, A/B testing, user memory, handoff, fallback-log, hybrid retriever, LINE login/imagemap, admin auth) are listed in `FEATURES.md` and not yet fully reflected in the table below.
+
 Four ideas:
 
 1. **One engine, many channels.** `Chatbot` is the only place where
