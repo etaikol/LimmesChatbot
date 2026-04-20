@@ -21,6 +21,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from chatbot.api.routes import admin, chat, health, webhooks, widget
 from chatbot.core.contact import ContactStore
@@ -209,6 +210,11 @@ def create_app() -> FastAPI:
             {"detail": exc.user_message},
             status_code=_status_for(exc),
         )
+
+    # ── Static files ──────────────────────────────────────────────────
+    _images_dir = PROJECT_ROOT / "Images"
+    if _images_dir.is_dir():
+        app.mount("/images", StaticFiles(directory=str(_images_dir)), name="images")
 
     # ── Routers ───────────────────────────────────────────────────────
     app.include_router(health.router)

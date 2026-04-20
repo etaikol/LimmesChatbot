@@ -43,6 +43,18 @@ chroma_data/
 .sessions/
 logs/
 conversation_history.json
+.analytics/
+.fallback/
+.feedback/
+.handoff/
+.user_memory/
+.budget/
+
+# Sensitive runtime config (hashed passwords — do not commit)
+config/users.json
+
+# Claude worktrees (git-managed, not regular files)
+.claude/worktrees/
 
 # IDE
 .vscode/

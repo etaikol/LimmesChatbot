@@ -242,49 +242,7 @@ refuse_topics: [politics, religion]
 
 ## 6. What's Built vs What's Left
 
-### Done ✅
-
-| Feature                                          | Status             |
-| ------------------------------------------------ | ------------------ |
-| RAG engine (PDF, MD, TXT, HTML, DOCX, CSV, JSON) | Production-ready   |
-| FastAPI server + REST API                        | Production-ready   |
-| Web widget (glassmorphism, a11y, mobile)         | Production-ready   |
-| 12-language i18n with RTL support                | Production-ready   |
-| Per-language widget greeting                     | Production-ready   |
-| WhatsApp adapter (Twilio HMAC)                   | Ready to configure |
-| Telegram adapter (Bot API)                       | Ready to configure |
-| LINE adapter (HMAC-SHA256)                       | Ready to configure |
-| LINE Flex Messages (product cards, carousels)    | Ready to configure |
-| LINE Rich Menu (CLI setup helper)                | Ready to configure |
-| Rate limiting (IP + session)                     | Production-ready   |
-| Spam / gibberish detection                       | Production-ready   |
-| Daily budget cap (tokens + USD)                  | Production-ready   |
-| Input sanitisation + prompt-injection heuristic  | Production-ready   |
-| Security headers middleware                      | Production-ready   |
-| Docker Compose deployment                        | Production-ready   |
-| CLI chat for testing                             | Production-ready   |
-| File-based session persistence                   | Production-ready   |
-| Admin dashboard (monitoring + config)            | Production-ready   |
-| Admin LINE management (Rich Menu, Flex preview)  | Production-ready   |
-| Admin data files editor (knowledge base)         | Production-ready   |
-| PostgreSQL session backend (opt-in)              | Available          |
-| OpenAI + Anthropic LLM support                   | Available          |
-
-### Future Enhancements 🔮
-
-| Feature                                         | Priority | Notes                                        |
-| ----------------------------------------------- | -------- | -------------------------------------------- |
-| WhatsApp media messages (images, docs)          | High     | Currently text-only                          |
-| LINE Rich Messages / Flex Messages              | Done ✅  | Product cards, carousels, contact cards       |
-| LINE Rich Menu setup helper                     | Done ✅  | CLI + API for menu creation / management      |
-| Telegram inline keyboards                       | Medium   | Quick replies, buttons                       |
-| Redis-backed rate limiter                       | High     | Required for horizontal scaling              |
-| Admin dashboard                                 | Done ✅  | Overview, sessions, budget, config, LINE, data|
-| Webhook retry / queue                           | Medium   | Dead-letter handling for failed deliveries   |
-| Per-user authentication (JWT / API key)         | Medium   | For enterprise deployments                   |
-| Content filtering on LLM output                 | Medium   | Catch unsafe responses before delivery       |
-| Multi-tenant mode (single server, many clients) | Low      | Currently one client per server instance     |
-| Analytics / conversation insights               | Low      | Token usage, popular questions, satisfaction |
+Moved to [`FEATURES.md`](FEATURES.md) — single source of truth for capabilities + roadmap.
 
 ---
 
