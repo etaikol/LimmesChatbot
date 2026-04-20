@@ -1,4 +1,6 @@
-# Project — LimmesChatbot
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Project context for Claude Code. Global preferences live in `~/.claude/CLAUDE.md` (user identity, Hebrew/RTL, skill calibration — don't repeat here). This file covers only what's non-obvious from the code.
 
@@ -17,11 +19,15 @@ Python 3.10+ multi-channel RAG chatbot template. Production-grade, not a toy. Cu
 ## Commands
 
 ```bash
+cp .env.example .env                # first-time setup — fill in API keys
 python -m scripts.serve --reload    # dev server on :8000 (hot reload)
+ACTIVE_CLIENT=limmes python -m scripts.serve --reload  # run a specific client
 python -m scripts.chat              # CLI REPL
 python -m scripts.ingest            # rebuild vector store from data/
 python -m scripts.scrape            # scrape URLs → data/scraped/
-pytest                              # run tests
+pytest                              # run all tests
+pytest tests/test_spam.py -v        # run a single test file
+pytest -k "test_gibberish" -v       # run tests matching a name pattern
 ```
 
 ## Architecture seams — read before editing
@@ -58,6 +64,22 @@ All should be in `.gitignore` (verify when onboarding a new env).
 - `config/users.json` — admin/viewer accounts (PBKDF2 hashes). Created by `chatbot/security/users.py`.
 
 **Never hardcode client content in Python.** If a string is specific to Limmes or Cannabis, it goes in YAML.
+
+## Testing pattern — dependency injection
+
+`Chatbot.__init__` accepts every subsystem as an optional kwarg (`retriever`, `llm`, `memory`, `budget`, `spam_tracker`, `handoff_manager`, etc.). Tests pass lightweight fakes rather than hitting real LLMs or disk:
+
+```python
+bot = Chatbot(
+    profile=some_profile,
+    settings=test_settings,
+    llm=FakeLLM(),
+    memory=SessionStore("memory"),
+    budget=BudgetGuard(..., daily_token_cap=0),  # disabled
+)
+```
+
+This is the established pattern — don't reach for `monkeypatch` or `unittest.mock` when constructor injection does the job.
 
 ## Gotchas
 
